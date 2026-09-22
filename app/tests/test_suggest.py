@@ -230,3 +230,47 @@ class TestRow:
         row = suggestion_row(svc.suggest(SuggestionRequest(name="Nordkap Funding B.V.")))
         assert row["issuer_lei"] is None and row["issuer_country"] is None
         assert row["source"] == "WEB"
+
+
+class TestDeadline:
+    """LOOKUP_DEADLINE_SECONDS: whatever the registers took is gone from the model's time."""
+
+    @staticmethod
+    def _service(register_seconds: float) -> tuple[SuggestionService, StubLlmProvider]:
+        clock = {"now": 100.0}
+
+        class SlowIdentifier(FakeIdentifier):
+            def identify(self, isin: str | None) -> IssuerIdentity:
+                clock["now"] += register_seconds
+                return super().identify(isin)
+
+        base, _, _ = service()
+        stub = StubLlmProvider({"NACE": answer("64"), "ESA": answer("2002703")})
+        svc = SuggestionService(
+            base.codebooks,
+            gatherer=base._gatherer,
+            classifier=LlmClassifier(stub, call_seconds=20.0, clock=lambda: clock["now"]),
+            identifier=SlowIdentifier(BMW_IDENTITY),  # type: ignore[arg-type]
+            deadline_seconds=50.0,
+            clock=lambda: clock["now"],
+        )
+        return svc, stub
+
+    def test_slow_registers_leave_the_rules_proposal_and_start_no_call(self) -> None:
+        """45 s of registers (their worst case is ~46 s): a 20 s call would end at 65 s."""
+        svc, stub = self._service(register_seconds=45.0)
+        suggestion = svc.suggest(SuggestionRequest(isin=ISIN))
+        assert stub.calls == []
+        assert "no time left for the model" in (suggestion.nace.abstain_reason or "")
+        proposal = suggestion.nace_proposal
+        assert proposal is not None and proposal.basis == "rules" and proposal.code == "64"
+
+    def test_typical_registers_leave_time_for_both_calls(self) -> None:
+        svc, stub = self._service(register_seconds=5.0)
+        suggestion = svc.suggest(SuggestionRequest(isin=ISIN))
+        assert len(stub.calls) == 2
+        assert suggestion.nace_proposal is not None
+        assert suggestion.nace_proposal.basis == "model"
+
+    def test_the_default_deadline_leaves_vercel_ten_seconds(self) -> None:
+        assert Settings(_env_file=None).lookup_deadline_seconds == 50.0

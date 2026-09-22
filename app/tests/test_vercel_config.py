@@ -48,6 +48,15 @@ def test_the_duration_cap_fits_every_plan() -> None:
     assert 0 < options["maxDuration"] <= 60
 
 
+def test_the_lookup_deadline_ends_the_model_calls_before_vercel_ends_the_function() -> None:
+    """LOOKUP_DEADLINE_SECONDS must stay below maxDuration, with room to render the page."""
+    from config.settings import Settings
+
+    (options,) = VERCEL["functions"].values()
+    deadline = Settings(_env_file=None).lookup_deadline_seconds
+    assert 0 < deadline <= options["maxDuration"] - 5
+
+
 def test_the_function_runs_in_frankfurt_under_the_fastapi_preset() -> None:
     assert VERCEL["regions"] == ["fra1"]
     assert VERCEL["framework"] == "fastapi"

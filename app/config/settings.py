@@ -265,6 +265,17 @@ class Settings(BaseSettings):
             "few hundred; the cap stops a rambling model being billed for rambling."
         ),
     )
+    lookup_deadline_seconds: float = Field(
+        default=50.0,
+        ge=0,
+        description=(
+            "Seconds after a lookup starts by which every model call must be over: a call "
+            "that could run past it (all its attempts timing out) is not started, and the "
+            "codebook shortlist and the rules' proposal are returned instead. Vercel ends a "
+            "function at maxDuration (60 s in vercel.json), and the registers alone can take "
+            "~46 s in their worst case. 0 = no limit."
+        ),
+    )
     llm_max_suggestions: int = Field(
         default=3, ge=1, le=5, description="Ranked suggestions returned per codebook."
     )

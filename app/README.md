@@ -623,6 +623,9 @@ keeps the files consistent with each other and with the code.
    | `WEB_USER_HEADER` | empty | Vercel passes client headers through; a browser could name itself (E2) |
    | `GLEIF_TIMEOUT_SECONDS`, `OPENFIGI_TIMEOUT_SECONDS` | `5` | with the next row, the worst case (4 GLEIF + 1 OpenFIGI requests) stays under the 60 s cap |
    | `GLEIF_MAX_ATTEMPTS`, `OPENFIGI_MAX_ATTEMPTS` | `2` | |
+   | `LLM_TIMEOUT_SECONDS` | `15` | with the next row one model call takes at most 20 s (5 s to connect, 15 s to answer) |
+   | `LLM_MAX_ATTEMPTS` | `1` | a retry would leave no room for the second call; a failed call abstains and the rules' proposal shows |
+   | `LOOKUP_DEADLINE_SECONDS` | `50` (the default, no need to set it) | no model call is started that could end after 50 s. The registers take ~5 s, so both calls fit (5 + 2 x 20 = 45 s); in their worst case (~46 s, every GLEIF parent request timing out twice) no call starts and the rules' proposal is the answer - under Vercel's 60 s either way |
 
 5. Deployment Protection: previews are protected by Vercel Authentication by default, the
    production URL is not. Until the E2 login exists, protect "All Deployments" (free on every
