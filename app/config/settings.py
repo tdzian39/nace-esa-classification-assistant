@@ -286,12 +286,18 @@ class Settings(BaseSettings):
         ge=0,
         description=(
             "Refuse once this many tokens have been used since midnight UTC. At ~3,400 "
-            "tokens per issuer that is roughly 140 uncached issuers a day. 0 = off."
+            "tokens per issuer that is roughly 140 uncached issuers a day. 0 = off. Needs "
+            "the usage ledger: where none can be kept (Vercel) it must be 0, and the "
+            "spending cap in the provider's dashboard is the backstop."
         ),
     )
     llm_usage_path: Path | None = Field(
         default=APP_ROOT / "data" / "cache" / "llm_usage.sqlite3",
-        description="Usage ledger. Empty disables it AND the daily budget with it.",
+        description=(
+            "Usage ledger (SQLite). Empty switches recording off - and then a positive "
+            "LLM_DAILY_TOKEN_BUDGET refuses every model call, because a cap that cannot be "
+            "measured is not a cap. So an empty ledger goes with LLM_DAILY_TOKEN_BUDGET=0."
+        ),
     )
     llm_cache_path: Path | None = Field(
         default=APP_ROOT / "data" / "cache" / "classifications.sqlite3",

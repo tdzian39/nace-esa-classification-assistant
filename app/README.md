@@ -619,6 +619,7 @@ keeps the files consistent with each other and with the code.
    | `BLOB_READ_WRITE_TOKEN` | the store's token, Sensitive | check it exists after connecting the store; add it by hand if not |
    | `LLM_ENABLED` | `false` | deterministic mode until E9 |
    | `LLM_CACHE_PATH`, `LLM_USAGE_PATH` | empty | only `/tmp` is writable; empty switches both SQLite files off |
+   | `LLM_DAILY_TOKEN_BUDGET` | `0` | with no usage ledger a positive daily cap refuses every model call; the spending cap in the provider's dashboard is the backstop, the per-request and per-run limits stay (decided 23 Sept 2026) |
    | `WEB_USER_HEADER` | empty | Vercel passes client headers through; a browser could name itself (E2) |
    | `GLEIF_TIMEOUT_SECONDS`, `OPENFIGI_TIMEOUT_SECONDS` | `5` | with the next row, the worst case (4 GLEIF + 1 OpenFIGI requests) stays under the 60 s cap |
    | `GLEIF_MAX_ATTEMPTS`, `OPENFIGI_MAX_ATTEMPTS` | `2` | |
