@@ -183,9 +183,9 @@ an indication for developers, not an accuracy figure to quote - so it is genuine
 its own; it just cannot justify its choice or resolve the distinctions that turn on a
 sentence ("holds no banking licence", "not a money market fund").
 
-**NEXT STEP: follow `docs/ROADMAP.md`** - E1's deployment (its code is done in PR #6; creating
-the Vercel project waits for Jakub's go-ahead, D1, and a preview with real data for the four
-codebook files), then E2 (access and audit), E3-E5 (name lookup, structured hints, more sources), E6-E7 (batch,
+**NEXT STEP: follow `docs/ROADMAP.md`** - E1 is deployed (22 Sept 2026: project
+`nace-esa-assistant` on Jakub's Hobby team, behind Vercel Authentication, empty private Blob
+store); upload the four codebook files, check `DE0005140008` end to end, then E2 (access and audit), E3-E5 (name lookup, structured hints, more sources), E6-E7 (batch,
 confirm/history), E8 (real golden set) alongside. Taken so far: PR #1 (ISIN -> GLEIF/OpenFIGI
 identity) and E0.3, the removal of the parked Tool 2 and the unused `pandas` (PR #5). E0 is
 complete: E0.2 (a private repository) was dropped on 22 Sept 2026 - the repository stays

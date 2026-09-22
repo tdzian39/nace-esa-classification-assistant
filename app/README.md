@@ -635,7 +635,9 @@ xlsx files: the builder bundles whatever is on disk.
 
 **Check it:** `/health` shows `codebooks.state` `loaded`, the version and `region: fra1`;
 `/probe` shows every register `ok`. A codebook problem - a missing token, a file not uploaded -
-is a 503 on `/health` with the reason.
+is a 503 on `/health` with the reason. Behind Vercel Authentication, check from a linked checkout
+with `vercel curl /health` or `vercel curl "/probe?format=json&set=all"`: it handles the protection
+bypass. (`vercel link` writes a short-lived token to `.env.local`; Vercel never uploads that file.)
 
 **Update the codebooks:** upload with `--allow-overwrite` (or to a new prefix and set
 `CODEBOOK_BLOB_PREFIX`), wait a minute - the store's CDN can serve the old file for up to 60 s -

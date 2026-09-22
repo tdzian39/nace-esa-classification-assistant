@@ -23,6 +23,7 @@ picking up. Then run the tests (§8) before changing anything.
 | 2026-09-22 | DWS access is not granted for this project (from `CLAUDE.md`); irrelevant to Tool 1, which never touched it. | bank |
 | 2026-09-22 | Issuer identification by ISIN (GLEIF + OpenFIGI) added in PR #1; the pattern for every further source: public, keyless, fail-soft, trimmed live payloads as test fixtures. | Jakub / Claude |
 | 2026-09-22 | **D2 — the repository stays public.** E0.2 (make it private) is dropped and E1 no longer waits for it. The rule "nothing bank-internal in git" stays, so the codebooks live only in a private Vercel Blob store — which settles **D3 as Blob** (the CSV option needed a private repo). | Jakub |
+| 2026-09-22 | **D1 confirmed — Hobby for now.** The project `nace-esa-assistant` lives in Jakub's personal Hobby team (its terms are personal, non-commercial use; Pro is the upgrade path). | Jakub |
 | 2026-09-22 | **D1 — there is a Vercel account.** Claude looks up its team and plan and confirms them with Jakub before creating the project. The plan sets `maxDuration` (Hobby 60 s, Pro 300 s). | Jakub |
 | 2026-09-22 | **D5 / Q-A1 — no Entra ID app registration.** The E2.1 shared-password gate with a self-declared name becomes the permanent login. E2 keeps the untrusted-header rule and audit persistence; E2.2 (OIDC) and Q-A1 are dropped. | Jakub |
 | 2026-09-22 | **D6 — no data-classification sign-off is needed**; E1 go-live is not gated on it. The §4 data-flow list stays as documentation. | Jakub |
@@ -73,7 +74,13 @@ not an oracle: **a human confirms every code**.
   `main` from the start (the lesson of #2), so until #5 merges its diff also shows #5's commits; merge #5
   first.
 
-### Where the next session starts: E1
+### Where the next session starts: E1's codebooks, then E2 and E8
+
+**E1 is deployed** (22 Sept 2026, see E1 below): `nace-esa-assistant` in Jakub's Hobby team, production behind
+Vercel Authentication, the private Blob store connected and empty, so `/health` says which file is missing. The
+next step is uploading the four codebook files (`app/README.md` → "Deploying on Vercel" → step 3), then checking
+`DE0005140008` end to end and measuring the cold start with codebooks. Then E2 (the login), with E8 alongside.
+
 
 E0.3 is done in PR #5. It deleted the twelve Tool 2 files — `core/sources/{dws,ares,resolver,__main__}.py`
 and `core/batch/{runner,__main__}.py` (1 829 lines) and their six test modules (1 270 lines) — cut
@@ -330,10 +337,18 @@ codebooks: loaded at startup in 46 ms; `DE0005140008` → Deutsche Bank via GLEI
 `/health`, the API, the page and the download answer 503 with the reason and the empty form still opens.
 **DoD:** preview deployment renders `DE0005140008` with LEI, facts, both shortlists and CTS IDs; `/health` and
 `/probe` answer; cold-start time measured and written here; the Dockerfile still builds for local use.
-**Status:** code, tests (1050 passed / 16 skipped) and docs done in PR #6; the deployment and the cold-start
-measurement wait for the Vercel project (D1) and the codebook files.
-**Depends on:** no epic (E0.2 was dropped, D2). Before the Vercel project is created: Jakub's confirmation of
-the team and plan (D1). Before a preview with real data: the four codebook files from the repository owner.
+**Deployed 22 Sept 2026** (from a clean checkout of PR #6 with the Vercel CLI) to production,
+`https://nace-esa-assistant.vercel.app`, behind Vercel Authentication: build and deploy 21 s; Python 3.12.14,
+region `fra1`, entrypoint `api/main.py`, the source copy of the app imported (`/var/task/config/settings.py`);
+`/probe?set=all` from `fra1`: all six hosts `ok` in 1.7 s; `/health` 503 "codebooks/CTS_BA0036_NEW.xlsx is not
+in the Blob store" — the store was reached with the connected token and is still empty, exactly as designed;
+cold start about 1 s without codebooks. Protected deployments are checked with `vercel curl <path>` from a
+linked checkout (it handles the protection bypass).
+**Status:** code, tests (1050 passed / 16 skipped), docs and the deployment done; the DoD's last two items -
+`DE0005140008` end to end with CTS IDs, and the cold start with codebooks - wait for the four codebook files.
+**Depends on:** no epic (E0.2 was dropped, D2); D1 confirmed. Before real data: the four codebook files from the
+repository owner (perhaps in `tdzian39/rb_files`, where Jakub has a pending invite), uploaded with
+`vercel blob put` as in `app/README.md`.
 
 ### E2 — Access and audit on Vercel (M)
 
@@ -526,8 +541,10 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
   protection; Pro gives 300 s, Log Drains, more concurrency), region (`fra1` Frankfurt). *Needed by E1.*
   **Answer:** 2026-09-22 — there is a Vercel account (Jakub); its team and plan are confirmed with Jakub before
   the project is created, and the plan sets `maxDuration` (Jakub: Hobby 60 s, Pro 300 s). Looked up through the
-  Vercel API the same day: Jakub's personal team `10930795-6863s-projects`, plan **Hobby** — awaiting his
-  confirmation. Checked against the Vercel docs on 22 Sept 2026: 60 s / 300 s are the limits *without* Fluid
+  Vercel API the same day: Jakub's personal Vercel team, plan **Hobby**; **confirmed the same evening: use
+  Hobby for now (Jakub)**, knowing its terms (below). Project `nace-esa-assistant` created then — Root Directory
+  `app`, FastAPI preset, `fra1`, Vercel Authentication on all deployments — with the private Blob store
+  `nace-esa-codebooks` (`fra1`) connected, which put `BLOB_READ_WRITE_TOKEN` into every environment. Checked against the Vercel docs on 22 Sept 2026: 60 s / 300 s are the limits *without* Fluid
   compute; Fluid is on by default for new projects and allows 300 s on Hobby and 800 s on Pro, so E1 sets
   `maxDuration` to 60 s explicitly, which is valid on every plan. Also verified: the Hobby plan is for
   personal, non-commercial use only (Vercel fair-use guidelines), and Pro is $20 per month per deploying seat.
