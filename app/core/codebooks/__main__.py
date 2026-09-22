@@ -29,7 +29,7 @@ def _build_parser() -> argparse.ArgumentParser:
     """Argument parser for ``--dir``, ``--no-strict`` and ``--json``."""
     parser = argparse.ArgumentParser(
         prog="python -m core.codebooks",
-        description="Load the four bootstrap xlsx codebooks and run the startup consistency check.",
+        description="Load the four xlsx codebooks and run the startup consistency check.",
     )
     parser.add_argument(
         "--dir",

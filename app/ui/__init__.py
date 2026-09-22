@@ -1,4 +1,5 @@
-"""Server-rendered UI (build step 4). Not implemented yet.
+"""Server-rendered UI: Jinja2 + htmx only, no JS framework.
 
-Jinja2 + htmx only, no JS framework. Single lookup page and batch upload/download page.
+``templates/suggest.html`` is the suggester page, generated from ``prototype/suggest.html``
+(the approved reference - keep the two in step).
 """

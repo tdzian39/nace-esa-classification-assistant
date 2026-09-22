@@ -1,4 +1,4 @@
-# Bootstrap codebooks
+# Codebooks
 
 Place the four xlsx codebooks here (file names are configurable in `app/.env`):
 
@@ -9,8 +9,8 @@ Place the four xlsx codebooks here (file names are configurable in `app/.env`):
 | `CTS_OKEC_NACE2.xlsx` | `ID` (CTS ID), `VALUE` (first 2 chars of NACE), `DESCRIPTION` | CTS codebook for 2-digit NACE |
 | `NACE_STAT.xlsx` | `NACE` (2-digit), `Zkrtext`, `Text` | NACE labels; multiple rows per 2-digit code |
 
-These files are bank-internal and are ignored by git. They bootstrap development only;
-at runtime the DWS tables `OKEC_NACE2` and `BA0036` are the source of truth (build step 2+).
+These files are bank-internal and are ignored by git. They are the codebook source today;
+another source can replace the xlsx later without touching the models.
 
 Verify them with (from the `app/` directory):
 

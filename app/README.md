@@ -2,15 +2,15 @@
 
 **Since 22 September 2026 this repository is Tool 1 only, deploys to Vercel and keeps the
 LLM off until an endpoint is approved** - the plan is in [`../docs/ROADMAP.md`](../docs/ROADMAP.md).
-Tool 2 is built elsewhere; its code here is parked until the roadmap's E0 removes it.
+Tool 2 is built elsewhere; its code was removed from this repository in PR #5 (roadmap E0.3).
 
 Originally two internal tools sharing one codebase, for Middle Office treasury and Reporting:
 
 - **Tool 1 – ESA/NACE suggester for foreign issuers.** From an ISIN, issuer name and/or
   activity description, suggest a 2-digit NACE code and an elementary ESA 2010 sector
   code together with their CTS codebook IDs, top 3 candidates each, with evidence.
-- **Tool 2 – RES/OR lookup for client corrections.** For a list of Czech companies (name
-  or IČO) return one row per company with RES and OR fields side by side, exported as xlsx.
+- **Tool 2 – RES/OR lookup for client corrections** (Czech companies by name or IČO, RES
+  and OR fields side by side). It now lives in `jaeksrampota/res-or-lookup`.
 
 The full project brief, data-source priorities and hard rules live in `../CLAUDE.md`.
 This README describes what exists, how it is laid out and how to run it.
@@ -21,9 +21,10 @@ This README describes what exists, how it is laid out and how to run it.
 codebook to about a dozen candidates, each with its CTS ID resolved, and a human picks. The
 page and the xlsx both carry that shortlist; the panel says plainly that no code was chosen.
 
-Measured on the (still provisional) golden cases, the deterministic top pick is correct **90%**
-of the time for NACE and **60%** for ESA - useful on its own, but unable to explain itself or
-to resolve distinctions that turn on a sentence.
+On the ten fictional, provisional golden cases the deterministic top pick was right 90% of the
+time for NACE and 60% for ESA - an indication, not an accuracy figure: no accuracy is quoted
+until cases have been checked against CTS (roadmap E8). Useful on its own, but unable to
+explain itself or to resolve distinctions that turn on a sentence.
 
 **An ISIN is now enough to start.** GLEIF resolves it to the issuer's LEI record (legal
 name, country, legal form, entity category, direct and ultimate parent) and OpenFIGI to the
@@ -31,20 +32,21 @@ instrument (market name, security type, market sector); both are public and keyl
 legal name becomes the web query and the facts go into the shortlist and the prompt, so a
 bank is a bank because the register says so. See "Tool 1: issuer identification by ISIN".
 
-**Next step: enable the OpenAI API.** The classifier, prompts, cache and spending limits are
-built and tested against a stub; see "Enabling the model" below.
+**Next step: roadmap E1 - deploy this deterministic mode on Vercel.** Enabling the OpenAI
+API is deferred (E9): the classifier, prompts, cache and spending limits are built and tested
+against a stub; see "Enabling the model" below.
 
 
-Build steps 1-3 are complete. Steps 4-6 are scaffolded as docstring-only packages.
+The original build steps are history now; the plan from here is the roadmap's epics.
 
 | Step | Scope | Status |
 |---|---|---|
 | 1 | Codebook loaders + versioning + startup consistency check; IČO/ISIN identifiers; settings | **done** |
-| 2 | DWS adapter (`sources/dws.py`), ARES fallback, resolver, audit log, Tool 2 via CLI | **done** |
-| 3 | Batch xlsx in/out with messy-input tolerance (`core/batch`, `core/export`) | **done** |
+| 2 | Audit log; the DWS adapter, ARES fallback, resolver and CLI of this step were Tool 2's | audit **done**; the rest removed in PR #5 |
+| 3 | Batch xlsx in/out with messy-input tolerance (`core/batch`, `core/export`) | reader and writer **done**; the Tool 2 batch runner removed in PR #5 |
 | 4 | Single-lookup API + server-rendered UI (Jinja2 + htmx) | **done** (Tool 1) |
-| 5 | Deterministic classifier: RES ESA sector -> BA0036 ID, RES 2-digit NACE -> OKEC_NACE2 ID | pending |
-| 6 | LLM classifier for foreign issuers (structured selection from a candidate list) | pending |
+| 5 | Deterministic classifier: RES ESA sector -> BA0036 ID, RES 2-digit NACE -> OKEC_NACE2 ID | dropped with Tool 2; roadmap E4 adds a rule table for foreign issuers |
+| 6 | LLM classifier for foreign issuers (structured selection from a candidate list) | built, tested against a stub, **off** until E9 |
 
 Work stops after each step: tests run, the state is summarised, and the next step waits
 for an explicit go-ahead.
@@ -56,25 +58,26 @@ Everything lives under `app/` (mounted as `/app` in the container later).
 ```
 app/
   core/
-    identifiers/    ico.py (normalize to 8 digits, mod-11 check), isin.py (format + Luhn)   [step 1]
+    identifiers/    ico.py (8 digits, mod-11; for batch/reader.py), isin.py (format + Luhn) [step 1]
     codebooks/      xlsx reader, loaders, models, versioning, consistency check, CLI       [step 1]
-    sources/        base.py, dws.py, ares.py, resolver.py, CLI                              [step 2]
+    sources/        base.py (Source, Provenance, the Source*Error classes)                  [step 2]
                     web.py (foreign-issuer evidence, blocklist enforced)                    [step 6]
                     gleif.py, openfigi.py, identity.py (ISIN -> issuer, public registers)   [step 6]
     audit.py        lookup audit trail (identifier, timestamp, user)                       [step 2]
     classify/       candidates.py + hints.py + text.py (pre-filter), golden.py, CLI          [step 6]
                     prompts.py, provider.py, llm.py, cache.py (the model call)               [step 6]
-    export/         columns.py (the row contract), xlsx.py (Subjects + Run sheets)          [step 3]
-    batch/          reader.py (messy xlsx in), runner.py, CLI                               [step 3]
+    export/         columns.py (the suggestion row), xlsx.py (Subjects + Run sheets)        [step 3]
+    batch/          reader.py (messy xlsx in; roadmap E6 reuses it)                         [step 3]
   api/              FastAPI: GET /, POST /suggest, POST /api/suggest, /suggest.xlsx         [step 4]
   ui/               templates/suggest.html (generated from prototype/suggest.html)          [step 4]
-  config/           settings.py (pydantic-settings), .env.example
-  data/codebooks/   the four bootstrap xlsx files (git-ignored, bank-internal)
+  config/           settings.py (pydantic-settings)
+  .env.example      the settings with their defaults; copy to .env (git-ignored)
+  data/codebooks/   the four xlsx codebooks (git-ignored, bank-internal)
   tests/
     identifiers/    unit tests for IČO and ISIN
     codebooks/      unit tests with synthetic xlsx fixtures + real-file smoke test
-    sources/        source tests: mocked ARES transport, fake DWS driver                     [step 2]
-    fixtures/       verified IČO -> expected output                                          [step 3+]
+    sources/        source tests: GLEIF, OpenFIGI and web through mocked httpx transports   [step 6]
+    fixtures/       reserved for recorded payloads (nothing yet)
     golden/         verified issuer name/description -> expected NACE/ESA                    [step 6]
   README.md
   pyproject.toml
@@ -108,11 +111,13 @@ Run the tests from `app/`:
 python -m pytest -q
 ```
 
-All four real codebooks are present on this machine and load with 0 errors
-(version `cb-3b12e64837840ca0`), so the whole suite runs with no skips. The real-file
-smoke test (`tests/codebooks/test_codebooks_real_files.py`) still skips
-automatically when the xlsx files are absent; every other test builds its own xlsx
-fixtures in a temporary directory.
+Without the real codebooks (a fresh clone: they are bank-internal and git-ignored) the
+suite reports **963 passed, 16 skipped**. The skips are the tests that need the four real
+xlsx files - the real-file smoke test (`tests/codebooks/test_codebooks_real_files.py`),
+the real-recall and most of the cost tests in `tests/classify/` - and they run on a machine
+that has them, where all four load with 0 errors (version `cb-3b12e64837840ca0`). Every
+other test builds its own codebooks: synthetic xlsx files in a temporary directory, or
+codebook models in memory.
 
 ## Configuration
 
@@ -129,22 +134,10 @@ working directory. Connection details are never hardcoded.
 | `CODEBOOK_NACE_STAT_FILE` | `NACE_STAT.xlsx` | NACE labels, several rows per code |
 | `CODEBOOK_VERSION_LABEL` | empty | Optional label appended to the computed version |
 | `LOG_LEVEL` | `INFO` | Logging level |
-
-### Step 2 variables
-
-| Variable | Default | Meaning |
-|---|---|---|
-| `DWS_DSN` | empty | ODBC DSN / connection string of the read-only account. **Empty disables DWS**, and every lookup falls back to ARES |
-| `DWS_USER`, `DWS_PASSWORD` | empty | Read-only credentials; the password is a `SecretStr` and is never logged |
-| `DWS_SCHEMA` | empty | Schema qualifying the DWS objects |
-| `DWS_TIMEOUT_SECONDS` | `30` | Per-query timeout |
-| `ARES_ENABLED` | `true` | Query the public ARES API for IČOs DWS does not have |
-| `ARES_BASE_URL` | `https://ares.gov.cz` | Base URL of the public API |
-| `ARES_TIMEOUT_SECONDS` | `15` | HTTP timeout per request |
-| `ARES_MIN_INTERVAL_SECONDS` | `0.25` | Minimum delay between two ARES requests (see below) |
-| `ARES_MAX_ATTEMPTS` | `3` | Attempts per request, including the first |
-| `ARES_USER_AGENT` | internal tool string | Sent so the API operator can identify the caller |
 | `LOOKUP_USER` | OS login name | Requesting user written to the audit log |
+
+The `DWS_*` and `ARES_*` variables went with Tool 2 (PR #5); an old `app/.env` that still
+sets them loads fine, because unknown variables are ignored.
 
 ### Issuer identification variables (GLEIF, OpenFIGI)
 
@@ -166,7 +159,9 @@ working directory. Connection details are never hardcoded.
 Both registers use `WEB_USER_AGENT`. Hosts the runtime must be allowed to reach:
 `api.gleif.org` and `api.openfigi.com` (HTTPS, port 443).
 
-The LLM variables remain commented placeholders in `.env.example` for step 6.
+The model variables (`LLM_*`) are live entries in `.env.example` with their defaults; only
+`LLM_API_KEY` is commented out, and that is what keeps the tool deterministic until roadmap
+E9 (see "Enabling the model").
 
 ## Codebooks (`core/codebooks`)
 
@@ -194,7 +189,7 @@ raises `CodebookSchemaError` listing the headers it found when a required column
 - **NACE** is kept in full everywhere in the data. The single truncation point is
   `nace_to_division()`, called only by `CodebookSet.cts_id_for_nace()`; `62.01`, `6201`,
   `62` and the integer `62` all resolve to division `62`. An integer such as `111` is
-  inherently ambiguous once a leading zero has been lost; RES/DWS values are expected to
+  inherently ambiguous once a leading zero has been lost; NACE values are expected to
   arrive as text with their zeros intact.
 - **CTS IDs** are opaque text and are never altered (leading zeros are kept).
 
@@ -213,8 +208,10 @@ Both raise `MalformedCodeError` for input that is not a code at all.
 ### Startup consistency check
 
 `load_and_check()` loads the four files, fingerprints them, runs `check_consistency()` and
-raises `CodebookConsistencyError` (carrying the report) when any error is present. The
-FastAPI startup hook (step 4) will call it; today the CLI does.
+raises `CodebookConsistencyError` (carrying the report) when any error is present, or returns
+the report when called with `strict=False`. The FastAPI startup (`lifespan` in `api/main.py`)
+calls it that way and refuses to start on any error; `python -m core.codebooks` runs the same
+check on demand.
 
 | Code | Severity | Meaning |
 |---|---|---|
@@ -239,98 +236,60 @@ SHA-256 over the four file hashes (derived from file bytes, so independent of pa
 modification time; note that re-saving an xlsx in Excel changes its bytes and therefore
 the id even when no cell changed), optionally suffixed with `+<label>`; `loaded_at` is a
 timezone-aware UTC timestamp; `files` lists each file's name, path, SHA-256, size, mtime
-and row count. Output rows in later steps carry `version.id` as their `codebook_version`.
-When the DWS tables replace the xlsx files, the version should be computed over the
+and row count. Every suggestion row carries `version.id` as its `codebook_version`.
+If another source ever replaces the xlsx files, the version should be computed over the
 normalised rows instead.
 
 ## Identifiers (`core/identifiers`)
 
-- `normalize_ico(value)` accepts text, integers and floats as they come out of Excel or
-  pandas: whitespace (including non-breaking spaces) is removed, `1350.0` and `1.35E3`-style
+- `normalize_ico(value)` accepts text, integers and floats as they come out of Excel:
+  whitespace (including non-breaking spaces) is removed, `1350.0` and `1.35E3`-style
   artefacts are resolved exactly, the result is zero-padded to 8 digits (more than 8 digits,
   including surplus leading zeros, is rejected as `too_long`) and validated with
   the mod-11 checksum (weights 8..2, check digit `(11 - sum mod 11) mod 10`). Failures raise
   `InvalidIcoError` with a machine-readable `reason`. A `CZ`-prefixed DIČ is rejected unless
-  `allow_dic_prefix=True`. `is_valid_ico()` and `try_normalize_ico()` never raise.
+  `allow_dic_prefix=True`. `is_valid_ico()` and `try_normalize_ico()` never raise. The
+  suggester never sees an IČO: this half serves the batch reader (`core/batch/reader.py`),
+  which recognises IČO columns until roadmap E6 generalises it to ISIN and name columns.
 - `normalize_isin(value)` uppercases, strips whitespace, checks the ISO 6166 layout
   (`^[A-Z]{2}[A-Z0-9]{9}[0-9]$`) and the Luhn checksum over the letter-expanded string.
   `isin_country_code()` returns the two-letter prefix. For both identifiers any non-string,
-  non-numeric input (including a pandas NaN blank) is `unsupported_type`; callers turn blanks
-  into `None` first.
+  non-numeric input is `unsupported_type`, and a NaN standing for a blank cell is refused
+  (`unsupported_type` for the ISIN, `nan` for the IČO); callers turn blanks into `None` first.
 
 ## Data sources (`core/sources`)
 
 ### Priority and what a miss means
 
-`SubjectResolver` asks DWS first and ARES only afterwards. The distinction that makes the
-fallback trustworthy:
+For an ISIN, `IssuerIdentifier` asks GLEIF first and OpenFIGI second; the web then supplies
+the activity description, unless the user typed one, which wins. The "Tool 1" sections on
+issuer identification and web evidence below describe them. The distinction that makes all
+of them trustworthy:
 
-- a source returning `None` means **the register does not hold this subject** - a fact;
+- a source returning `None` means **the register does not hold this issuer** - a fact;
 - a source raising `SourceUnavailableError` means **we could not ask** - not a fact.
 
-So a warehouse outage never turns into "not registered": the resolver records the outage,
-falls through to ARES, and reports `status="error"` only when every source failed. A partial
-DWS hit (RES row but no OR row) is completed from ARES and the halves keep their own
-provenance, so a row can legitimately read `DWS+ARES_LIVE`.
+So a register outage never turns into "not registered": `IssuerIdentifier` records it as a
+note and keeps whatever the other register answered. The row's `source` names the registers
+that answered - even when the answer was "nothing" - and then `WEB`: `GLEIF+OPENFIGI+WEB`
+for an ISIN lookup, `OPENFIGI+WEB` when GLEIF could not be asked, plain `WEB` for a name.
 
-### The record model (`base.py`)
+### Provenance and errors (`base.py`)
 
-One subject is two independent halves kept side by side, plus provenance:
+`base.py` holds only what every source shares:
 
-- `ResRecord` - name, `nace` (a **list** of `NaceAssignment`, never a single field, both
-  revisions distinguished by `revision`), `esa_sector` (canonical `S.12203`), `founded_on`.
-- `OrRecord` - obchodní firma, předmět podnikání, předmět činnosti, datum vzniku a zápisu.
-- `Provenance` - source, `retrieved_at`, `snapshot_at`; `timestamp` is the snapshot when the
-  source states one, otherwise the retrieval time.
+- `Source` - the stamp on every record: `GLEIF`, `OPENFIGI` or `WEB`.
+- `Provenance` - source, `retrieved_at`, `snapshot_at` (GLEIF fills it from the record's
+  `lastUpdateDate`), `detail`; `timestamp` is the snapshot when the source states one,
+  otherwise the retrieval time.
+- `SourceError` and its subclasses: `SourceUnavailableError` (could not ask - network error,
+  timeout, 5xx, or 429 once retries are spent), `SourceResponseError` (answered, but not
+  understandably) and `SourceQueryError` (refused by the adapter before sending; nothing
+  raises it today).
 
-`nace_mismatch` compares the prevailing Rev. 2 and Rev. 2.1 codes on digits only, so `64.19`
-and `6419` are equal. It returns **`None`, not `False`, when either revision is missing**:
-"cannot tell" is a different answer from "they agree" and a reviewer must see the difference.
-
-Full NACE codes are stored verbatim with leading zeros intact. Nothing in this package
-truncates to a division; that still happens only in `CodebookSet.cts_id_for_nace()`.
-
-### DWS adapter (`dws.py`)
-
-The only module in the application containing SQL. Read-only by construction:
-
-- every statement is a literal built from the `TABLES` / `COLUMNS_*` maps, never from caller
-  input - the IČO always travels as a bind parameter;
-- `ensure_read_only()` refuses anything that is not a single `SELECT`/`WITH`, so a later edit
-  cannot smuggle in a write;
-- the account itself is read-only.
-
-**Every table and column name is a placeholder** marked `TODO(dws-schema)` and gathered in
-those maps. Correcting them once the warehouse team confirms the schema is an edit of the
-dictionaries, not of the query logic. The same applies to `REVISION_VALUES` (how the NACE
-table spells a revision) and `ACTIVITY_KINDS`. A row whose revision is not recognised is
-skipped with a warning rather than guessed at, because filing a code under the wrong revision
-would corrupt `nace_mismatch`.
-
-The ODBC driver is imported lazily, so the package installs and the tests run on a machine
-with no driver at all. `pyodbc` is deliberately not yet a dependency - add it once the
-confirmed driver is known.
-
-### ARES fallback (`ares.py`)
-
-Endpoints verified against the live API on 2026-09-22 (IČO 49240901):
-
-| Endpoint | Gives |
-|---|---|
-| `/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/{ico}` | the RES half: `czNace2008`/`czNacePrevazujici2008` (Rev. 2), `czNace`/`czNacePrevazujici` (Rev. 2.1), `statistickeUdaje.institucionalniSektor2010` (the ESA sector, digits only), `datumVzniku`, `datumAktualizace` |
-| `/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-vr/{ico}` | the OR half: `obchodniJmeno[]`, `cinnosti.predmetPodnikani[]`, `cinnosti.predmetCinnosti[]`, `datumZapisu`, `spisovaZnacka[]` |
-| `POST .../ekonomicke-subjekty/vyhledat` | name search - **not verified**, marked TODO in the module |
-
-Details that matter:
-
-- VR list entries carrying `datumVymazu` are historical and are dropped, so a review row
-  never shows a deleted trade name or a withdrawn activity.
-- The ESA sector is normalised through the codebook normaliser to `S.xxxxx`; an unparseable
-  value is dropped with a warning rather than passed on.
-- Rows are stamped `ARES_LIVE`.
-- **Throttling**: ARES starts timing out on back-to-back requests (observed while building
-  this adapter), so requests are spaced by `ARES_MIN_INTERVAL_SECONDS` and transient failures
-  (timeout, connection error, 5xx) are retried with linear backoff. A 4xx is not retried.
+The issuer records themselves live with their adapters: `LeiRecord` in `gleif.py`,
+`FigiInstrument` in `openfigi.py`, `IssuerIdentity` in `identity.py` and `IssuerEvidence`
+in `web.py`.
 
 ### Audit trail (`core/audit.py`)
 
@@ -340,38 +299,11 @@ user, sources consulted and outcome - as a message and as structured fields in
 the question and the outcome, never the answer, so it can be kept and shipped without
 carrying client data.
 
-### Tool 2 from the command line
-
-```bash
-python -m core.sources 49240901                   # one subject
-python -m core.sources --file icos.txt --json     # a list, machine-readable
-python -m core.sources 49240901 --no-dws          # force the public fallback
-```
-
-Identifiers may be IČOs or names, mixed. An all-digit query with a bad check digit is
-rejected as `invalid_input` rather than searched as a company name, so a typo surfaces
-instead of silently returning nothing. A name matching several subjects returns
-`ambiguous` with the candidates listed; nothing is guessed. `--file` tolerates a UTF-8 BOM,
-blank lines and `#` comments.
-
-Output carries the three attribution fields required of every row (`source`, `timestamp`,
-`codebook_version`) and prefixes the halves `RES_` / `OR_`, matching the xlsx export of
-step 3. A missing codebook does not block a lookup - the row simply carries no codebook
-version, since codebooks are needed to emit CTS IDs (step 5), not to read a register.
-
-Exit codes: `0` every identifier resolved, `1` at least one was not found / ambiguous /
-invalid, `2` nothing could be asked at all.
-
 ## Batch xlsx in/out (`core/batch`, `core/export`)
 
-```bash
-python -m core.batch klienti.xlsx                      # -> klienti_lookup.xlsx beside it
-python -m core.batch klienti.xlsx -o kontrola.xlsx --sheet "Flagged"
-python -m core.batch klienti.xlsx --no-dws --no-echo-input
-```
-
-Exit codes: `0` every row resolved, `1` some rows need a human, `2` the batch could not run
-(unreadable input, no source configured, or every row failed).
+Two halves outlived the Tool 2 batch runner (removed in PR #5): the reader, which roadmap
+E6 reuses for the Tool 1 batch and which nothing in the app calls yet, and the writer behind
+the Tool 1 download (`GET /suggest.xlsx`).
 
 ### Reading input nobody cleaned up
 
@@ -383,37 +315,38 @@ accepts a suffix (`IČO klienta (RES)`).
 
 Two decisions worth knowing:
 
-- **A malformed IČO is never silently replaced by the name column.** The row is looked up as
-  given and comes back `invalid_input` with the reason. Falling back to the name would return
-  data for a *different* company than the sheet names - the one error a reviewer could not
-  catch.
-- **When no header is recognised, row 1 is kept as data.** A stray junk row surfaces as
-  `invalid_input`; discarding a row that turned out to hold a real company would be silent
-  data loss.
+- **A malformed IČO is never silently replaced by the name column.** The row keeps the IČO
+  as its identifier, with a note saying so, so the error surfaces wherever the rows are
+  looked up (nothing looks them up until E6). Falling back to the name would return data
+  for a *different* company than the sheet names - the one error a reviewer could not catch.
+- **When no header is recognised, row 1 is kept as data.** A stray junk row then shows up as
+  an invalid identifier instead of vanishing; discarding a row that turned out to hold a
+  real company would be silent data loss.
 
 ### The result workbook
 
-One row per input row, in input order, **including rows that resolved to nothing** - a
-reviewer needs to see the empty lines, not find them missing. Columns: `IN_*` (the echoed
-input, so the sheet can be worked in place), then the subject columns defined once in
-`core/export/columns.py` and shared with the single-lookup CLI. `CTS_*` is reserved for
-step 5 and no CTS column is emitted yet.
+One row per issuer, with the columns defined once in `core/export/columns.py`
+(`SUGGESTION_COLUMNS`) and shared with the `row` object of `POST /api/suggest`: `IN_isin` and
+`IN_name` (the request, echoed), `issuer_*` and `description`, then per codebook the top pick
+with its CTS ID, label, confidence and justification, two alternatives and the whole
+shortlist (`NACE_candidates`, `ESA_candidates`), then `source`, `retrieved_at`,
+`codebook_version`, `model`, `prompt_version`, `evidence_urls` and `notes`. An abstention
+leaves the code columns empty and puts the reason in `notes`. The sheet is still called
+`Subjects`, which is what the download has always contained.
 
 Excel-specific care:
 
-- `IČO` and NACE codes are written as text with the `@` format, so `00177041` does not come
-  back as `177041` - the corruption Tool 2 exists to find must not be reintroduced on export;
+- the code-shaped columns (ISIN, LEI, NACE and ESA codes, CTS IDs, alternatives) are written
+  as text with the `@` format, so a NACE division `01` or a CTS ID with leading zeros does
+  not come back as `1` - a code copied into CTS must be exactly what the codebook says;
 - dates are real dates with an ISO format; timestamps are converted to UTC and the headers
   say `(UTC)`, because Excel cannot store an offset;
 - control characters openpyxl refuses are stripped and over-long texts are truncated at
   Excel's 32 767-character cell limit rather than raising.
 
-A second **Run** sheet records the input file, row counts per status, the user, the sources
-and the codebook version, so a workbook that has been emailed on still answers "where did
-this come from?".
-
-Repeated identifiers are resolved once: the cache is keyed on the normalized IČO, so
-`49240901`, `  49 240 901 ` and the Excel-mangled `49240901.0` are one call to ARES.
+A second **Run** sheet records the tool, when the result was made, the user, the codebook
+version and the model, so a workbook that has been emailed on still answers "where did this
+come from?".
 
 ## Tool 1: the candidate pre-filter (`core/classify`)
 
@@ -478,7 +411,7 @@ it puts division 64 and the bank family on the list the same way.
 stated as a fact; whether that makes the issuer *pod zahraniční kontrolou* in BA0036's
 sense is left to the classifier (and to the open S.12203 question in `CLAUDE.md`).
 
-**Fail-soft, like ARES.** A register that has nothing returns `None` and leaves a note
+**Fail-soft.** A register that has nothing returns `None` and leaves a note
 (`GLEIF nemá k tomuto ISIN přiřazen LEI emitenta`); a register that cannot be asked raises
 `SourceUnavailableError`, which `IssuerIdentifier` turns into a note while keeping the other
 half. A malformed ISIN is never sent anywhere. Coverage is why both are asked: GLEIF has no
@@ -614,7 +547,7 @@ docker build -f app/Dockerfile -t naceesa:0.1 app
 Codebooks and `.env` are mounted, never baked into the image. Mount a volume at
 `/app/data/cache` too, or the answer cache and usage ledger are lost on every restart.
 
-## Enabling the model (next step)
+## Enabling the model (deferred, roadmap E9)
 
 1. Put the key in `app/.env` (git-ignored, never in code or chat):
    ```
@@ -624,7 +557,7 @@ Codebooks and `.env` are mounted, never baked into the image. Mount a volume at
 3. Run a few real issuers. **The provider path has never made a live call** - the request
    shape is verified against the docs and tested against a mock, but expect to fix something
    small the first time.
-4. Have MO check those suggestions, then record the confirmed ones in
+4. Have someone check those suggestions against CTS, then record the confirmed ones in
    `tests/golden/cases.json` with `verified_by` filled in. That is what turns "seems right"
    into a number, and what justifies keeping the cheap model.
 5. Watch the spend:
@@ -643,10 +576,8 @@ Set a cap in the provider dashboard as well - that is the backstop.
   mapping step.
 - Only valid ESA leaf codes can be emitted; parents are rejected.
 - Every loaded codebook set is versioned so every output row can carry the version.
-- Nothing retrieved from DWS will ever reach an LLM (relevant from step 6).
+- Nothing retrieved from DWS will ever reach an LLM (no module here reads DWS; the rule stays).
 - Every lookup is audited; no retrieved content enters the audit log.
-- Rows answered by the public API are marked `ARES_LIVE` so live data is never mistaken
-  for governed warehouse data.
 - A suggestion row names every register that answered (`GLEIF+OPENFIGI+WEB`), so an
   ISIN-backed lookup is distinguishable from a name-only one (`WEB`). Register data about a
   foreign issuer is public and may join the web description in a prompt; DWS data may not.
@@ -658,7 +589,10 @@ Set a cap in the provider dashboard as well - that is the backstop.
   `test_codebooks_*.py`, `test_sources_*.py`, `test_settings.py`, `test_audit.py`,
   `test_suggest.py`) because
   pytest runs in the default import mode.
-- The source tests never touch the network or a database: ARES, GLEIF and OpenFIGI are
-  driven through `httpx.MockTransport` clients answering with trimmed live payloads, and DWS
-  through a fake DBAPI connection, all in `tests/sources/conftest.py`.
-- No deployment config for any public PaaS will be added; a Dockerfile comes with a later step.
+- The source tests never touch the network: GLEIF and OpenFIGI are driven through
+  `httpx.MockTransport` clients answering with trimmed live payloads, kept in
+  `tests/sources/conftest.py`, and the web evidence through mock transports and a static
+  search provider.
+- `numpy` is a dev extra only: the identifier and codebook tests feed numpy scalars to the
+  normalisers. `pandas` is not a dependency (dropped in PR #5; it was imported nowhere).
+- Deployment target is Vercel (roadmap E1); `app/Dockerfile` stays for local runs.

@@ -9,7 +9,7 @@ leading zeros included. The last digit is a check digit computed from the first 
 
 Messy-input policy
 ------------------
-The public functions accept whatever a pandas/openpyxl column may deliver and turn it
+The public functions accept whatever an openpyxl or dataframe column may deliver and turn it
 into a canonical 8-digit string or a precise :class:`InvalidIcoError`:
 
 * ``None``, empty and whitespace-only strings are ``"empty"``.
@@ -80,7 +80,7 @@ _CHECKSUM_WEIGHTS: Final[tuple[int, ...]] = (8, 7, 6, 5, 4, 3, 2)
 _WHITESPACE_RE: Final[re.Pattern[str]] = re.compile(r"[\s\u200b\u200c\u200d\u2060\ufeff]+")
 _ASCII_DIGITS_RE: Final[re.Pattern[str]] = re.compile(r"[0-9]+")
 _ICO_DIGITS_RE: Final[re.Pattern[str]] = re.compile(r"[0-9]{8}")
-#: Non-negative decimal literal as Excel/pandas render numbers: ``1350.0``, ``4.9240901E7``.
+#: Non-negative decimal literal as spreadsheets render numbers: ``1350.0``, ``4.9240901E7``.
 _DECIMAL_LIKE_RE: Final[re.Pattern[str]] = re.compile(r"[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?")
 #: DIČ (Czech VAT id) prefix: ``CZ`` directly followed by a digit, any letter case.
 _DIC_PREFIX_RE: Final[re.Pattern[str]] = re.compile(r"CZ(?=[0-9])", re.IGNORECASE)
@@ -121,7 +121,7 @@ def normalize_ico(value: object, *, check: bool = True, allow_dic_prefix: bool =
     """Return the canonical 8-digit IČO for a messy cell value.
 
     Args:
-        value: Anything an xlsx/pandas column may contain; see the module docstring
+        value: Anything an xlsx or dataframe column may contain; see the module docstring
             for the accepted shapes.
         check: Validate the mod-11 check digit (default). With ``check=False`` the
             padded digit string is returned even when the checksum fails.

@@ -1,4 +1,4 @@
-"""Audit log of every subject lookup: what was asked, when, by whom, and what came back.
+"""Audit log of every lookup: what was asked, when, by whom, and what came back.
 
 Hard rule from CLAUDE.md: *Log every lookup: identifier, timestamp, requesting user.*
 
@@ -24,7 +24,9 @@ from config.settings import Settings
 #: Dedicated logger so the audit trail can be routed to its own handler/file.
 LOGGER = logging.getLogger("core.audit")
 
-#: What happened to a lookup. ``error`` means the sources failed, not that the subject is absent.
+#: What happened to a lookup. ``error`` means the sources failed, not that the issuer is unknown.
+#: Tool 1 emits only ``found`` and ``not_found`` today. ``ambiguous``, ``invalid_input`` and
+#: ``error`` are reserved: their only producer, the Tool 2 resolver, was removed in E0.3.
 Outcome = Literal["found", "not_found", "ambiguous", "invalid_input", "error"]
 
 _UNKNOWN_USER = "unknown"
@@ -53,13 +55,15 @@ class LookupEvent:
     """One audited lookup.
 
     Attributes:
-        identifier: What the user asked for, as typed (IČO or name).
-        ico: The normalized IČO when one could be derived.
+        identifier: What the user asked for, as typed (ISIN, name or the start of a
+            description).
+        ico: A normalized Czech company identifier (IČO) when the identifier is one. No
+            Tool 1 lookup sets it; the field is optional and costs nothing.
         user: Requesting user, from :func:`current_user`.
         at: Timezone-aware UTC timestamp of the lookup.
         outcome: See :data:`Outcome`.
-        sources: Sources actually consulted, in order, e.g. ``("DWS", "ARES_LIVE")``.
-        detail: Short machine-readable note (an error class, ``"dws_miss"``, ...). Never
+        sources: Sources actually consulted, in order, e.g. ``("GLEIF", "OPENFIGI", "WEB")``.
+        detail: Short machine-readable note (an error class, ``"abstained"``, ...). Never
             contains retrieved data.
     """
 
@@ -104,8 +108,9 @@ def log_lookup(
 ) -> LookupEvent:
     """Record one lookup and return the event.
 
-    Failures are logged at WARNING so an operator notices a source outage; everything else
-    at INFO. The event is returned so a caller (the CLI, later the API) can also surface it.
+    ``outcome="error"`` is logged at WARNING so an operator notices a source outage (no
+    caller emits it yet), everything else at INFO. The event is returned so a caller can
+    also surface it; the API does not today.
     """
     event = LookupEvent(
         identifier=identifier,

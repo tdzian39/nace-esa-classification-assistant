@@ -1,23 +1,18 @@
-"""Batch form of Tool 2: a messy xlsx of Czech companies in, one result row per line out.
+"""Batch input: read a messy xlsx that nobody cleaned up first.
 
-* :mod:`core.batch.reader` - reads an input sheet that nobody cleaned up first.
-* :mod:`core.batch.runner` - resolves every row and writes the workbook.
-* ``python -m core.batch INPUT.xlsx`` - the command line entry point.
+* :mod:`core.batch.reader` - finds the header under title rows, tolerates mixed identifier
+  columns and Excel-eaten leading zeros, and keeps the input columns for echoing back.
 
-The output row shape lives in :mod:`core.export.columns`, shared with the single-lookup CLI.
+The reader still recognises IČO and name columns - it came with the Czech-company batch
+that has since moved out of this repository. Roadmap epic E6 generalises it to ISIN and
+name columns for the Tool 1 batch; until then nothing in the app calls it.
 """
 
 from core.batch.reader import BatchInput, BatchInputError, InputRow, read_batch_input
-from core.batch.runner import BatchReport, build_columns, build_row, default_output_path, run_batch
 
 __all__ = [
     "BatchInput",
     "BatchInputError",
-    "BatchReport",
     "InputRow",
-    "build_columns",
-    "build_row",
-    "default_output_path",
     "read_batch_input",
-    "run_batch",
 ]

@@ -4,12 +4,12 @@ The classifier cannot judge an issuer from its name. This module turns an ISIN o
 into a short activity description plus the sources it came from, so the suggestion the tool
 finally makes can be checked rather than trusted.
 
-Scope, from CLAUDE.md, enforced here rather than merely documented:
+Scope, from CLAUDE.md:
 
-* **Foreign issuers only.** A Czech subject with a RES record is answered from DWS or ARES
-  and never reaches the web.
-* **Never scrape ``apl.czso.cz`` or ``or.justice.cz``** - see :data:`BLOCKED_HOSTS`, which
-  refuses them at fetch time whatever a search result says.
+* **Foreign issuers only** - a rule of use, not a guard: nothing here checks residency, so a
+  Czech name or ISIN typed in is searched like any other issuer.
+* **Never scrape ``apl.czso.cz`` or ``or.justice.cz``** - enforced here rather than merely
+  documented: :data:`BLOCKED_HOSTS` refuses them at fetch time whatever a search result says.
 * Rows built here are stamped ``source="WEB"``.
 
 Design notes:
@@ -45,7 +45,7 @@ from core.sources.base import Provenance, SourceResponseError, SourceUnavailable
 
 LOGGER = logging.getLogger(__name__)
 
-#: Hosts this tool must never fetch. The Czech registers have a sanctioned API (ARES) and
+#: Hosts this tool must never fetch. The Czech registers have a sanctioned API and
 #: CLAUDE.md forbids scraping their web front ends; the rule is enforced, not just written.
 BLOCKED_HOSTS: Final[frozenset[str]] = frozenset(
     {"apl.czso.cz", "or.justice.cz", "justice.cz", "czso.cz"}

@@ -6,7 +6,7 @@ modification time or machine, and any changed cell yields a different id.
 
 The fingerprint is the sha256 of the file bytes. Note that an xlsx workbook also stores its
 own save timestamp, so re-exporting identical cells produces a new (equally valid) version id;
-a DWS-backed loader should fingerprint the normalized rows instead.
+a loader that reads rows from another source should fingerprint the normalized rows instead.
 """
 
 from __future__ import annotations

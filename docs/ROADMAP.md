@@ -22,6 +22,11 @@ picking up. Then run the tests (§8) before changing anything.
 | 2026-09-22 | **The LLM stays off** until an approved endpoint exists. Everything for it is built and tested against a stub; nothing more is done on it before E9. The tool ships *deterministic* (shortlist with CTS IDs, a human picks). | Jakub |
 | 2026-09-22 | DWS access is not granted for this project (from `CLAUDE.md`); irrelevant to Tool 1, which never touched it. | bank |
 | 2026-09-22 | Issuer identification by ISIN (GLEIF + OpenFIGI) added in PR #1; the pattern for every further source: public, keyless, fail-soft, trimmed live payloads as test fixtures. | Jakub / Claude |
+| 2026-09-22 | **D2 — the repository stays public.** E0.2 (make it private) is dropped and E1 no longer waits for it. The rule "nothing bank-internal in git" stays, so the codebooks live only in a private Vercel Blob store — which settles **D3 as Blob** (the CSV option needed a private repo). | Jakub |
+| 2026-09-22 | **D1 — there is a Vercel account.** Claude looks up its team and plan and confirms them with Jakub before creating the project. The plan sets `maxDuration` (Hobby 60 s, Pro 300 s). | Jakub |
+| 2026-09-22 | **D5 / Q-A1 — no Entra ID app registration.** The E2.1 shared-password gate with a self-declared name becomes the permanent login. E2 keeps the untrusted-header rule and audit persistence; E2.2 (OIDC) and Q-A1 are dropped. | Jakub |
+| 2026-09-22 | **D6 — no data-classification sign-off is needed**; E1 go-live is not gated on it. The §4 data-flow list stays as documentation. | Jakub |
+| 2026-09-22 | **Q8 / E8 — the golden set is built without MO.** Claude builds ~30 real issuers from the E8 seed list, mixing banks, corporates, funds, governments, supranationals and financing vehicles, from ISINs and public sources. `verified_by` stays empty on every case until someone checks it against CTS; codes worked out this way stay provisional and no accuracy is quoted from them. | Jakub |
 
 ---
 
@@ -42,11 +47,11 @@ not an oracle: **a human confirms every code**.
 
 | What | Where | Notes |
 |---|---|---|
-| **Primary code (this repo)** | `github.com/tdzian39/nace-esa-classification-assistant` | **PUBLIC** as of 22 Sept 2026 — see D2. Branch `main`, no branch protection. Owner `tdzian39` ("floral_lobster"); Jakub (`jaeksrampota`) is a collaborator with push access. |
+| **Primary code (this repo)** | `github.com/tdzian39/nace-esa-classification-assistant` | **PUBLIC, and it stays public** (D2, decided 22 Sept 2026): nothing bank-internal is ever committed. Branch `main`, no branch protection. Owner `tdzian39` ("floral_lobster"); Jakub (`jaeksrampota`) is a collaborator with push access. |
 | Design source | `github.com/jaeksrampota/esa-nace-naseptavac` (private) | `docs/design.md` (3-layer design, rule table §5.1), `docs/api-details.md` + `docs/egress-endpoints.md` (verified API facts for a security review), `docs/questions.md` (Q1–Q12), `data/reference/*.csv` (public NACE/ESA/BA0036 codelists, English NACE labels), `src/main/probe.py` (diagnostics page design), `src/main/isin.py` (`COUNTRY_CS` map of ISIN prefixes). |
 | Name matcher to port | `jaeksrampota/lei-lookup-tool` (private; `jak-rb/lei-lookup-tool` public copy) | `core/matcher.py` (name scoring, thresholds), `clients/gleif.py`, `clients/openfigi.py`, `services/isin.py`, batch xlsx helpers, `translations/cs.json`. FastAPI/async — port the logic, not the files. |
 | Tool 2 lives here | `jaeksrampota/res-or-lookup` | RES/OR lookup for monthly client corrections. Not our concern. |
-| Codebooks (xlsx) | **not in any repo**; tdzian39 has them locally; a pending GitHub invite for Jakub to `tdzian39/rb_files` (private, write) is probably where they are shared | Never commit them to a public repo. |
+| Codebooks (xlsx) | **not in any repo**; tdzian39 has them locally; a pending GitHub invite for Jakub to `tdzian39/rb_files` (private, write) is probably where they are shared | Never committed. At runtime they live only in a private Vercel Blob store (D3). |
 | Users | MO treasury (a handful of people), Czech-speaking; UI is Czech | Confirmers must be identifiable (audit). |
 
 ### PRs so far
@@ -58,44 +63,39 @@ not an oracle: **a human confirms every code**.
   was the same content stacked on #1's branch; GitHub *closed* it when that branch was deleted on
   merge instead of retargeting it — lesson: merge a stacked PR's base without `--delete-branch`, or
   open the follow-up against `main` from the start.)
-- `main` after both: `84010f7`. No open PRs, no other branches.
+- **PR #4** `docs/roadmap-status-2026-09-22` — this section once #1 and #3 had merged, plus the E0.3
+  removal map (`5d5302d`). **Merged 22 Sept 2026 19:06 UTC.**
+- `main` after all three: `7f75af3`.
+- **PR #5** `chore/remove-parked-tool2` — "Remove the parked Tool 2" (E0.3, below; 22 Sept 2026). When
+  it merges, add the merge time here and the new `main` hash to the line above, as for #1, #3 and #4.
 
-### Where the next session starts: E0.3, the Tool 2 removal
+### Where the next session starts: E1
 
-Measured on `main` (lines): his Tool 1 code that stays **7 750**, his tests that stay **5 889**;
-Tool 2 code to remove **2 088** (`core/sources/{dws,ares,resolver}.py`, `core/sources/__main__.py`,
-`core/batch/runner.py`, `core/batch/__main__.py`), Tool 2 tests to remove **1 669**
-(`tests/sources/test_sources_{ares,dws,resolver,cli}.py`, `tests/batch/test_batch_{cli,runner}.py`);
-PR #1 added 2 029. So roughly four fifths of the original work stays, and all of Tool 1 is his.
+E0.3 is done in PR #5. It deleted the twelve Tool 2 files — `core/sources/{dws,ares,resolver,__main__}.py`
+and `core/batch/{runner,__main__}.py` (1 829 lines) and their six test modules (1 270 lines) — cut
+`core/sources/base.py` down to `Source` (now `WEB`/`GLEIF`/`OPENFIGI`), `Provenance` and the `Source*Error`
+classes and `core/export/columns.py` down to the suggestion row, and dropped the `DWS_*`/`ARES_*` settings
+and `pandas` (numpy, which only pandas pulled in, is now a dev extra: the identifier and codebook tests
+feed it to the normalisers). Measured with `git diff --stat` over everything but the three docs (this file,
+`CLAUDE.md`, `app/README.md`) and counting the new `tests/export/conftest.py`: 52 files, +848 / −4 467
+lines; the suite went from 1 052 to 963 passed (16 skipped before and after). The earlier estimate of
+2 088 + 1 669 lines also counted `core/identifiers/ico.py` and its tests, which stay for the batch reader
+until E6 (D7). Measured on `main` before the removal, the owner's (`tdzian39`) Tool 1 code that stays is
+7 750 lines and his tests that stay 5 889 (PR #1 added 2 029): roughly four fifths of the original work
+stays, and all of Tool 1 is his.
 
-Dependency notes gathered before the removal (verify with `grep` before deleting):
-
-- `core/batch/reader.py` imports the IČO normaliser → **keep `core/identifiers/ico.py` and
-  `tests/identifiers/test_ico.py`** until E6 generalises the reader to ISIN/name columns.
-- `core/sources/base.py` holds the Tool 2 record model (`ResRecord`, `OrRecord`, `SubjectRecord`,
-  `NaceAssignment`, `SubjectSource`, `SubjectCandidate`) next to what Tool 1 needs (`Source`,
-  `Provenance`, the `Source*Error` classes). Remove the model, keep the rest;
-  `tests/sources/test_sources_base.py` shrinks accordingly.
-- `core/export/columns.py`: drop `SUBJECT_COLUMNS`, `record_row` and the `RES_/OR_` labels; keep
-  `SUGGESTION_*`, `json_row`, `cell_value`, `header_label`; `core/export/xlsx.py::_write_cell` reads
-  `TEXT_COLUMNS` — fold what is still needed into `SUGGESTION_TEXT_COLUMNS`.
-- `tests/batch/conftest.py` builds `SubjectRecord` fixtures used by `tests/export/*` — rewrite those
-  export tests around `suggestion_row` (see `tests/test_suggest.py::TestRow`).
-- `tests/sources/conftest.py`: delete the ARES payloads and the fake DBAPI driver, keep the GLEIF /
-  OpenFIGI payloads, `make_client`, `payload` and the `settings` fixture (drop its `dws_*`/`ares_*`
-  arguments once those settings are gone).
-- `config/settings.py`: remove the `dws_*` and `ares_*` fields, the `dws_configured` property and their
-  entries in the `_blank_is_none` validator; `.env.example`, `tests/test_settings.py`, README
-  ("Step 2 variables", DWS/ARES/Tool 2 CLI/Tool 2 batch sections) and CLAUDE.md follow.
-- `core/sources/__init__.py`, `core/batch/__init__.py`, `core/identifiers/__init__.py`: prune exports.
-- `core/audit.py` keeps its optional `ico` field (harmless); `pyproject.toml` drops `pandas`
-  (imported nowhere).
-- Work in a fresh clone (the one used on 22 Sept lived in a session scratchpad and is gone); use a
-  venv with `pip install -e ".[dev]"` or `tests/api` will not collect (§3 gotchas).
+**E1** (§5) puts the deterministic mode on a Vercel preview. D2 and D3 are settled (the repository stays
+public; the codebooks go to a private Blob store), so nothing blocks the code. Creating the Vercel project
+waits for Jakub's confirmation of the team and plan (D1), and a preview with real data waits for the four
+codebook files, which are with the repository owner (perhaps in `tdzian39/rb_files`); §10 lists what to
+verify about the Python runtime. Start from a fresh clone and a
+fresh venv (`pip install -e ".[dev]"`, or `tests/api` will not collect — §3 gotchas). Write E1's
+`requirements.txt` from the runtime list in E1 item 1, not from `pip freeze`: a venv from before PR #5
+still carries `pandas`, and every dev venv carries `numpy`, `pytest` and `ruff`.
 
 ---
 
-## 3. What exists today (state of `main` after PRs #1 and #3, 22 Sept 2026)
+## 3. What exists today (Tool 1 only, as of PR #5, 22 Sept 2026)
 
 ### Stack and layout
 
@@ -109,16 +109,15 @@ app/
   config/settings.py     pydantic-settings; relative paths resolve against app/
   core/
     suggest.py           the pipeline: request → identity → evidence → shortlist → classifier → IssuerSuggestion
-    identifiers/         isin.py (ISO 6166 + Luhn) · ico.py (Tool 2 only)
+    identifiers/         isin.py (ISO 6166 + Luhn) · ico.py (IČO, only for batch/reader.py until E6)
     codebooks/           xlsx reader, loaders, models (CodebookSet), normalize, consistency check, versioning
-    sources/             base.py (Provenance, Source literal) · gleif.py · openfigi.py · identity.py · web.py
-                         dws.py, ares.py, resolver.py (Tool 2 — parked)
+    sources/             base.py (Source literal, Provenance, Source*Error) · gleif.py · openfigi.py · identity.py · web.py
     classify/            candidates.py (pre-filter) · hints.py (keyword table + ESA family grid) · text.py (IDF)
                          prompts.py · provider.py · llm.py · cache.py · budget.py · golden.py (LLM path, off)
-    export/              columns.py (row contracts) · xlsx.py (Subjects + Run sheets)
-    batch/               reader.py (messy xlsx in — reusable) · runner.py (Tool 2 only)
+    export/              columns.py (the suggestion row contract) · xlsx.py (Subjects + Run sheets)
+    batch/               reader.py (messy xlsx in — E6 reuses it; nothing calls it yet)
     audit.py             one log line per lookup: identifier, time, user, sources, outcome — never content
-  tests/                 1052 passed / 16 skipped (skips = tests needing the real xlsx); fixtures are trimmed live payloads
+  tests/                 963 passed / 16 skipped (skips = tests needing the real xlsx); fixtures are trimmed live payloads
 ```
 
 ### The pipeline, concretely
@@ -141,7 +140,8 @@ app/
    suggestions are built from candidates (CTS ID cannot be invented), cache keyed on everything that changes the
    answer, spending limits fail closed.
 6. Page / JSON (`identity` object included) / xlsx (`SUGGESTION_COLUMNS` incl. `issuer_lei`, `issuer_country`,
-   `source` = `GLEIF+OPENFIGI+WEB` or `WEB`) / audit line.
+   `source` = the registers that answered + `WEB`, e.g. `GLEIF+OPENFIGI+WEB`, `OPENFIGI+WEB`, or `WEB` for a
+   name) / audit line.
 
 ### Data facts you would otherwise have to rediscover
 
@@ -196,8 +196,8 @@ Sample ISINs for tests and demos: `DE0005140008` Deutsche Bank AG (GENERAL, no p
   that is the intended deterministic pilot mode.
 - The web search provider is **not configured** and is a procurement question; Wikipedia summaries (E5) give a
   free description for well-known issuers and may make a paid provider unnecessary for the pilot.
-- `pandas` is declared in `pyproject.toml` but **imported nowhere** — drop it (E0/E1); it is the biggest weight in
-  a serverless bundle.
+- `pandas` is gone (PR #5). `numpy` stays a **dev** extra only: the identifier and codebook tests feed numpy scalars
+  (`np.int64`, a NaN `np.float64`) to the normalisers. Keep both out of the runtime dependencies.
 - `py -m pytest` from `app/` **without** `pip install -e .` fails to collect `tests/api` (the `tests/api` package
   shadows the `api` package under pytest's prepend import mode). The documented editable install works.
 - `SqliteCache` defines `__len__`, so an empty cache is falsy — use `is None` checks (already fixed once).
@@ -219,7 +219,7 @@ Sample ISINs for tests and demos: `DE0005140008` Deutsche Bank AG (GENERAL, no p
     ├──► api.gleif.org · api.openfigi.com · registers.esma.europa.eu · wikidata.org · wikipedia.org   (outbound, no whitelist needed)
     ├──► Vercel Blob (private): the four codebooks                                            (D3)
     ├──► Postgres (Neon via Vercel Marketplace): audit_events, confirmed_mappings, later llm_cache/usage  (D4, E2/E7/E9)
-    └──► Microsoft Entra ID (OIDC): who is asking                                              (D5, E2)
+    (no identity provider: the app's own shared-password gate says who is asking — self-declared name, D5, E2)
 ```
 
 **Constraints that shape the design** (verify the plan-dependent numbers when implementing — §10):
@@ -230,15 +230,16 @@ Sample ISINs for tests and demos: `DE0005140008` Deutsche Bank AG (GENERAL, no p
 | FastAPI `lifespan` may not run under Vercel's ASGI handler | load codebooks **lazily** (`functools.lru_cache`-ed `get_service()`), keep `/health` dependency-free |
 | Function duration is capped (default ~10–15 s; up to 60 s on Hobby, 300 s on Pro; set `maxDuration` explicitly) | one ISIN = up to 4 GLEIF + 1 OpenFIGI requests, spaced 1.0 s / 2.5 s → ~3–6 s live; cap per-request timeouts so the worst case fits (8 s, 2 attempts); **batch must be chunked** (E6) |
 | Request body limit ~4.5 MB | fine for a sheet of ISINs; large sheets are chunked client-side anyway |
-| Cold starts scale with bundle size | drop `pandas`; keep `openpyxl`; `.vercelignore` tests, prototype, data |
+| Cold starts scale with bundle size | no `pandas` (dropped in PR #5); keep `openpyxl`; `.vercelignore` tests, prototype, data |
 | No reverse proxy, no bank SSO in front | the app must authenticate users itself (E2); `X-Remote-User` is untrusted |
 | Runtime logs are kept briefly; Log Drains are a paid feature | audit events go to Postgres (E2) |
-| Outbound internet is open | **no egress/whitelist request** (the biggest simplification vs CodeNOW); still document the third-party data flows for a security review (§6) |
-| Env vars ≤ 64 KB total | codebooks cannot travel as env vars → Blob or private-repo CSV (D3) |
+| Outbound internet is open | **no egress/whitelist request** (the biggest simplification vs CodeNOW); the third-party data flows are documented below (D6: no sign-off needed) |
+| Env vars ≤ 64 KB total | codebooks cannot travel as env vars → private Blob store (D3) |
 | Preview deployment per PR | free review of every change; previews are protected by Vercel Authentication (team login), production by E2 |
 | Concurrency: each instance throttles on its own | per-instance throttle is enough at MO's volume (a few lookups a day); a shared limiter (KV) only if volume grows |
 
-**Data that leaves the bank** (for the security review, D6): ISINs, issuer names and typed descriptions
+**Data that leaves the bank** (documentation; D6 decided 22 Sept 2026 that no data-classification sign-off is
+needed and go-live is not gated on one): ISINs, issuer names and typed descriptions
 (public issuer data; a typed description is MO's own text) → third-party registers and Vercel; the CTS codebooks
 (internal codelist IDs and Czech labels) → Vercel Blob/DB; user identities and lookup history → Postgres.
 No client data, nothing from DWS, ever.
@@ -251,21 +252,24 @@ Sizes: **S** ≈ half a session, **M** ≈ one session, **L** ≈ two. Order and
 the way this repo has always worked: tests green, `CLAUDE.md` + this file updated, a PR with a description that
 explains *why*, then wait for a go-ahead.
 
-### E0 — Scope and housekeeping (S) — *docs part done in PR #3; E0.2 and E0.3 open*
+### E0 — Scope and housekeeping (S) — *done: docs in PR #3, E0.3 in PR #5; E0.2 dropped (D2)*
 
 **Goal:** the repo says what it is: Tool 1, Vercel, LLM later; nothing bank-internal can leak.
 **Work:**
 1. `CLAUDE.md` / `README.md` scope, deployment rule, next step → this document (done, PR #3).
-2. **Make the repository private** (owner action, D2) *before* any codebook, CSV, screenshot or preview URL
-   with real data appears anywhere.
+2. ~~Make the repository private~~ — **dropped 22 Sept 2026 (D2): the repository stays public.** What E0.2
+   protected is kept by rule instead: nothing bank-internal is ever committed (no codebook, CSV, screenshot or
+   real lookup), and the codebooks live only in a private Vercel Blob store (D3).
 3. Remove the parked Tool 2 in its own PR ("Remove the parked Tool 2"): `core/sources/{dws,ares,resolver}.py`,
    `core/sources/__main__.py`, `core/batch/runner.py`, `core/batch/__main__.py`, `core/identifiers/ico.py`,
    `SUBJECT_COLUMNS`/`record_row` in `core/export/columns.py`, `DWS_*`/`ARES_*` settings and `.env.example`
    lines, their tests and README/CLAUDE sections. **Keep** `core/batch/reader.py` (E6 reuses it),
    `core/export/xlsx.py`, `core/audit.py`, `core/identifiers/isin.py`. Drop `pandas` from `pyproject.toml`.
-   Expect roughly −4 000 lines; the suite must stay green.
+   Expect roughly −4 000 lines; the suite must stay green. *Done in PR #5 (−4 467 / +848 lines, 963 passed);
+   `core/identifiers/ico.py` stayed, because the reader needs it until E6 (D7).*
 4. Port `docs/questions.md` from the design source as the answer slots in §7 here (done in this file).
-**DoD:** private repo; `python -m pytest` green with Tool 2 gone; no `pandas`; README/CLAUDE describe one tool.
+**DoD:** `python -m pytest` green with Tool 2 gone; no `pandas`; README/CLAUDE describe one tool; nothing
+bank-internal in the repository.
 
 ### E1 — Deploy the deterministic mode on Vercel (M)
 
@@ -290,8 +294,8 @@ explains *why*, then wait for a go-ahead.
 3. **Codebooks from Vercel Blob** (`CODEBOOK_SOURCE=blob|dir`, default `dir` locally): at cold start download the
    four xlsx from a private Blob store (token `BLOB_READ_WRITE_TOKEN`, keys `codebooks/<file>.xlsx`) into
    `/tmp/codebooks/` and hand the existing loaders the paths — loaders, consistency check and version id stay
-   untouched. Document the upload procedure (E10 runbook). Alternative if D3 says the codelists may live in a
-   private repo: commit them as CSV under `data/codebooks/` and skip Blob.
+   untouched. Document the upload procedure (E10 runbook). Blob is the only delivery (D3, 22 Sept 2026): the
+   repository stays public, so the CSV-in-git alternative is gone.
 4. **`/probe` diagnostics page** (port of the design source's `src/main/probe.py`): one harmless request per
    register (`api.gleif.org`, `api.openfigi.com`; `?set=all` adds FIRDS, Wikidata, Wikipedia), 5 s timeout,
    status per host (`ok`, `timeout`, `tls`, `dns`, `blocked`, `http_error`, `unexpected_body`), runtime facts
@@ -302,17 +306,19 @@ explains *why*, then wait for a go-ahead.
    `CODEBOOK_SOURCE=blob`, `WEB_USER_AGENT` naming the bank tool.
 **DoD:** preview deployment renders `DE0005140008` with LEI, facts, both shortlists and CTS IDs; `/health` and
 `/probe` answer; cold-start time measured and written here; the Dockerfile still builds for local use.
-**Depends on:** E0.2 (private repo) before any real codebook is uploaded.
+**Depends on:** no epic (E0.2 was dropped, D2). Before the Vercel project is created: Jakub's confirmation of
+the team and plan (D1). Before a preview with real data: the four codebook files from the repository owner.
 
 ### E2 — Access and audit on Vercel (M)
 
-**Goal:** only MO can open it, and every lookup is attributed to a real person and kept.
+**Goal:** only MO can open it, and every lookup is attributed to a named person (self-declared, D5) and kept.
 **Work:**
-1. **Interim gate (pilot):** middleware requiring a shared secret `APP_ACCESS_PASSWORD` (env), Czech login page,
-   signed session cookie (Starlette `itsdangerous`), a *self-declared* display name stored in the cookie and
-   written to the audit as `jmeno (self-declared)`. `/health` exempt. Honest and cheap; not an identity.
-2. **Target: OIDC with Microsoft Entra ID** (bank tenant) via `authlib`: PKCE, session cookie,
-   `preferred_username` → audit user, optional group check. Needs an app registration from IT (Q-A1).
+1. **The login — permanent (D5, 22 Sept 2026):** middleware requiring a shared secret `APP_ACCESS_PASSWORD`
+   (env), Czech login page, signed session cookie (Starlette `itsdangerous`), a *self-declared* display name
+   stored in the cookie and written to the audit as `jmeno (self-declared)`. `/health` exempt. Honest and cheap;
+   not an identity, and the audit says so. Rotating the password is the way to revoke access.
+2. ~~OIDC with Microsoft Entra ID~~ — **dropped 22 Sept 2026 (D5):** there will be no Entra ID app
+   registration (Q-A1 dropped with it), so item 1 is the login for good.
 3. **Untrusted header off:** `WEB_USER_HEADER` is only honoured when `TRUST_PROXY_USER_HEADER=true`; default
    false; Vercel env leaves it false. A header a browser can set is not an identity.
 4. **Audit persistence:** `core/audit.py` gains a sink; `audit_events(id, at, user, identifier, isin, outcome,
@@ -411,16 +417,24 @@ CTS IDs; the Run sheet names user, codebook version and sources.
 
 ### E8 — Golden set and measurement (S, continuous from the first pilot)
 
-**Goal:** accuracy that can be quoted.
-**Work:** ask MO for ~30 recently created foreign issuers (ISIN, name, NACE and ESA as entered in CTS, marked
-correct/unsure; mix of banks, corporates, funds, governments, financing vehicles). Replace the fictional cases
-in `tests/golden/cases.json` (`verified_by`, `verified_on` set), add an `isin` field, extend `golden.py` so
-`python -m core.classify --golden` runs identity through recorded fixtures and reports **recall@12** and the
-**deterministic top-1** per codebook, verified and provisional separately. Publish the numbers in the README
-each time they change. Seed proposal from the design source: Deutsche Bank AG, Volkswagen AG, EIB, Land Berlin,
-BMW Finance N.V., Volkswagen International Finance N.V., Toyota Motor Credit Corporation, Amundi Funds,
-iShares Core MSCI World UCITS ETF, Allianz SE, Nordea Kredit Realkreditaktieselskab, Unilever PLC.
-**DoD:** ≥ 20 verified cases; numbers in README; no accuracy claim anywhere without `verified_by`.
+**Goal:** a measurement on real issuers that is honest about what it is: provisional until someone checks the
+codes against CTS.
+**Work (decided 22 Sept 2026, Q8 — MO is not asked):** Claude builds ~30 real foreign issuers, starting from the
+seed list below and mixing banks, corporates, funds, governments, supranationals and financing vehicles. Each
+case carries a real ISIN (checked against GLEIF, OpenFIGI and FIRDS), the LEI, a short activity description
+written from public sources, and a NACE division and a 7-digit BA0036 code with the reasoning and the sources
+behind them; the control axis is stated as an assumption until Q7 is answered. **`verified_by` stays empty on
+every case until someone checks it against CTS** — codes worked out this way are provisional and no accuracy is
+quoted from them. The ten fictional trap cases stay, marked as fictional, because each pins a known pre-filter
+failure. Add an `isin` field and extend `golden.py` so `python -m core.classify --golden` runs identity through
+recorded fixtures (captured once, dated) and reports **recall@12** and the **deterministic top-1** per codebook,
+verified and provisional separately (the run needs the real codebooks). Seed list from the design source:
+Deutsche Bank AG, Volkswagen AG, EIB, Land Berlin, BMW Finance N.V., Volkswagen International Finance N.V.,
+Toyota Motor Credit Corporation, Amundi Funds, iShares Core MSCI World UCITS ETF, Allianz SE, Nordea Kredit
+Realkreditaktieselskab, Unilever PLC.
+**DoD:** ~30 real cases with ISIN, sources and reasoning, all provisional; recorded identity fixtures; the runner
+reports recall@12 and top-1 labelled *provisional* wherever the numbers appear; no accuracy claim anywhere
+without `verified_by`; a case turns verified only when someone has checked it against CTS.
 
 ### E9 — LLM second opinion (M) — *deferred until an approved endpoint exists*
 
@@ -462,7 +476,7 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 | From the design source | Into this repo | Epic | Verdict |
 |---|---|---|---|
 | Identify layer: GLEIF, OpenFIGI (design §4.1, verified) | `core/sources/{gleif,openfigi,identity}.py` | — | **done, PR #1** |
-| `docs/api-details.md`, `docs/egress-endpoints.md` | `docs/third-party-apis.md` — what data goes to which third party, verified request/response shapes, rate limits; the *whitelist* part is moot on Vercel | E1 / D6 | port as security-review material |
+| `docs/api-details.md`, `docs/egress-endpoints.md` | `docs/third-party-apis.md` — what data goes to which third party, verified request/response shapes, rate limits; the *whitelist* part is moot on Vercel | E1 / D6 | optional documentation (D6: no sign-off needed) |
 | `src/main/probe.py` (status taxonomy, env report, JSON form) | `api` route `/probe` + `core/probe.py` | E1 | port |
 | Rule table `design.md` §5.1 (ESA three dimensions: residency, sector, control) | `core/classify/rules.py` as data + `StructuredHints` | E4 | port as data, not prose |
 | ECB institution lists as offline LEI → sector | `ecb_lei_sector.csv` in Blob | E4b | optional |
@@ -484,25 +498,38 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 
 - **D1. Vercel account and plan.** Whose team, which plan (Hobby caps functions at 60 s and has no password
   protection; Pro gives 300 s, Log Drains, more concurrency), region (`fra1` Frankfurt). *Needed by E1.*
-  **Answer:**
+  **Answer:** 2026-09-22 — there is a Vercel account (Jakub); its team and plan are confirmed with Jakub before
+  the project is created, and the plan sets `maxDuration` (Jakub: Hobby 60 s, Pro 300 s). Looked up through the
+  Vercel API the same day: Jakub's personal team `10930795-6863s-projects`, plan **Hobby** — awaiting his
+  confirmation. Checked against the Vercel docs on 22 Sept 2026: 60 s / 300 s are the limits *without* Fluid
+  compute; Fluid is on by default for new projects and allows 300 s on Hobby and 800 s on Pro, so E1 sets
+  `maxDuration` to 60 s explicitly, which is valid on every plan. Also verified: the Hobby plan is for
+  personal, non-commercial use only (Vercel fair-use guidelines), and Pro is $20 per month per deploying seat.
 - **D2. Repository visibility.** Make `tdzian39/nace-esa-classification-assistant` **private** (owner action)
   before any codebook, real data or preview URL is around. *Needed by E0/E1.*
-  **Answer:**
+  **Answer:** 2026-09-22 — the repository **stays public** (Jakub). E0.2 is dropped and E1 does not wait for
+  it. The rule "nothing bank-internal in git" stays, so the codebooks live only in a private Vercel Blob store
+  (→ D3).
 - **D3. Codebook delivery.** Private Vercel Blob at cold start (recommended: nothing bank-internal in git) vs
   CSV committed to the (private) repo (simpler; needs MO to say the codelists are not sensitive). *E1.*
-  **Answer:**
+  **Answer:** 2026-09-22 — **private Vercel Blob**, settled by D2: the CSV option needed a private repository
+  (Jakub).
 - **D4. Database.** Neon Postgres via the Vercel Marketplace (recommended: audit, confirmations, later the LLM
   cache and ledger in one place) vs Vercel KV. *E2/E7/E9.*
   **Answer:**
 - **D5. Authentication.** OIDC with Microsoft Entra ID needs an app registration from IT (Q-A1). Is the interim
   password gate with a self-declared name acceptable for the pilot, and for how long? *E2.*
-  **Answer:**
+  **Answer:** 2026-09-22 — there will be **no Entra ID app registration** (Jakub). The E2.1 shared-password gate
+  with a self-declared name becomes the permanent login; E2 also keeps the untrusted-header rule and audit
+  persistence. E2.2 (OIDC) and Q-A1 are dropped.
 - **D6. Data-classification sign-off** for running on a public PaaS: ISINs/issuer names/typed descriptions,
   CTS codebook IDs and labels, user identities and lookup history (§4 lists the flows). Who signs? *E1 go-live.*
-  **Answer:**
+  **Answer:** 2026-09-22 — **no sign-off is needed**; E1 go-live is not gated on it (Jakub). The §4 list of data
+  flows stays as documentation.
 - **D7. When to delete the Tool 2 code** — now (E0.3, recommended) or after E6 reuses the reader. **Answer:**
-- **Q-A1.** Entra ID app registration: client id, tenant, redirect URI (`https://<project>.vercel.app/auth/callback`),
-  group for MO. **Answer:**
+  2026-09-22 - now, as E0.3 (PR #5); the IČO normaliser stays for the batch reader until E6 (Jakub).
+- ~~**Q-A1.** Entra ID app registration: client id, tenant, redirect URI (`https://<project>.vercel.app/auth/callback`),
+  group for MO.~~ **Answer:** 2026-09-22 — dropped with D5: there will be no app registration (Jakub).
 - **Q-A2.** Audit retention (months) and who may read the history. **Answer:**
 
 ### Domain (MO / Ivča / CTS owners)
@@ -514,6 +541,10 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
   it: how are **Deutsche Bank AG** and a **US Treasury** issuer coded in CTS today? Also the S.12203 question:
   which 1221x/1222x/1224x item does a plain S.122 bank get? **Answer:**
 - **Q8. Golden set** (§E8): ~30 recently created foreign issuers with CTS values, marked correct/unsure. **Answer:**
+  2026-09-22 — MO is not asked (Jakub). Claude builds ~30 real issuers from the E8 seed list — banks, corporates,
+  funds, governments, supranationals, financing vehicles — from ISINs and public sources. `verified_by` stays
+  empty on every case until someone checks it against CTS; the codes stay provisional and no accuracy is quoted
+  from them.
 - **Q9. Batch cleanup.** Is a one-off run over all existing CTS foreign issuers in scope? Extract with issuer
   name, ISIN/LEI if stored, current NACE ID, current ESA ID; how many rows? **Answer:**
 - **Q10. Volume and OpenFIGI key.** New foreign issuers per month; request a free OpenFIGI key (250/min) under
@@ -533,6 +564,10 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 - 2026-09-22 — Q1 (egress whitelist for the runtime) is **moot on Vercel**: outbound internet is open. Kept only
   as the `/probe` page and the third-party data-flow document (D6).
 - 2026-09-22 — Q2 (approved LLM endpoint) deferred by decision; Q3 (persistence) becomes D4.
+- 2026-09-22 — D2: the repository stays public, E0.2 dropped; D3: private Vercel Blob; D5 + Q-A1: no Entra ID,
+  the shared-password gate is the permanent login; D6: no data-classification sign-off; Q8: Claude builds the
+  golden set from public sources, all cases provisional; D1: the Vercel account exists — its team and plan are
+  confirmed with Jakub before the project is created. All Jakub; details in §1 and inline above.
 
 ---
 
@@ -541,7 +576,7 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 ```bash
 cd app
 python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]"   # Windows paths; the repo path may contain spaces — quote it
-../.venv/Scripts/python.exe -m pytest -q          # 1052 passed, 16 skipped without the real xlsx (skips are expected)
+../.venv/Scripts/python.exe -m pytest -q          # 963 passed, 16 skipped without the real xlsx (skips are expected)
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .
 ../.venv/Scripts/python.exe -m core.codebooks     # startup consistency check against data/codebooks (needs the xlsx)
 ../.venv/Scripts/python.exe -m core.classify "popis cinnosti" --verbose   # shortlist for a description
@@ -560,7 +595,7 @@ python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]
   NACE is truncated to two digits in exactly one place. Only valid ESA leaves may be emitted.
 - **Hard rules kept**: never scrape `apl.czso.cz` / `or.justice.cz` (enforced in code); nothing from DWS ever
   reaches a model (moot now, keep the rule); every lookup is audited with identifier, time, user — never with
-  retrieved content; nothing bank-internal in the repo while it is public; secrets only in env / `app/.env`.
+  retrieved content; nothing bank-internal in the repo, which stays public (D2); secrets only in env / `app/.env`.
 - **Czech UI, English code and docs.** Codebook labels are Czech; hint triggers are Czech + English.
 - `CLAUDE.md` is the living architecture note: every PR that changes behaviour updates it; this roadmap gets a
   status line per epic. Keep `ui/prototype/suggest.html` in step with the template.
@@ -581,8 +616,10 @@ python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]
   → "government", LOCAL_GOVERNMENT → "municipality", INTERNATIONAL_ORGANIZATION → "supranational", OpenFIGI `Govt`
   → "government, sovereign", `Mtge` → "mortgage-backed, asset-backed". E4 makes this structural; until then the
   words are the mechanism — do not "clean them up".
-- **`Source` literal**: `DWS`, `ARES_LIVE` (Tool 2), `WEB`, `GLEIF`, `OPENFIGI`; row `source` = registers that
-  answered + `WEB`.
+- **Settings removed by PR #5**: `DWS_DSN`, `DWS_USER`, `DWS_PASSWORD`, `DWS_SCHEMA`, `DWS_TIMEOUT_SECONDS` and the
+  six `ARES_*`; an old `app/.env` that still sets them loads fine (unknown variables are ignored).
+- **`Source` literal**: `WEB`, `GLEIF`, `OPENFIGI` (`DWS` and `ARES_LIVE` left with Tool 2 in PR #5); row `source` =
+  registers that answered + `WEB`.
 - **Glossary**: *MO* Middle Office treasury back office · *CTS* the securities master system where the issuer
   record and both codes live · *BA0036* ČNB codelist of ESA 2010 sectors as 7-digit codes · *ESA control axis*
   veřejné / soukromé národní / pod zahraniční kontrolou · *NACE division* the two-digit level CTS stores ·
@@ -598,7 +635,7 @@ python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]
   dependencies are read from `pyproject.toml` or only `requirements.txt`; whether **FastAPI `lifespan`** runs
   under the runtime (design assumes *not* — lazy init either way).
 - `maxDuration` ceilings and default on the chosen plan; request body limit (assumed 4.5 MB); `/tmp` size.
-- Vercel Blob private access from Python (REST with `BLOB_READ_WRITE_TOKEN`) — or choose D3's CSV alternative.
+- Vercel Blob private access from Python (REST with `BLOB_READ_WRITE_TOKEN`) — the only delivery since D3.
 - Deployment Protection: Vercel Authentication on previews (assumed available on all plans); Password Protection
   on production (assumed paid) — hence the app-level gate in E2.
 - GLEIF full-text search filter name (`filter[fulltext]`) and its ranking; `filter[entity.legalName]` behaviour

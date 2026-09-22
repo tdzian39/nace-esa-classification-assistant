@@ -54,3 +54,33 @@ def test_version_label_is_kept(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_env_names_are_case_insensitive(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("log_level", "debug")
     assert Settings(_env_file=None).log_level == "debug"
+
+
+@pytest.mark.parametrize("raw", ["", "   "])
+@pytest.mark.parametrize(
+    ("variable", "field"),
+    [("LOOKUP_USER", "lookup_user"), ("OPENFIGI_API_KEY", "openfigi_api_key")],
+)
+def test_blank_optional_values_mean_not_set(
+    monkeypatch: pytest.MonkeyPatch, variable: str, field: str, raw: str
+) -> None:
+    """A whitespace-only LOOKUP_USER must fall back to the OS user, not be audited as a name."""
+    monkeypatch.setenv(variable, raw)
+    assert getattr(Settings(_env_file=None), field) is None
+
+
+def test_a_set_lookup_user_is_kept(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LOOKUP_USER", "mo.analyst")
+    assert Settings(_env_file=None).lookup_user == "mo.analyst"
+
+
+def test_an_old_env_file_with_removed_variables_still_loads(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An app/.env written before the Tool 2 removal must not stop the app starting."""
+    monkeypatch.delenv("LOG_LEVEL", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("DWS_DSN=DSN=dwh\nARES_ENABLED=true\nLOG_LEVEL=WARNING\n", encoding="utf-8")
+    settings = Settings(_env_file=env_file)
+    assert settings.log_level == "WARNING"
+    assert not hasattr(settings, "dws_dsn")
