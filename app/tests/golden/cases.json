@@ -1,0 +1,128 @@
+{
+  "_comment": [
+    "Golden cases for the foreign-issuer classifier (Tool 1).",
+    "",
+    "EVERY CASE BELOW IS PROVISIONAL: verified_by is null, meaning nobody at the bank has",
+    "signed the codes off yet. They exist to exercise the machinery and to encode the traps",
+    "we expect, NOT to prove accuracy. Scoring reports verified and provisional separately,",
+    "and no accuracy figure may be quoted from provisional cases.",
+    "",
+    "To verify a case: have MO confirm both codes, then fill in verified_by and verified_on.",
+    "Issuer names are fictional on purpose - a golden case should not assert a classification",
+    "about a real company until someone at the bank stands behind it.",
+    "",
+    "See README.md in this folder."
+  ],
+  "cases": [
+    {
+      "id": "captive-funding-spv",
+      "issuer": "Nordkap Funding B.V.",
+      "description": "Special purpose funding vehicle of the Nordkap banking group. Issues bonds on international markets and on-lends the proceeds exclusively to its parent bank and that bank's subsidiaries. Does not take deposits from the public and holds no banking licence of its own.",
+      "expected_nace": "64",
+      "expected_esa": "2002703",
+      "verified_by": null,
+      "verified_on": null,
+      "note": "The core trap: the group name contains 'Bank' and the entity issues bank-like paper, but it is a captive finance vehicle, not a bank. Distinguishing 2002703 from 2002213 is the whole point of the ESA half.",
+      "source": "fictional"
+    },
+    {
+      "id": "captive-funding-spv-cs",
+      "issuer": "Nordkap Funding B.V.",
+      "description": "Účelová finanční společnost skupiny Nordkap Bank. Vydává dluhopisy na mezinárodních trzích a získané prostředky půjčuje výhradně mateřské bance a jejím dceřiným společnostem. Nepřijímá vklady od veřejnosti a nemá vlastní bankovní licenci.",
+      "expected_nace": "64",
+      "expected_esa": "2002703",
+      "verified_by": null,
+      "verified_on": null,
+      "note": "Same case in Czech. Pairs with captive-funding-spv to measure how much the pre-filter loses when the description is not in the codebook's language.",
+      "source": "fictional"
+    },
+    {
+      "id": "foreign-carmaker",
+      "issuer": "Weissberg Automobilwerke AG",
+      "description": "German manufacturer of passenger cars and light commercial vehicles, operating three assembly plants. Majority owned by a foreign automotive group. Issues bonds to finance its own operations.",
+      "expected_nace": "29",
+      "expected_esa": "2001003",
+      "verified_by": null,
+      "verified_on": null,
+      "note": "No financial vocabulary at all. Exists because an early version of the pre-filter returned zero ESA candidates here: the residual sector 'Nefinanční podniky' has to be reachable without a keyword hit.",
+      "source": "fictional"
+    },
+    {
+      "id": "foreign-bank",
+      "issuer": "Banca Adriatica S.p.A.",
+      "description": "Italian commercial bank licensed by the Bank of Italy, taking retail and corporate deposits and providing loans. Wholly owned by a French banking group.",
+      "expected_nace": "64",
+      "expected_esa": "2002213",
+      "verified_by": null,
+      "verified_on": null,
+      "note": "The straightforward bank, and the control axis: foreign-owned, so 2002213 rather than 2002212.",
+      "source": "fictional"
+    },
+    {
+      "id": "insurer",
+      "issuer": "Helvetia Assurance SA",
+      "description": "Swiss non-life insurance undertaking writing property and casualty business, subsidiary of a foreign insurance group.",
+      "expected_nace": "65",
+      "expected_esa": "2002803",
+      "verified_by": null,
+      "verified_on": null,
+      "note": "NACE 65 covers insurance and pension funding together; ESA separates insurers from pension funds.",
+      "source": "fictional"
+    },
+    {
+      "id": "securitisation-vehicle",
+      "issuer": "Aurora RMBS 2024-1 DAC",
+      "description": "Irish designated activity company established to acquire a portfolio of residential mortgage loans and fund the purchase by issuing rated asset-backed notes. No employees and no activity beyond holding the portfolio.",
+      "expected_nace": "64",
+      "expected_esa": "2002513",
+      "verified_by": null,
+      "verified_on": null,
+      "note": "Must land on the securitisation sector 2002513 rather than the generic captive 2002703 - both are 'special purpose' entities in ordinary language.",
+      "source": "fictional"
+    },
+    {
+      "id": "leasing-company",
+      "issuer": "Atlas Leasing GmbH",
+      "description": "Provides finance leases and instalment credit for commercial vehicles and machinery to business customers. Funded by bank facilities and bond issues. Subsidiary of a foreign industrial group.",
+      "expected_nace": "64",
+      "expected_esa": "2002533",
+      "verified_by": null,
+      "verified_on": null,
+      "note": "Lender rather than captive: it lends to third parties, not only within its group.",
+      "source": "fictional"
+    },
+    {
+      "id": "investment-fund",
+      "issuer": "Meridian European Equity Fund SICAV",
+      "description": "Luxembourg open-ended investment company investing in listed European equities on behalf of institutional investors. Not a money market fund.",
+      "expected_nace": "64",
+      "expected_esa": "2002403",
+      "verified_by": null,
+      "verified_on": null,
+      "note": "Explicitly not a money market fund, so 2002403 rather than 2002303.",
+      "source": "fictional"
+    },
+    {
+      "id": "supranational-bank",
+      "issuer": "Continental Development Bank",
+      "description": "Multilateral development bank owned by member states, financing infrastructure projects in its member countries. Enjoys preferred creditor status and is exempt from national banking supervision.",
+      "expected_nace": "64",
+      "expected_esa": "2009031",
+      "verified_by": null,
+      "verified_on": null,
+      "note": "A supranational is neither a resident nor an ordinary foreign bank; it has its own ESA sector. A pre-filter that only knows the word 'bank' will get this wrong.",
+      "source": "fictional"
+    },
+    {
+      "id": "retailer",
+      "issuer": "Delta Retail Holdings N.V.",
+      "description": "Operates a chain of supermarkets and convenience stores across several European countries. Listed on Euronext.",
+      "expected_nace": "47",
+      "expected_esa": "2001003",
+      "verified_by": null,
+      "verified_on": null,
+      "note": "A second non-financial issuer, with the word 'Holdings' in the name to check that it does not drag the answer towards a holding-company classification.",
+      "source": "fictional"
+    }
+  ]
+}

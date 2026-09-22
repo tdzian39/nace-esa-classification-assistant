@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESA a NACE našeptávač pro MO</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/htmx/1.9.12/htmx.min.js"
+        integrity="sha512-ScNzEgOxYQPWXmXJ8PmezWuGWJ0GRmVkBFRRUAeEJBfWwLwL2X2E5S3n0mNQmTzLGkTXxpLTPvQkDlkWYb4JNQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --border: #d8dce3;
+    --border-strong: #b9c0cb;
+    --text: #1a1d23;
+    --muted: #5d6673;
+    --accent: #f2cc0c;          /* placeholder brand accent */
+    --accent-ink: #2b2500;
+    --good: #1a7f4b;
+    --warn: #9a6700;
+    --bad: #b3261e;
+    --pick: #eef6f1;
+    --radius: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14161a; --surface: #1c1f25; --border: #2e333c; --border-strong: #3d444f;
+      --text: #e8eaed; --muted: #9aa3b0; --pick: #17251d; --good: #4ec98a;
+      --warn: #e0b341; --bad: #f2837a; --accent-ink: #2b2500;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a; --surface: #1c1f25; --border: #2e333c; --border-strong: #3d444f;
+    --text: #e8eaed; --muted: #9aa3b0; --pick: #17251d; --good: #4ec98a;
+    --warn: #e0b341; --bad: #f2837a;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 24px 16px 64px; }
+
+  header.app { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  header.app h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+  header.app .sub { color: var(--muted); font-size: 13px; }
+
+  .banner {
+    margin: 16px 0; padding: 10px 14px; border-radius: var(--radius);
+    background: #fff8e1; border: 1px solid #f0d98a; color: #6b5400; font-size: 13px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .banner { background: #2a2410; border-color: #5c4d17; color: #e5cf8a; }
+  }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px;
+  }
+  .card + .card { margin-top: 16px; }
+
+  /* ---- input form ---- */
+  form .hint { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .fields { display: grid; grid-template-columns: 200px 1fr; gap: 12px; }
+  .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .field .note { font-weight: 400; color: var(--muted); }
+  input[type=text], textarea {
+    width: 100%; padding: 8px 10px; font: inherit; color: var(--text);
+    background: var(--bg); border: 1px solid var(--border-strong); border-radius: 6px;
+  }
+  textarea { min-height: 76px; resize: vertical; }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .full { grid-column: 1 / -1; }
+  .actions { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+  button.primary {
+    background: var(--accent); color: var(--accent-ink); border: 1px solid #d9b60a;
+    padding: 9px 18px; border-radius: 6px; font: inherit; font-weight: 650; cursor: pointer;
+  }
+  button.ghost, a.ghost {
+    display: inline-block; text-decoration: none; line-height: 1.5;
+    background: transparent; color: var(--text); border: 1px solid var(--border-strong);
+    padding: 9px 14px; border-radius: 6px; font: inherit; cursor: pointer;
+  }
+
+  /* ---- issuer summary ---- */
+  .issuer h2 { margin: 0 0 2px; font-size: 18px; }
+  .issuer .meta { color: var(--muted); font-size: 13px; }
+  .issuer p.desc { margin: 12px 0 0; max-width: 72ch; }
+
+  /* ---- suggestion panels ---- */
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+
+  /* Line the two columns up row by row, so "top pick" sits beside "top pick" and the
+     runners-up beside the runners-up. Without this the longer Czech label in one column
+     pushes its card down and the two suggestions stop being comparable at a glance.
+     Guarded: browsers without subgrid keep the plain, unaligned layout. */
+  @supports (grid-template-rows: subgrid) {
+    .panels { grid-template-rows: repeat(6, auto); }
+    .panel { display: grid; grid-row: 1 / -1; grid-template-rows: subgrid; row-gap: 0; }
+    .panel > * { align-self: start; }
+    .pick, .alt { align-self: stretch; }
+  }
+  .panel h3 {
+    margin: 0 0 2px; font-size: 13px; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--muted);
+  }
+  .panel .codebook { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+
+  .pick, .alt {
+    border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-top: 8px;
+  }
+  .pick { border-color: var(--good); background: var(--pick); }
+  .code-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .code { font: 600 21px/1.2 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+  .alt .code { font-size: 16px; }
+  .ctsid {
+    font: 600 12px/1 ui-monospace, Consolas, monospace; padding: 4px 7px; border-radius: 4px;
+    background: var(--border); color: var(--text); white-space: nowrap;
+  }
+  .ctsid.none { background: transparent; border: 1px dashed var(--border-strong); color: var(--muted); }
+  /* Codebook labels are long Czech phrases ("Kaptivní finanční instituce a půjčovatelé
+     peněz pod zahraniční kontrolou") and must not overflow a half-width column. */
+  .panel { min-width: 0; }
+  .label { margin-top: 4px; font-weight: 600; overflow-wrap: break-word; hyphens: auto; }
+  .why { margin-top: 6px; font-size: 13px; color: var(--muted); overflow-wrap: break-word; }
+  .conf { margin-left: auto; font-size: 12px; font-weight: 650; }
+  .conf.hi { color: var(--good); } .conf.mid { color: var(--warn); } .conf.lo { color: var(--bad); }
+  .alts-title { margin: 14px 0 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .copy { background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; font-size: 12px; padding: 2px 4px; }
+  .copy:hover { color: var(--text); text-decoration: underline; }
+
+  /* ---- evidence + provenance ---- */
+  details.evidence { margin-top: 16px; }
+  details.evidence summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  .sources { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+  .sources li { margin-bottom: 4px; }
+  .sources a { color: inherit; }
+
+  .foot {
+    display: flex; gap: 18px; flex-wrap: wrap; margin-top: 18px; padding-top: 14px;
+    border-top: 1px solid var(--border); font-size: 12px; color: var(--muted);
+  }
+  .foot code { font-family: ui-monospace, Consolas, monospace; }
+
+  .downloads { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+
+  /* NACE and ESA stay side by side at every width: the whole point is comparing the two
+     suggestions at a glance, and stacking them hides the second one below the fold.
+     Narrow screens get tighter spacing and smaller type instead of a second column. */
+  @media (max-width: 760px) {
+    .fields { grid-template-columns: 1fr; }
+    .wrap { padding-left: 12px; padding-right: 12px; }
+    .card { padding: 14px; }
+    .panels { gap: 10px; }
+    .pick, .alt { padding: 9px; }
+    .code { font-size: 17px; }
+    .alt .code { font-size: 14px; }
+    .label { font-size: 13px; }
+    .why { font-size: 12px; }
+    .conf { margin-left: 0; }
+  }
+  @media (max-width: 460px) {
+    .panels { gap: 8px; }
+    .code { font-size: 15px; }
+    .ctsid { font-size: 11px; padding: 3px 5px; }
+    .label { font-size: 12px; }
+  }
+
+  /* --- live page only --- */
+  .warn {
+    margin: 12px 0; padding: 10px 14px; border-radius: var(--radius); font-size: 13px;
+    background: #fff4e5; border: 1px solid #f0c98a; color: #6b4400;
+  }
+  .err {
+    margin: 12px 0; padding: 10px 14px; border-radius: var(--radius); font-size: 13px;
+    background: #fdecea; border: 1px solid #f0a8a2; color: #7a1c15;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .warn { background:#2a2110; border-color:#5c4717; color:#e5c98a; }
+    :root:not([data-theme="light"]) .err  { background:#2b1614; border-color:#5c2420; color:#f0a8a2; }
+  }
+  .abstain {
+    border: 1px dashed var(--border-strong); border-radius: 6px; padding: 12px; margin-top: 8px;
+    color: var(--muted); font-size: 13px;
+  }
+  .notes { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+  .notes li { margin-bottom: 3px; }
+  .htmx-request .spinner { display: inline; }
+  .spinner { display: none; color: var(--muted); font-size: 13px; }
+  a.download {
+    display: inline-block; background: var(--accent); color: var(--accent-ink);
+    border: 1px solid #d9b60a; padding: 9px 18px; border-radius: 6px; font-weight: 650;
+    text-decoration: none;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app">
+    <h1>ESA a NACE našeptávač</h1>
+    <span class="sub">Middle Office treasury · zahraniční emitenti · návrh položek do CTS</span>
+  </header>
+
+  {% for warning in warnings %}<div class="warn">{{ warning }}</div>{% endfor %}
+  {% if error %}<div class="err">{{ error }}</div>{% endif %}
+
+  <form class="card" method="post" action="/suggest" hx-post="/suggest"
+        hx-target="body" hx-swap="outerHTML" hx-indicator="#spinner">
+    <p class="hint">Vyplňte alespoň jednu položku. Čím více údajů, tím přesnější návrh.</p>
+    <div class="fields">
+      <div class="field">
+        <label for="isin">ISIN <span class="note">nástroje</span></label>
+        <input type="text" id="isin" name="isin" value="{{ form.get('isin', '') }}"
+               placeholder="XS0000000000" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="name">Název emitenta</label>
+        <input type="text" id="name" name="name" value="{{ form.get('name', '') }}"
+               placeholder="např. Nordkap Funding B.V." autocomplete="off">
+      </div>
+      <div class="field full">
+        <label for="description">Popis činnosti <span class="note">— volitelné, pokud jej znáte</span></label>
+        <textarea id="description" name="description"
+                  placeholder="Nechte prázdné a nástroj popis dohledá na webu.">{{ form.get('description', '') }}</textarea>
+      </div>
+    </div>
+    <div class="actions">
+      <button type="submit" class="primary">Navrhnout kódy</button>
+      <a class="ghost" href="/">Vymazat</a>
+      <span class="spinner" id="spinner">hledám…</span>
+    </div>
+  </form>
+
+  {% if suggestion %}
+  {% macro panel(title, codebook, classification, candidates) %}
+    <div class="panel">
+      <h3>{{ title }}</h3>
+      <div class="codebook">{{ codebook }}</div>
+      {% if classification.top %}
+        {% set top = classification.top %}
+        <div class="pick">
+          <div class="code-row">
+            <span class="code">{{ top.code }}</span>
+            <span class="ctsid">CTS ID {{ top.cts_id }}</span>
+            <span class="conf {{ {'high':'hi','medium':'mid','low':'lo'}[top.confidence] }}">
+              jistota {{ {'high':'vysoká','medium':'střední','low':'nízká'}[top.confidence] }}
+            </span>
+          </div>
+          <div class="label">{{ top.label }}</div>
+          {% if top.justification %}<div class="why">{{ top.justification }}</div>{% endif %}
+        </div>
+        {% if classification.alternatives %}
+        <p class="alts-title">další kandidáti</p>
+        {% for alt in classification.alternatives %}
+        <div class="alt">
+          <div class="code-row">
+            <span class="code">{{ alt.code }}</span>
+            <span class="ctsid">CTS ID {{ alt.cts_id }}</span>
+            <span class="conf {{ {'high':'hi','medium':'mid','low':'lo'}[alt.confidence] }}">
+              {{ {'high':'vysoká','medium':'nižší','low':'nízká'}[alt.confidence] }}
+            </span>
+          </div>
+          <div class="label">{{ alt.label }}</div>
+          {% if alt.justification %}<div class="why">{{ alt.justification }}</div>{% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+      {% else %}
+        <div class="abstain">
+          <strong>Nástroj kód nevybral — výběr je na vás.</strong><br>
+          {{ classification.abstain_reason or 'Podklady nestačily k rozhodnutí.' }}
+        </div>
+        {% if candidates and candidates|length %}
+        <p class="alts-title">zúžený číselník ({{ candidates|length }} z {{ candidates.considered }})</p>
+        {% for candidate in candidates %}
+        <div class="alt">
+          <div class="code-row">
+            <span class="code">{{ candidate.code }}</span>
+            <span class="ctsid">CTS ID {{ candidate.cts_id }}</span>
+          </div>
+          <div class="label">{{ candidate.label }}</div>
+          {% if candidate.reasons %}<div class="why">{{ candidate.reasons|join('; ') }}</div>{% endif %}
+        </div>
+        {% endfor %}
+        {% endif %}
+      {% endif %}
+    </div>
+  {% endmacro %}
+
+  <section class="card issuer" id="result">
+    <h2>{{ suggestion.issuer_name or 'Emitent neurčen' }}</h2>
+    <div class="meta">
+      {% if suggestion.request.isin %}ISIN {{ suggestion.request.isin }} · {% endif %}
+      nerezident
+    </div>
+    {% if suggestion.description %}
+    <p class="desc">{{ suggestion.description }}</p>
+    {% else %}
+    <p class="desc"><em>Popis činnosti se nepodařilo získat.</em></p>
+    {% endif %}
+
+    <div class="panels">
+      {{ panel('NACE', 'číselník CTS_OKEC_NACE2 · první 2 číslice', suggestion.nace, suggestion.nace_candidates) }}
+      {{ panel('ESA 2010', 'číselník BA0036 · jen elementární kódy · nerezident', suggestion.esa, suggestion.esa_candidates) }}
+    </div>
+
+    {% if suggestion.evidence.sources %}
+    <details class="evidence">
+      <summary>Podklady, ze kterých návrh vychází</summary>
+      <ul class="sources">
+        {% for source in suggestion.evidence.sources %}
+        <li><a href="{{ source.url }}" target="_blank" rel="noopener noreferrer">{{ source.title or source.url }}</a>
+            {% if not source.fetched %}<em>(pouze úryvek z vyhledávání)</em>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+
+    {% if suggestion.all_notes %}
+    <ul class="notes">
+      {% for note in suggestion.all_notes %}<li>{{ note }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+
+    <div class="downloads">
+      <a class="download" href="/suggest.xlsx?isin={{ suggestion.request.isin or '' | urlencode }}&name={{ suggestion.request.name or '' | urlencode }}&description={{ suggestion.request.description or '' | urlencode }}">Stáhnout výsledek (.xlsx)</a>
+    </div>
+
+    <div class="foot">
+      <span>zdroj: <code>WEB</code></span>
+      <span>vyhledáno: <code>{{ suggestion.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</code></span>
+      <span>verze číselníku: <code>{{ suggestion.codebook_version or '—' }}</code></span>
+      <span>model: <code>{{ suggestion.nace.model or '—' }}</code></span>
+    </div>
+  </section>
+  {% endif %}
+
+</div>
+</body>
+</html>

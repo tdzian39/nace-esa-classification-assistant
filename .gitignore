@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+
+# Local configuration and secrets (never commit)
+app/.env
+.env
+
+# Codebook xlsx files are bank-internal; bootstrap copies live locally only
+app/data/codebooks/*.xlsx
+app/data/codebooks/*.xlsm
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Classification cache: holds issuer names and model answers, never committed.
+app/data/cache/
+*.sqlite3
+app/ui/prototype/preview_answered.html
+app/ui/prototype/preview_deterministic.html
