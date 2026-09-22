@@ -200,6 +200,8 @@ SUGGESTION_COLUMNS: Final[tuple[str, ...]] = (
     "IN_isin",
     "IN_name",
     "issuer_name",
+    "issuer_lei",
+    "issuer_country",
     "description",
     "NACE_code",
     "NACE_cts_id",
@@ -230,6 +232,7 @@ SUGGESTION_COLUMNS: Final[tuple[str, ...]] = (
 SUGGESTION_TEXT_COLUMNS: Final[frozenset[str]] = frozenset(
     {
         "IN_isin",
+        "issuer_lei",
         "NACE_code",
         "NACE_cts_id",
         "NACE_alt1",
@@ -242,6 +245,8 @@ SUGGESTION_TEXT_COLUMNS: Final[frozenset[str]] = frozenset(
 )
 
 SUGGESTION_HEADER_LABELS: Final[Mapping[str, str]] = {
+    "issuer_lei": "issuer_lei (GLEIF)",
+    "issuer_country": "issuer_country (sídlo podle GLEIF)",
     "NACE_cts_id": "NACE_cts_id (do CTS)",
     "ESA_cts_id": "ESA_cts_id (do CTS)",
     "retrieved_at": "retrieved_at (UTC)",
@@ -269,14 +274,16 @@ def suggestion_row(suggestion: object) -> dict[str, object]:
             "IN_isin": request.isin,
             "IN_name": request.name,
             "issuer_name": suggestion.issuer_name,  # type: ignore[attr-defined]
+            "issuer_lei": suggestion.identity.lei,  # type: ignore[attr-defined]
+            "issuer_country": suggestion.identity.country,  # type: ignore[attr-defined]
             "description": suggestion.description,  # type: ignore[attr-defined]
-            "source": "WEB",
+            "source": suggestion.source_label,  # type: ignore[attr-defined]
             "retrieved_at": suggestion.created_at,  # type: ignore[attr-defined]
             "codebook_version": suggestion.codebook_version,  # type: ignore[attr-defined]
             "notes": tuple(suggestion.all_notes),  # type: ignore[attr-defined]
             "evidence_urls": tuple(
                 source.url
-                for source in suggestion.evidence.sources  # type: ignore[attr-defined]
+                for source in suggestion.evidence_sources  # type: ignore[attr-defined]
             ),
         }
     )

@@ -20,9 +20,18 @@ from config.settings import Settings
 from core.classify.llm import LlmClassifier
 from core.classify.provider import NullLlmProvider, StubLlmProvider
 from core.codebooks.models import CodebookSet
+from core.sources.gleif import GleifSource
+from core.sources.identity import IssuerIdentifier
+from core.sources.openfigi import OpenFigiSource
 from core.sources.web import SearchHit, StaticSearchProvider, WebEvidenceGatherer
 from core.suggest import SuggestionService
 from tests.classify.conftest import build_codebooks
+from tests.sources.conftest import (
+    FIGI_DEUTSCHE_BANK,
+    GLEIF_DEUTSCHE_BANK,
+    figi_client,
+    gleif_client,
+)
 
 PAGE = (
     "<html><head><meta name='description' content='Nordkap Funding B.V. is the financing "
@@ -48,6 +57,7 @@ def make_service(
     hits: tuple[SearchHit, ...] = (
         SearchHit(url="https://example.com/a", title="Nordkap Funding B.V."),
     ),
+    identifier: IssuerIdentifier | None = None,
 ) -> SuggestionService:
     import httpx
 
@@ -64,6 +74,7 @@ def make_service(
         codebooks,
         gatherer=gatherer,
         classifier=LlmClassifier(provider or NullLlmProvider()),
+        identifier=identifier,
     )
 
 
@@ -301,3 +312,128 @@ class TestAuditedUser:
             for r in range(2, book["Run"].max_row + 1)
         }
         assert pairs["uživatel"] == "mo.analyst"
+
+
+class TestIsinIdentity:
+    """An ISIN is resolved to its issuer through GLEIF and OpenFIGI before anything is searched.
+
+    The registers are driven through ``httpx.MockTransport`` clients answering with trimmed
+    copies of the live payloads for Deutsche Bank AG (DE0005140008), so the whole chain -
+    identifier, evidence, shortlist, classifier, page, JSON, audit - runs without a network.
+    """
+
+    ISIN = "DE0005140008"
+    LEI = "7LTWFZYICNSX8D621K86"
+
+    @pytest.fixture
+    def calls(self) -> list[str]:
+        return []
+
+    @pytest.fixture
+    def isin_client(self, calls: list[str]) -> Iterator[TestClient]:
+        settings = Settings(
+            llm_api_key=None,
+            llm_cache_path=None,
+            gleif_min_interval_seconds=0.0,
+            gleif_max_attempts=1,
+            openfigi_min_interval_seconds=0.0,
+            openfigi_max_attempts=1,
+        )
+        identifier = IssuerIdentifier(
+            settings,
+            gleif=GleifSource(
+                settings,
+                client=gleif_client(
+                    by_isin={self.ISIN: GLEIF_DEUTSCHE_BANK},
+                    exceptions={self.LEI: "NO_KNOWN_PERSON"},
+                    calls=calls,
+                ),
+                sleep=lambda _: None,
+            ),
+            openfigi=OpenFigiSource(
+                settings, client=figi_client(FIGI_DEUTSCHE_BANK, calls=calls), sleep=lambda _: None
+            ),
+        )
+        provider = StubLlmProvider({"NACE": answer("64"), "ESA": answer("2002213")})
+        api._state["settings"] = settings
+        api._state["service"] = make_service(
+            build_codebooks(), provider=provider, hits=(), identifier=identifier
+        )
+        try:
+            yield TestClient(api.app)
+        finally:
+            api._state.clear()
+
+    def test_the_issuer_is_named_from_the_register(self, isin_client: TestClient) -> None:
+        """An ISIN alone used to yield 'Emitent neurčen'; now the LEI record names it."""
+        response = isin_client.post("/suggest", data={"isin": self.ISIN})
+        assert response.status_code == 200
+        assert "DEUTSCHE BANK AKTIENGESELLSCHAFT" in response.text
+        assert f"LEI {self.LEI}" in response.text
+
+    def test_the_register_facts_are_on_the_page(self, isin_client: TestClient) -> None:
+        text = isin_client.post("/suggest", data={"isin": self.ISIN}).text
+        assert "Kategorie subjektu podle GLEIF" in text
+        assert "OpenFIGI (ISIN DE0005140008)" in text
+        assert "Mateřská společnost není v GLEIF uvedena" in text
+
+    def test_the_register_pages_are_cited(self, isin_client: TestClient) -> None:
+        text = isin_client.post("/suggest", data={"isin": self.ISIN}).text
+        assert "search.gleif.org" in text
+        assert "openfigi.com" in text
+
+    def test_the_facts_reach_the_classifier(self, isin_client: TestClient) -> None:
+        """The legal name carries 'BANK', so the keyword hints put 64 and the bank family on."""
+        body = isin_client.post("/api/suggest", json={"isin": self.ISIN}).json()
+        assert body["answered"] is True
+        assert body["nace"]["suggestions"][0]["code"] == "64"
+        assert body["esa"]["suggestions"][0]["code"] == "2002213"
+
+    def test_json_carries_the_identity(self, isin_client: TestClient) -> None:
+        body = isin_client.post("/api/suggest", json={"isin": self.ISIN}).json()
+        assert body["issuer_name"] == "DEUTSCHE BANK AKTIENGESELLSCHAFT"
+        assert body["identity"]["lei"] == self.LEI
+        assert body["identity"]["country"] == "DE"
+        assert body["identity"]["category"] == "GENERAL"
+        assert body["identity"]["instrument"]["market_sector"] == "Equity"
+        assert body["identity"]["sources"] == ["GLEIF", "OPENFIGI"]
+
+    def test_the_row_names_its_sources_and_the_lei(self, isin_client: TestClient) -> None:
+        row = isin_client.post("/api/suggest", json={"isin": self.ISIN}).json()["row"]
+        assert row["source"] == "GLEIF+OPENFIGI+WEB"
+        assert row["issuer_lei"] == self.LEI
+        assert row["issuer_country"] == "DE"
+        assert any("gleif.org" in url for url in row["evidence_urls"])
+
+    def test_the_audit_names_the_registers(
+        self, isin_client: TestClient, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level("INFO", logger="core.audit"):
+            isin_client.post("/suggest", data={"isin": self.ISIN})
+        assert any("sources=GLEIF+OPENFIGI+WEB" in record.message for record in caplog.records)
+
+    def test_a_typed_name_still_wins(self, isin_client: TestClient) -> None:
+        """What MO typed is authoritative; the register's spelling is shown as a fact."""
+        body = isin_client.post(
+            "/api/suggest", json={"isin": self.ISIN, "name": "Deutsche Bank AG"}
+        ).json()
+        assert body["issuer_name"] == "Deutsche Bank AG"
+        assert body["identity"]["legal_name"] == "DEUTSCHE BANK AKTIENGESELLSCHAFT"
+
+    def test_a_name_lookup_does_not_touch_the_registers(
+        self, isin_client: TestClient, calls: list[str]
+    ) -> None:
+        isin_client.post("/suggest", data={"name": "Nordkap Funding B.V."})
+        assert calls == []
+
+    def test_the_download_carries_the_lei(self, isin_client: TestClient) -> None:
+        response = isin_client.get("/suggest.xlsx", params={"isin": self.ISIN})
+        sheet = load_workbook(io.BytesIO(response.content))["Subjects"]
+        headers = [cell.value for cell in sheet[1]]
+        column = headers.index("issuer_lei (GLEIF)") + 1
+        assert sheet.cell(row=2, column=column).value == self.LEI
+
+    def test_health_reports_the_registers(self, isin_client: TestClient) -> None:
+        body = isin_client.get("/health").json()
+        assert body["gleif_enabled"] is True
+        assert body["openfigi_enabled"] is True

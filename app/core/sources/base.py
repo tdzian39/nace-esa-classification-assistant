@@ -29,8 +29,9 @@ from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from typing import Literal, Protocol, runtime_checkable
 
-#: Where a piece of data came from. ``WEB`` is reserved for build step 6 (foreign issuers).
-Source = Literal["DWS", "ARES_LIVE", "WEB"]
+#: Where a piece of data came from. ``DWS`` and ``ARES_LIVE`` describe Czech subjects;
+#: ``WEB``, ``GLEIF`` and ``OPENFIGI`` describe foreign issuers (build step 6).
+Source = Literal["DWS", "ARES_LIVE", "WEB", "GLEIF", "OPENFIGI"]
 
 #: NACE revision. ``"2"`` is NACE Rev. 2 (CZ-NACE 2008); ``"2.1"`` is NACE Rev. 2.1,
 #: marketed in CZ as "CZ-NACE 2025".

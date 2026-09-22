@@ -88,6 +88,8 @@
   .issuer h2 { margin: 0 0 2px; font-size: 18px; }
   .issuer .meta { color: var(--muted); font-size: 13px; }
   .issuer p.desc { margin: 12px 0 0; max-width: 72ch; }
+  .issuer ul.identity { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); max-width: 84ch; }
+  .issuer ul.identity li { margin-bottom: 2px; }
 
   /* ---- suggestion panels ---- */
   .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
@@ -294,8 +296,15 @@
     <h2>{{ suggestion.issuer_name or 'Emitent neurčen' }}</h2>
     <div class="meta">
       {% if suggestion.request.isin %}ISIN {{ suggestion.request.isin }} · {% endif %}
+      {% if suggestion.identity.lei %}LEI {{ suggestion.identity.lei }} · {% endif %}
+      {% if suggestion.identity.country %}sídlo {{ suggestion.identity.country }} · {% endif %}
       nerezident
     </div>
+    {% if suggestion.identity.found %}
+    <ul class="identity" aria-label="Údaje z registrů GLEIF a OpenFIGI">
+      {% for fact in suggestion.identity.facts() %}<li>{{ fact }}</li>{% endfor %}
+    </ul>
+    {% endif %}
     {% if suggestion.description %}
     <p class="desc">{{ suggestion.description }}</p>
     {% else %}
@@ -307,11 +316,11 @@
       {{ panel('ESA 2010', 'číselník BA0036 · jen elementární kódy · nerezident', suggestion.esa, suggestion.esa_candidates) }}
     </div>
 
-    {% if suggestion.evidence.sources %}
+    {% if suggestion.evidence_sources %}
     <details class="evidence">
       <summary>Podklady, ze kterých návrh vychází</summary>
       <ul class="sources">
-        {% for source in suggestion.evidence.sources %}
+        {% for source in suggestion.evidence_sources %}
         <li><a href="{{ source.url }}" target="_blank" rel="noopener noreferrer">{{ source.title or source.url }}</a>
             {% if not source.fetched %}<em>(pouze úryvek z vyhledávání)</em>{% endif %}</li>
         {% endfor %}
@@ -330,7 +339,7 @@
     </div>
 
     <div class="foot">
-      <span>zdroj: <code>WEB</code></span>
+      <span>zdroj: <code>{{ suggestion.source_label }}</code></span>
       <span>vyhledáno: <code>{{ suggestion.created_at.strftime('%Y-%m-%d %H:%M') }} UTC</code></span>
       <span>verze číselníku: <code>{{ suggestion.codebook_version or '—' }}</code></span>
       <span>model: <code>{{ suggestion.nace.model or '—' }}</code></span>

@@ -3,13 +3,21 @@
 The pipeline the brief describes, in one place so the API, the UI and a CLI all get the same
 behaviour:
 
-    input -> evidence (web or typed) -> shortlist per codebook -> classifier -> suggestions
+    input -> identity (GLEIF, OpenFIGI) -> evidence (web or typed)
+          -> shortlist per codebook -> classifier -> suggestions
 
-What it deliberately does **not** do is fail. Every step degrades: a malformed ISIN becomes a
-note, an issuer the web cannot describe produces an abstention, an exhausted budget produces
-an abstention. A reviewer always gets a row back, with the reason attached, because MO's
-fallback is to research the issuer themselves - which they can only do if they can see that
-the tool did not.
+The identity step is what makes an ISIN a useful input on its own. GLEIF turns it into the
+issuer's LEI record - legal name, country, legal form, entity category, parents - and
+OpenFIGI into the instrument's type and market sector. The legal name becomes the web search
+query and the name on the page; the facts go to the pre-filter and the model next to the
+web description, so a bank is a bank because the register says so, not because the model
+recognised the name.
+
+What the pipeline deliberately does **not** do is fail. Every step degrades: a malformed ISIN
+becomes a note, a register that cannot be asked becomes a note, an issuer the web cannot
+describe produces an abstention, an exhausted budget produces an abstention. A reviewer
+always gets a row back, with the reason attached, because MO's fallback is to research the
+issuer themselves - which they can only do if they can see that the tool did not.
 """
 
 from __future__ import annotations
@@ -23,7 +31,8 @@ from core.classify.llm import LlmClassifier
 from core.classify.models import ESA, NACE, CandidateSet, Classification
 from core.codebooks.models import CodebookSet
 from core.identifiers.isin import InvalidIsinError, normalize_isin
-from core.sources.web import IssuerEvidence, WebEvidenceGatherer
+from core.sources.identity import NO_IDENTITY, IssuerIdentifier, IssuerIdentity
+from core.sources.web import EvidenceSource, IssuerEvidence, WebEvidenceGatherer
 
 LOGGER = logging.getLogger(__name__)
 
@@ -47,7 +56,7 @@ class SuggestionRequest:
 
         A malformed ISIN is a note, not a rejection: the name or description may still be
         enough, and telling the user their ISIN looks wrong is more useful than refusing the
-        whole request.
+        whole request. It is also never sent to a register - only a valid ISIN is looked up.
         """
         notes: list[str] = []
         isin = (self.isin or "").strip() or None
@@ -61,6 +70,7 @@ class SuggestionRequest:
                 notes.append(f"ISIN {isin!r} nevypadá jako platný ISIN ({exc.reason})")
                 if not (name or description):
                     notes.append("bez názvu nebo popisu nelze pokračovat")
+                isin = None
         return SuggestionRequest(isin=isin, name=name, description=description), tuple(notes)
 
 
@@ -77,15 +87,38 @@ class IssuerSuggestion:
     codebook_version: str | None = None
     created_at: datetime | None = None
     notes: tuple[str, ...] = field(default=())
+    identity: IssuerIdentity = NO_IDENTITY
 
     @property
     def issuer_name(self) -> str | None:
-        """The name to show: what the user typed, else what the web resolved."""
-        return self.request.name or self.evidence.issuer_name
+        """The name to show: what the user typed, else the register's legal name, else the web's."""
+        return self.request.name or self.identity.legal_name or self.evidence.issuer_name
 
     @property
     def description(self) -> str | None:
         return self.evidence.description
+
+    @property
+    def classifier_text(self) -> str:
+        """What the pre-filter and the model read: the description, then the register facts."""
+        return "\n\n".join(
+            part for part in (self.evidence.description, self.identity.fact_sheet()) if part
+        )
+
+    @property
+    def evidence_sources(self) -> tuple[EvidenceSource, ...]:
+        """Register pages first, then the web hits - the "Podklady" list."""
+        return (*self.identity.evidence, *self.evidence.sources)
+
+    @property
+    def sources(self) -> tuple[str, ...]:
+        """Registers that answered, then ``WEB``: the audit trail and the row's ``source``."""
+        return (*self.identity.sources, "WEB")
+
+    @property
+    def source_label(self) -> str:
+        """``"GLEIF+OPENFIGI+WEB"``, or plain ``"WEB"`` for a lookup without an ISIN."""
+        return "+".join(self.sources)
 
     @property
     def answered(self) -> bool:
@@ -94,8 +127,8 @@ class IssuerSuggestion:
 
     @property
     def all_notes(self) -> tuple[str, ...]:
-        """Request notes, evidence notes and each abstention reason, deduplicated."""
-        collected: list[str] = [*self.notes, *self.evidence.notes]
+        """Request notes, register notes, evidence notes and each abstention reason, deduplicated."""
+        collected: list[str] = [*self.notes, *self.identity.notes, *self.evidence.notes]
         for classification in (self.nace, self.esa):
             if classification.abstained and classification.abstain_reason:
                 collected.append(f"{classification.kind}: {classification.abstain_reason}")
@@ -115,11 +148,13 @@ class SuggestionService:
         *,
         gatherer: WebEvidenceGatherer,
         classifier: LlmClassifier,
+        identifier: IssuerIdentifier | None = None,
         limit: int = DEFAULT_LIMIT,
     ) -> None:
         self._codebooks = codebooks
         self._gatherer = gatherer
         self._classifier = classifier
+        self._identifier = identifier
         self._limit = limit
         self._nace = NaceCandidateFilter(codebooks)
         self._esa = EsaCandidateFilter(codebooks)
@@ -132,16 +167,23 @@ class SuggestionService:
         """Run one lookup. Never raises for ordinary failures."""
         cleaned, notes = request.cleaned()
 
-        evidence = self._gatherer.gather(
-            name=cleaned.name, isin=cleaned.isin, description=cleaned.description
+        identity = (
+            self._identifier.identify(cleaned.isin) if self._identifier is not None else NO_IDENTITY
         )
-        description = evidence.description or ""
-        issuer_name = cleaned.name or evidence.issuer_name
+        # The register's legal name is the best possible search query; what the user typed
+        # still wins as the name shown, because it is what they will recognise.
+        evidence = self._gatherer.gather(
+            name=cleaned.name or identity.legal_name,
+            isin=cleaned.isin,
+            description=cleaned.description,
+        )
+        issuer_name = cleaned.name or identity.legal_name or evidence.issuer_name
+        text = "\n\n".join(part for part in (evidence.description, identity.fact_sheet()) if part)
 
-        nace_candidates = self._nace.shortlist(description, limit=self._limit)
-        esa_candidates = self._esa.shortlist(description, limit=self._limit)
+        nace_candidates = self._nace.shortlist(text, limit=self._limit)
+        esa_candidates = self._esa.shortlist(text, limit=self._limit)
         nace, esa = self._classifier.classify_both(
-            nace_candidates, esa_candidates, issuer_name=issuer_name, description=description
+            nace_candidates, esa_candidates, issuer_name=issuer_name, description=text
         )
 
         return IssuerSuggestion(
@@ -154,6 +196,7 @@ class SuggestionService:
             codebook_version=self._codebooks.version.id,
             created_at=datetime.now(UTC),
             notes=notes,
+            identity=identity,
         )
 
 
@@ -162,10 +205,11 @@ def build_service(
     *,
     codebooks: CodebookSet | None = None,
 ) -> SuggestionService:
-    """The standard service: real codebooks, the configured search provider and model."""
+    """The standard service: real codebooks, the configured registers, search provider and model."""
     from config.settings import Settings, get_settings
     from core.classify.llm import build_classifier
     from core.codebooks.loaders import load_and_check
+    from core.sources.identity import build_identifier
 
     resolved: Settings = settings if isinstance(settings, Settings) else get_settings()
     if codebooks is None:
@@ -174,6 +218,7 @@ def build_service(
         codebooks,
         gatherer=WebEvidenceGatherer(resolved),
         classifier=build_classifier(resolved, codebook_version=codebooks.version.id),
+        identifier=build_identifier(resolved),
     )
 
 

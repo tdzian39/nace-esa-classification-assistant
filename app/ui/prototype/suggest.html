@@ -93,6 +93,8 @@
   .issuer h2 { margin: 0 0 2px; font-size: 18px; }
   .issuer .meta { color: var(--muted); font-size: 13px; }
   .issuer p.desc { margin: 12px 0 0; max-width: 72ch; }
+  .issuer ul.identity { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); max-width: 84ch; }
+  .issuer ul.identity li { margin-bottom: 2px; }
 
   /* ---- suggestion panels ---- */
   .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
@@ -217,7 +219,14 @@
   <!-- ============ RESULT ============ -->
   <section class="card issuer" id="result">
     <h2>Nordkap Funding B.V.</h2>
-    <div class="meta">ISIN XS2345678901 · sídlo Nizozemsko · nerezident</div>
+    <div class="meta">ISIN XS2345678901 · LEI 724500XXXXXXXXXXXX56 · sídlo NL · nerezident</div>
+    <ul class="identity" aria-label="Údaje z registrů GLEIF a OpenFIGI">
+      <li>GLEIF (LEI 724500XXXXXXXXXXXX56): Nordkap Funding B.V. Země sídla: NL. Právní forma: ELF B5PM.
+          Kategorie subjektu podle GLEIF: běžná právnická osoba [GENERAL]. Stav: subjekt ACTIVE, registrace LEI ISSUED.</li>
+      <li>Přímá mateřská společnost: Nordkap Bank AB (SE). Konečná mateřská společnost je totožná s přímou.
+          Konečná mateřská společnost sídlí v jiné zemi (SE) než emitent (NL).</li>
+      <li>OpenFIGI (ISIN XS2345678901): NORDKAP FUNDING BV. Typ nástroje: EURO MTN. Tržní sektor: korporátní dluhopis (corporate bond) [Corp].</li>
+    </ul>
     <p class="desc">
       Účelová finanční společnost skupiny Nordkap Bank. Vydává dluhopisy na mezinárodních
       trzích a získané prostředky půjčuje výhradně mateřské bance a jejím dceřiným
@@ -309,6 +318,8 @@
     <details class="evidence">
       <summary>Podklady, ze kterých návrh vychází</summary>
       <ul class="sources">
+        <li>GLEIF — záznam LEI 724500XXXXXXXXXXXX56 (název, sídlo, právní forma, kategorie, mateřská společnost)</li>
+        <li>OpenFIGI — nástroj XS2345678901 (typ nástroje, tržní sektor)</li>
         <li>Webový zdroj — profil emitenta, popis účelu společnosti <span>(vyhledáno 22. 9. 2026)</span></li>
         <li>Webový zdroj — prospekt emise, oddíl „Use of proceeds“</li>
         <li>Číselník BA0036 — definice subsektoru kaptivních finančních institucí</li>
@@ -324,7 +335,7 @@
     </div>
 
     <div class="foot">
-      <span>zdroj: <code>WEB</code></span>
+      <span>zdroj: <code>GLEIF+OPENFIGI+WEB</code></span>
       <span>vyhledáno: <code>2026-09-22 13:41 UTC</code></span>
       <span>verze číselníku: <code>cb-3b12e64837840ca0</code></span>
       <span>model: <code>(konfigurovatelný)</code></span>

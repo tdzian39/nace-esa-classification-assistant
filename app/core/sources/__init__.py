@@ -9,6 +9,10 @@
 * :mod:`core.sources.resolver` - the DWS-then-ARES policy and the audit trail.
 * :mod:`core.sources.web` - foreign-issuer descriptions from the public web, with
   citable sources. Never touches the Czech registers' web front ends.
+* :mod:`core.sources.gleif`, :mod:`core.sources.openfigi`, :mod:`core.sources.identity` -
+  ISIN -> issuer: the LEI record (legal name, country, legal form, entity category, parents)
+  and the instrument (market name, security type, market sector). Public registers, stamped
+  ``GLEIF`` / ``OPENFIGI``; what they return may be shown and put in a prompt.
 
 Nothing obtained through :mod:`core.sources.dws` may ever be sent to an LLM.
 """
@@ -32,6 +36,14 @@ from core.sources.base import (
     SubjectSource,
 )
 from core.sources.dws import DwsSource
+from core.sources.gleif import GleifSource, LeiRecord, ParentEntity
+from core.sources.identity import (
+    NO_IDENTITY,
+    IssuerIdentifier,
+    IssuerIdentity,
+    build_identifier,
+)
+from core.sources.openfigi import FigiInstrument, OpenFigiSource
 from core.sources.resolver import (
     LookupResult,
     LookupStatus,
@@ -58,6 +70,14 @@ __all__ = [
     "AresSource",
     "DwsSource",
     "EvidenceSource",
+    "FigiInstrument",
+    "GleifSource",
+    "IssuerIdentifier",
+    "IssuerIdentity",
+    "LeiRecord",
+    "NO_IDENTITY",
+    "OpenFigiSource",
+    "ParentEntity",
     "HttpSearchProvider",
     "IssuerEvidence",
     "LookupResult",
@@ -82,5 +102,6 @@ __all__ = [
     "SubjectSource",
     "WebEvidenceGatherer",
     "build_default_resolver",
+    "build_identifier",
     "is_blocked",
 ]
