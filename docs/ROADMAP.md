@@ -73,13 +73,16 @@ not an oracle: **a human confirms every code**.
   503 instead of a dead instance, `/probe`, the Vercel config. Built on PR #5's branch but opened against
   `main` from the start (the lesson of #2), so until #5 merges its diff also shows #5's commits; merge #5
   first.
+- **PR #7** `feat/e8-golden-set` — E8 (22 Sept 2026): 36 real foreign issuers, provisional, scored with their
+  recorded register facts. Built on #6's branch, opened against `main`; merge after #5 and #6.
 
 ### Where the next session starts: E1's codebooks, then E2 and E8
 
 **E1 is deployed** (22 Sept 2026, see E1 below): `nace-esa-assistant` in Jakub's Hobby team, production behind
 Vercel Authentication, the private Blob store connected and empty, so `/health` says which file is missing. The
 next step is uploading the four codebook files (`app/README.md` → "Deploying on Vercel" → step 3), then checking
-`DE0005140008` end to end and measuring the cold start with codebooks. Then E2 (the login), with E8 alongside.
+`DE0005140008` end to end and measuring the cold start with codebooks. Then E2 (the login). E8's cases are in
+PR #7; their first numbers need the same codebook files (`python -m core.classify --golden`).
 
 
 E0.3 is done in PR #5. It deleted the twelve Tool 2 files — `core/sources/{dws,ares,resolver,__main__}.py`
@@ -129,11 +132,14 @@ app/
     probe.py             the /probe checks: one fixed request per register, status per failure mode (E1)
     sources/             base.py (Source literal, Provenance, Source*Error) · gleif.py · openfigi.py · identity.py · web.py
     classify/            candidates.py (pre-filter) · hints.py (keyword table + ESA family grid) · text.py (IDF)
-                         prompts.py · provider.py · llm.py · cache.py · budget.py · golden.py (LLM path, off)
+                         prompts.py · provider.py · llm.py · cache.py · budget.py (LLM path, off)
+                         golden.py (cases, recall@12, top-1) · golden_fixtures.py (register answers: capture / replay)
     export/              columns.py (the suggestion row contract) · xlsx.py (Subjects + Run sheets)
     batch/               reader.py (messy xlsx in — E6 reuses it; nothing calls it yet)
     audit.py             one log line per lookup: identifier, time, user, sources, outcome — never content
-  tests/                 1050 passed / 16 skipped (skips = tests needing the real xlsx); fixtures are trimmed live payloads
+  tests/                 1248 passed / 16 skipped (skips = tests needing the real xlsx); fixtures are trimmed live payloads
+    golden/              cases.json (10 fictional trap cases + 36 real issuers, all provisional) · identity.json
+                         (recorded GLEIF/OpenFIGI answers) · ba0036_v044_nonresident.json (the public CNB list)
 ```
 
 ### The pipeline, concretely
@@ -426,6 +432,10 @@ visible on the page.
    investment → funds; `DN…` municipal → local government; `E…` equity of the issuer itself.
 3. Register order in `IssuerIdentifier`: GLEIF → FIRDS (if no LEI yet) → OpenFIGI → Wikidata → Wikipedia;
    all fail-soft, all cited, `/probe?set=all` covers the hosts.
+   *Measured on the E8 golden set (22 Sept 2026): GLEIF's ISIN filter resolves 25 of 36 real ISINs; the misses
+   are Eurobond (XS), Luxembourg and Irish fund ISINs - among them all four captive vehicles, the core ESA trap,
+   whose fact sheet therefore lacks the parent. OpenFIGI knows all 36. The FIRDS LEI fallback is the first thing
+   E5 should add; the golden run shows its effect directly.*
 **DoD:** Volkswagen AG's ISIN yields a NACE 29 candidate with Wikidata evidence; Deutsche Bank gets a Czech or
 English summary as description; recorded fixtures for all three sources.
 
@@ -483,6 +493,16 @@ Realkreditaktieselskab, Unilever PLC.
 **DoD:** ~30 real cases with ISIN, sources and reasoning, all provisional; recorded identity fixtures; the runner
 reports recall@12 and top-1 labelled *provisional* wherever the numbers appear; no accuracy claim anywhere
 without `verified_by`; a case turns verified only when someone has checked it against CTS.
+**Status: done in PR #7 (22 Sept 2026) except the numbers.** 36 real issuers - 6 governments, 6 supranationals,
+KfW, 7 banks, 2 insurers, 4 corporates, 5 financing vehicles, 4 funds, 1 securitisation vehicle - researched by
+four agents from GLEIF, OpenFIGI, FIRDS, issuer reports and the ECB lists, each group re-checked by an independent
+reviewer who tried to refute it (all 36 ISINs and LEIs held; six descriptions, one ISIN and some citations were
+corrected). Confidence: 20 high, 13 medium, 3 low; 15 cases depend on Q7. Notable traps: the **EIB** is
+`2002211` banky veřejné, not `2009031` - the CNB's own note to `2009031` says it has been reported among
+non-resident banks since 2010; **Toyota Motor Credit** lends to customers, so `2002533`, not a captive; the
+**Unilever** and **TotalEnergies** NACE turn on Q15. The register answers are recorded (146, trimmed) in
+`tests/golden/identity.json`. The first recall/top-1 run needs the real codebooks; the numbers go here and in the
+README labelled provisional.
 
 ### E9 — LLM second opinion (M) — *deferred until an approved endpoint exists*
 
@@ -607,6 +627,11 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
   rely on Wikipedia summaries (E5) + typed descriptions? **Answer:**
 - **Q14. ESA descriptions dictionary** ("Ivča ještě dodá" in the brief): does it exist beyond
   `BA0036_2024_jen_validni.xlsx`'s `Popis` column? **Answer:**
+- **Q15. NACE of a listed group parent** (raised by E8, 22 Sept 2026): does CTS record the legal unit's own
+  activity - for Unilever PLC or TotalEnergies SE that is 70 (activities of head offices), as the national
+  registers, ESA 2010 2.14 and FINREP (EBA Q&A 2022_6672) do - or the group's main activity (20 soaps and
+  detergents, 06 oil and gas extraction)? The golden cases take the group view with 70 as the first alternative.
+  Captive financing vehicles stay 64 either way: financing is their own activity. **Answer:**
 
 ### Answered / decided log
 
@@ -626,10 +651,12 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 ```bash
 cd app
 python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]"   # Windows paths; the repo path may contain spaces — quote it
-../.venv/Scripts/python.exe -m pytest -q          # 1050 passed, 16 skipped without the real xlsx (skips are expected)
+../.venv/Scripts/python.exe -m pytest -q          # 1248 passed, 16 skipped without the real xlsx (skips are expected)
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .
 ../.venv/Scripts/python.exe -m core.codebooks     # startup consistency check against data/codebooks (needs the xlsx)
 ../.venv/Scripts/python.exe -m core.classify "popis cinnosti" --verbose   # shortlist for a description
+../.venv/Scripts/python.exe -m core.classify --golden        # recall@12 + top-1 over tests/golden (needs the xlsx)
+../.venv/Scripts/python.exe -m core.classify --golden-capture  # re-record the register answers (network, ~2 min)
 ../.venv/Scripts/python.exe -m uvicorn api.main:app --port 8000           # local web tool (needs the xlsx)
 ```
 

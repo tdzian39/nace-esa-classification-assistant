@@ -23,7 +23,8 @@ page and the xlsx both carry that shortlist; the panel says plainly that no code
 
 On the ten fictional, provisional golden cases the deterministic top pick was right 90% of the
 time for NACE and 60% for ESA - an indication, not an accuracy figure: no accuracy is quoted
-until cases have been checked against CTS (roadmap E8). Useful on its own, but unable to
+until cases have been checked against CTS (roadmap E8). The golden set now also holds 36 real
+foreign issuers (E8), provisional as well; their first numbers need the real codebooks. Useful on its own, but unable to
 explain itself or to resolve distinctions that turn on a sentence.
 
 **An ISIN is now enough to start.** GLEIF resolves it to the issuer's LEI record (legal
@@ -70,6 +71,7 @@ app/
                     gleif.py, openfigi.py, identity.py (ISIN -> issuer, public registers)   [step 6]
     audit.py        lookup audit trail (identifier, timestamp, user)                       [step 2]
     classify/       candidates.py + hints.py + text.py (pre-filter), golden.py, CLI          [step 6]
+                    golden_fixtures.py (recorded register answers for the golden run)       [E8]
                     prompts.py, provider.py, llm.py, cache.py (the model call)               [step 6]
     export/         columns.py (the suggestion row), xlsx.py (Subjects + Run sheets)        [step 3]
     batch/          reader.py (messy xlsx in; roadmap E6 reuses it)                         [step 3]
@@ -88,7 +90,8 @@ app/
     codebooks/      unit tests with synthetic xlsx fixtures + real-file smoke test
     sources/        source tests: GLEIF, OpenFIGI and web through mocked httpx transports   [step 6]
     fixtures/       reserved for recorded payloads (nothing yet)
-    golden/         verified issuer name/description -> expected NACE/ESA                    [step 6]
+    golden/         cases.json: 10 fictional traps + 36 real issuers, all provisional        [E8]
+                    identity.json (recorded GLEIF/OpenFIGI answers), BA0036 v044 reference
   README.md
   pyproject.toml
 ```
@@ -122,7 +125,7 @@ python -m pytest -q
 ```
 
 Without the real codebooks (a fresh clone: they are bank-internal and git-ignored) the
-suite reports **1050 passed, 16 skipped**. The skips are the tests that need the four real
+suite reports **1248 passed, 16 skipped**. The skips are the tests that need the four real
 xlsx files - the real-file smoke test (`tests/codebooks/test_codebooks_real_files.py`),
 the real-recall and most of the cost tests in `tests/classify/` - and they run on a machine
 that has them, where all four load with 0 errors (version `cb-3b12e64837840ca0`). Every
@@ -373,7 +376,8 @@ come from?".
 
 ```bash
 python -m core.classify "captive funding vehicle of a banking group" --verbose
-python -m core.classify --golden        # recall over tests/golden, no API key needed
+python -m core.classify --golden        # recall + top-1 over tests/golden, no API key needed
+python -m core.classify --golden-capture   # re-record the golden register answers (network)
 ```
 
 The classifier is never asked to *produce* a code; it chooses from a list. Every candidate
