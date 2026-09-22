@@ -38,7 +38,7 @@ DWS (the bank data warehouse; access not granted for this project) and the publi
 API were Tool 2's sources and left with it in PR #5; nothing here reads them.
 Do not scrape apl.czso.cz or or.justice.cz.
 
-## Codebooks (xlsx; how they reach Vercel is roadmap D3)
+## Codebooks (xlsx; on Vercel they come from a private Blob store, roadmap D3)
 
 - CTS_BA0036_NEW.xlsx: ID (CTS ID), VALUE (ESA code), DESCRIPTION.
   REAL FILE (received 2026-09-22): headers are `.ID`, `Popis`, `Hodnota` - i.e. ID/.ID,
@@ -129,9 +129,9 @@ Stop after each step, run tests, summarize what exists, wait for go-ahead.
   rule is withdrawn - the Dockerfile may stay for local runs). Design for serverless: no
   writable disk except /tmp, no long-lived process state, lazy startup, no reverse proxy in
   front (a client-settable header is not an identity). See `docs/ROADMAP.md` section 4.
-- The repository is PUBLIC as of 22 Sept 2026: never commit the CTS codebooks, `.env`, audit
-  logs, real lookups or anything else bank-internal. It must go private before codebooks or
-  real data are bundled anywhere (roadmap D2).
+- The repository is PUBLIC and stays public (decided 22 Sept 2026, roadmap D2): never commit
+  the CTS codebooks, `.env`, audit logs, real lookups or anything else bank-internal. The
+  codebooks reach a deployment only from a private Vercel Blob store (roadmap D3).
 - The LLM stays off until an approved endpoint exists (roadmap E9). Keep its tests green; do
   not extend the provider path before then.
 
@@ -175,17 +175,21 @@ not an unfinished edge. In this mode it:
   `ESA_candidates`),
 * states in the panel that it did not choose, and why.
 
-Do not present this as a failure state in UI copy or docs. Measured on the golden cases the
-deterministic top pick is right 90% of the time for NACE and 60% for ESA, so it is genuinely
-useful on its own - it just cannot justify its choice or resolve the distinctions that turn
-on a sentence ("holds no banking licence", "not a money market fund").
+Do not present this as a failure state in UI copy or docs. On the ten fictional, provisional
+golden cases the deterministic top pick was right 90% of the time for NACE and 60% for ESA -
+an indication for developers, not an accuracy figure to quote - so it is genuinely useful on
+its own; it just cannot justify its choice or resolve the distinctions that turn on a
+sentence ("holds no banking licence", "not a money market fund").
 
 **NEXT STEP: follow `docs/ROADMAP.md`** - E1 (deploy the deterministic mode on Vercel), then
 E2 (access and audit), E3-E5 (name lookup, structured hints, more sources), E6-E7 (batch,
 confirm/history), E8 (real golden set) alongside. Taken so far: PR #1 (ISIN -> GLEIF/OpenFIGI
-identity) and E0.3, the removal of the parked Tool 2 and the unused `pandas` (PR #5). Still
-open from E0: E0.2, making the repository private (an owner action), which must happen
-before any real codebook is uploaded.
+identity) and E0.3, the removal of the parked Tool 2 and the unused `pandas` (PR #5). E0 is
+complete: E0.2 (a private repository) was dropped on 22 Sept 2026 - the repository stays
+public and the codebooks go to a private Blob store (roadmap D2, D3). Decided the same day
+(roadmap section 7): the E2 shared-password gate is the permanent login (no Entra ID, D5), no
+data-classification sign-off gates go-live (D6), and the golden set is built from public
+sources without MO, every case provisional (Q8).
 
 **Turning the OpenAI API on is DEFERRED (roadmap E9).** Everything for it is built and tested
 against a stub (`core/classify/{prompts,provider,llm,cache,budget}.py`). When an endpoint is
@@ -195,8 +199,9 @@ approved, switching it on means:
 2. confirm `LLM_MODEL` - the default is a cheap placeholder marked TODO;
 3. run a handful of real issuers: the provider path has NEVER made a live call, so expect to
    fix something small the first time;
-4. have MO check those suggestions and record the confirmed ones in `tests/golden/cases.json`
-   with `verified_by` set - that is what finally makes accuracy measurable;
+4. have someone check those suggestions against CTS and record the confirmed ones in
+   `tests/golden/cases.json` with `verified_by` set - that is what finally makes accuracy
+   measurable;
 5. `python -m core.classify --usage` to see real spend against the limits.
 
 Spending limits are already enforced and fail closed (see `core/classify/budget.py`).
@@ -280,7 +285,9 @@ Spending limits are already enforced and fail closed (see `core/classify/budget.
   `verified_by` is set. Verified and provisional are scored separately and **no accuracy may
   be quoted from provisional cases**. All 10 shipped cases are provisional; each one traps a
   specific failure (see the README there). `python -m core.classify --golden` reports
-  recall@k with no API key.
+  recall@k with no API key. Roadmap E8 (decided 22 Sept 2026, Q8) adds ~30 real issuers
+  built from ISINs and public sources without asking MO; they stay provisional too -
+  `verified_by` empty - until someone checks each case against CTS.
 - **Issuer identity** (`core/sources/gleif.py`, `openfigi.py`, `identity.py`; added
   2026-09-22): an ISIN is resolved BEFORE the web is searched. GLEIF
   `GET /lei-records?filter[isin]=` gives the LEI record (legal name, country, legal form
@@ -386,5 +393,7 @@ Spending limits are already enforced and fail closed (see `core/classify/budget.
   `tests/fixtures` holds only a README (reserved for recorded payloads of new sources, E3/E5).
   The OpenAI key is NOT needed to run or test any of the above; it is needed only to measure
   real accuracy against a verified golden set.
-- **Later steps**: `docs/ROADMAP.md` - epics E0-E10 with design, definition of done and the
-  open decisions (Vercel account, repo visibility, codebook delivery, database, authentication).
+- **Later steps**: `docs/ROADMAP.md` - epics E0-E10 with design, definition of done, the
+  decisions taken (repo visibility, codebook delivery, authentication, sign-off, golden set)
+  and those still open (the database, D4; creating the Vercel project waits for Jakub's
+  confirmation of the team and plan, D1).

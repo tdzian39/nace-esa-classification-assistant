@@ -21,9 +21,10 @@ This README describes what exists, how it is laid out and how to run it.
 codebook to about a dozen candidates, each with its CTS ID resolved, and a human picks. The
 page and the xlsx both carry that shortlist; the panel says plainly that no code was chosen.
 
-Measured on the (still provisional) golden cases, the deterministic top pick is correct **90%**
-of the time for NACE and **60%** for ESA - useful on its own, but unable to explain itself or
-to resolve distinctions that turn on a sentence.
+On the ten fictional, provisional golden cases the deterministic top pick was right 90% of the
+time for NACE and 60% for ESA - an indication, not an accuracy figure: no accuracy is quoted
+until cases have been checked against CTS (roadmap E8). Useful on its own, but unable to
+explain itself or to resolve distinctions that turn on a sentence.
 
 **An ISIN is now enough to start.** GLEIF resolves it to the issuer's LEI record (legal
 name, country, legal form, entity category, direct and ultimate parent) and OpenFIGI to the
@@ -556,7 +557,7 @@ Codebooks and `.env` are mounted, never baked into the image. Mount a volume at
 3. Run a few real issuers. **The provider path has never made a live call** - the request
    shape is verified against the docs and tested against a mock, but expect to fix something
    small the first time.
-4. Have MO check those suggestions, then record the confirmed ones in
+4. Have someone check those suggestions against CTS, then record the confirmed ones in
    `tests/golden/cases.json` with `verified_by` filled in. That is what turns "seems right"
    into a number, and what justifies keeping the cheap model.
 5. Watch the spend:

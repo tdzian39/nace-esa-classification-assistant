@@ -13,13 +13,16 @@ expect — but scoring reports the two populations separately and **no accuracy 
 quoted from provisional cases**. A golden set that silently mixes them is worse than no
 golden set, because it manufactures confidence.
 
-Every case shipped today is provisional. Issuer names are fictional on purpose: a golden
-case should not assert a classification about a real company until someone stands behind it.
+Every case shipped today is provisional, and the issuer names are fictional. Real issuers are
+coming (roadmap E8, decided 22 Sept 2026): about thirty, built from ISINs and public sources
+without asking MO. A real name is allowed because the case says what it is - codes worked out
+from public sources, `verified_by` empty - and it stays provisional, never quoted as accuracy,
+until someone has checked it against CTS.
 
 ## Verifying a case
 
-1. Have MO classify the issuer as they normally would.
-2. If they agree with `expected_nace` / `expected_esa`, fill in:
+1. Check how the issuer is coded in CTS (or have MO classify it as they normally would).
+2. If that agrees with `expected_nace` / `expected_esa`, fill in:
    ```json
    "verified_by": "jméno / tým",
    "verified_on": "2026-10-01"
