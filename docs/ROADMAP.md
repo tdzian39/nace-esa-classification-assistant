@@ -47,10 +47,14 @@ what follows is the short list that separates "works for Jakub" from "MO uses it
    offered; it turns on Q15), EBRD and the EU (GLEIF files them `GENERAL`, so 99 is second), and ESA precedence
    between families (a money-market fund still ranks the non-MMF family first; BNP Paribas the insurers) —
    that is E4 proper, only if MO asks.
-3a. **E9 switch-on readiness — PR #9 (in progress, 23 Sept 2026; merge PR #8 first).** The endpoint arriving on
+3a. **E9: the model is ready to switch on — PR #9 (23 Sept 2026; merge PR #8 first).** The endpoint arriving on
    24 Sept is not known yet, so no new adapter: `app/README.md` → "Enabling the model" has the steps per case
-   (OpenAI and Azure v1 need no code; Azure classic and the Claude API need an adapter). The `gpt-4o-mini`
-   placeholder is replaced by `gpt-5.6-luna` with `LLM_REASONING_EFFORT=none` (OpenAI's docs, checked 23 Sept).
+   (OpenAI and Azure v1 need no code; Azure classic and the Claude API need an adapter). `gpt-5.6-luna` with
+   `LLM_REASONING_EFFORT=none` replaces the `gpt-4o-mini` placeholder (OpenAI's docs, checked 23 Sept);
+   `LLM_DAILY_TOKEN_BUDGET=0` on Vercel (§1); no model call that could outlive the 60 s cap
+   (`LOOKUP_DEADLINE_SECONDS`); `python -m core.classify --golden --model` measures a model against the rules.
+   **Switch-on** = the env vars in "Switching it on in production", the owner adds `LLM_API_KEY`, redeploy,
+   smoke checks; rollback = `LLM_ENABLED=false` and redeploy. Never made a live call yet.
 4. **E5-lite: the FIRDS LEI fallback.** GLEIF maps 25 of 36 golden ISINs; the misses (Eurobond, LU/IE funds) include
    all four captive vehicles, the core ESA trap. ESMA FIRDS returns the issuer LEI for them; `/probe` already
    shows the host reachable from Vercel.
@@ -201,7 +205,7 @@ app/
     export/              columns.py (the suggestion row contract) · xlsx.py (Subjects + Run sheets)
     batch/               reader.py (messy xlsx in — E6 reuses it; nothing calls it yet)
     audit.py             one log line per lookup: identifier, time, user, sources, outcome — never content
-  tests/                 1292 passed / 19 skipped (skips = tests needing the real xlsx; 1311 with them); fixtures are trimmed live payloads
+  tests/                 1328 passed / 19 skipped (skips = tests needing the real xlsx; 1347 with them); fixtures are trimmed live payloads
     golden/              cases.json (10 fictional trap cases + 36 real issuers, all provisional) · identity.json
                          (recorded GLEIF/OpenFIGI answers) · ba0036_v044_nonresident.json (the public CNB list)
 ```
@@ -770,7 +774,7 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 ```bash
 cd app
 python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]"   # Windows paths; the repo path may contain spaces — quote it
-../.venv/Scripts/python.exe -m pytest -q          # 1292 passed, 19 skipped without the real xlsx (skips are expected); 1311 with them
+../.venv/Scripts/python.exe -m pytest -q          # 1328 passed, 19 skipped without the real xlsx (skips are expected); 1347 with them
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .
 ../.venv/Scripts/python.exe -m core.codebooks     # startup consistency check against data/codebooks (needs the xlsx)
 ../.venv/Scripts/python.exe -m core.classify "popis cinnosti" --verbose   # shortlist for a description

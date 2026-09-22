@@ -380,9 +380,23 @@ Spending limits are already enforced and fail closed (see `core/classify/budget.
   object that might define `__len__`.
 - **Provider** (`provider.py`): OpenAI Chat Completions over plain httpx, no SDK
   dependency, so `llm_base_url` points at any compatible endpoint. Request shape verified
-  against the structured-outputs guide 2026-09-22. Token usage is read under BOTH
-  `prompt_tokens`/`completion_tokens` and `input_tokens`/`output_tokens`. 429 and 5xx
-  retry; 4xx does not (it is a defect in the request).
+  against the structured-outputs guide 2026-09-22 and 2026-09-23. Token usage is read under
+  BOTH `prompt_tokens`/`completion_tokens` and `input_tokens`/`output_tokens`. 429 and 5xx
+  retry; 4xx does not (it is a defect in the request). Since PR #9: the default model is
+  `gpt-5.6-luna`, a reasoning model, so `reasoning_effort` (`LLM_REASONING_EFFORT`, default
+  `none`, empty = not sent) goes out and `temperature` only with no effort or `none` -
+  OpenAI rejects it otherwise. Connections wait at most 5 s.
+- **The lookup deadline** (PR #9): Vercel ends the function at 60 s and the registers alone
+  can take ~46 s, so `LlmClassifier` gets `call_seconds` (`worst_case_call_seconds()`: every
+  attempt timing out, plus the backoff) and a `deadline` from `SuggestionService`
+  (`LOOKUP_DEADLINE_SECONDS`, 50): a call that could end after it is not started, the reason
+  says so and the rules' proposal stands. A cached answer is still served; the null provider
+  gets `call_seconds=0`, so deterministic mode keeps "no model configured".
+- **Blank means unset for `LLM_API_KEY` too** (PR #9): a blank key used to count as
+  configured and send `Authorization: Bearer ` (an illegal header) on every call.
+  `python -m core.classify --golden --model` runs the golden set through the model and
+  refuses to start (exit 3) without a callable model or when the budget would refuse every
+  call.
 - **Cost controls, measured not guessed** (`python -m core.classify "..." --estimate`
   reports the figure without calling anything):
   * Candidate definitions are trimmed to `MAX_DEFINITION_CHARS` (1100). NACE_STAT gives

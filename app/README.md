@@ -39,9 +39,10 @@ bank is a bank because the register says so. See "Tool 1: issuer identification 
 **Running on Vercel (roadmap E1, 22 Sept 2026).** Production is up behind Vercel
 Authentication, with the real codebooks in the private Blob store; the app loads them lazily,
 reports a codebook problem as HTTP 503 instead of dying, and has a `/probe` page for the
-registers; see "Deploying on Vercel". What comes next is in `docs/ROADMAP.md` section 0. Enabling the OpenAI API is deferred (E9): the
-classifier, prompts, cache and spending limits are built and tested against a stub; see
-"Enabling the model" below.
+registers; see "Deploying on Vercel". What comes next is in `docs/ROADMAP.md` section 0. The model (E9) is ready to switch on with
+environment variables - adapter, spending limits, a lookup deadline inside Vercel's 60 s and a
+golden run through the model, tested against a stub and a fake endpoint; see "Enabling the
+model" below.
 
 
 The original build steps are history now; the plan from here is the roadmap's epics.
@@ -74,6 +75,7 @@ app/
                     gleif.py, openfigi.py, identity.py (ISIN -> issuer, public registers)   [step 6]
     audit.py        lookup audit trail (identifier, timestamp, user)                       [step 2]
     classify/       candidates.py + hints.py + text.py (pre-filter), golden.py, CLI          [step 6]
+                    nace_en.py (English division titles), proposal.py (navrhovaný kód)      [E4-lite]
                     golden_fixtures.py (recorded register answers for the golden run)       [E8]
                     prompts.py, provider.py, llm.py, cache.py (the model call)               [step 6]
     export/         columns.py (the suggestion row), xlsx.py (Subjects + Run sheets)        [step 3]
@@ -128,7 +130,7 @@ python -m pytest -q
 ```
 
 Without the real codebooks (a fresh clone: they are bank-internal and git-ignored) the
-suite reports **1292 passed, 19 skipped** (1311 passed with them). The skips are the tests that need the four real
+suite reports **1328 passed, 19 skipped** (1347 passed with them). The skips are the tests that need the four real
 xlsx files - the real-file smoke test (`tests/codebooks/test_codebooks_real_files.py`),
 the real-recall and most of the cost tests in `tests/classify/` - and they run on a machine
 that has them, where all four load with 0 errors (version `cb-3b12e64837840ca0`). Every
@@ -618,7 +620,7 @@ keeps the files consistent with each other and with the code.
    |---|---|---|
    | `CODEBOOK_SOURCE` | `blob` | download the codebooks from the store |
    | `BLOB_READ_WRITE_TOKEN` | the store's token, Sensitive | check it exists after connecting the store; add it by hand if not |
-   | `LLM_ENABLED` | `false` | deterministic mode until E9 |
+   | `LLM_ENABLED` | `false` | deterministic mode until the model is switched on ("Enabling the model") |
    | `LLM_CACHE_PATH`, `LLM_USAGE_PATH` | empty | only `/tmp` is writable; empty switches both SQLite files off |
    | `LLM_DAILY_TOKEN_BUDGET` | `0` | with no usage ledger a positive daily cap refuses every model call; the spending cap in the provider's dashboard is the backstop, the per-request and per-run limits stay (decided 23 Sept 2026) |
    | `WEB_USER_HEADER` | empty | Vercel passes client headers through; a browser could name itself (E2) |
@@ -658,7 +660,7 @@ and redeploy; the new version id appears on `/health`.
 **Plan:** Vercel's Hobby plan is for personal, non-commercial use only; Pro is $20 per month per
 deploying seat (roadmap D1).
 
-## Enabling the model (deferred, roadmap E9)
+## Enabling the model (roadmap E9)
 
 ### Which endpoint - decide this first
 
@@ -676,17 +678,24 @@ providers' docs on 23 Sept 2026:
 Every model or endpoint change is measured with the golden run through the model before it
 stays (below).
 
-### Switching it on
+### Switching it on locally
 
 1. Put the key in `app/.env` (git-ignored, never in code or chat):
    ```
    LLM_API_KEY=sk-...
    ```
 2. Set `LLM_BASE_URL`, `LLM_MODEL` and `LLM_REASONING_EFFORT` for the endpoint (table above).
-3. Run a few real issuers. **The provider path has never made a live call** - the request
-   shape is verified against the docs and tested against a mock, but expect to fix something
-   small the first time.
-4. Have someone check those suggestions against CTS, then record the confirmed ones in
+3. Measure before trusting it - the golden set through the model, with the real codebooks in
+   `data/codebooks/` (92 calls, about 160,000 input tokens at ~3,400 per issuer, roughly $0.04
+   at `gpt-5.6-luna` prices):
+   ```bash
+   python -m core.classify --golden --model
+   ```
+   It prints each case's rules' pick next to the model's, both top-1 figures and the tokens the
+   provider reported. **The provider path has never made a live call** - the request shape is
+   verified against the docs and run against a fake endpoint, but expect to fix something small
+   the first time; the abstention reason printed per case says what.
+4. Have someone check the suggestions against CTS, then record the confirmed ones in
    `tests/golden/cases.json` with `verified_by` filled in. That is what turns "seems right"
    into a number, and what justifies keeping the cheap model.
 5. Watch the spend:
@@ -697,6 +706,46 @@ stays (below).
 Limits are already enforced (8,000 tokens/request, 200 calls/run, 500,000 tokens/day) and
 fail closed: an unenforceable daily cap refuses to spend rather than quietly disappearing.
 Set a cap in the provider dashboard as well - that is the backstop.
+
+### Switching it on in production (Vercel)
+
+Before anything else, set a monthly spending cap in the provider's dashboard: on Vercel the
+daily budget is 0 (no usage ledger), so that cap is the backstop.
+
+1. **Environment variables** (Production; Preview too if you use previews). Change existing ones
+   in the dashboard (Settings -> Environment Variables) or with `vercel env rm <NAME> production`
+   followed by `vercel env add <NAME> production`, which prompts for the value:
+
+   | Variable | Value | Note |
+   |---|---|---|
+   | `LLM_ENABLED` | `true` | was `false` |
+   | `LLM_PROVIDER` | `openai` | the default; the adapter for every OpenAI-compatible endpoint |
+   | `LLM_BASE_URL` | the endpoint (table above) | `https://api.openai.com/v1` is the default |
+   | `LLM_MODEL` | `gpt-5.6-luna` for OpenAI, the deployment name on Azure | the default is `gpt-5.6-luna` |
+   | `LLM_REASONING_EFFORT` | `none` for `gpt-5.6-luna`; a single space for a model without the parameter | a single space means unset, like the other blank values there |
+   | `LLM_DAILY_TOKEN_BUDGET` | `0` | a positive cap refuses every call without a ledger (roadmap §1) |
+   | `LLM_TIMEOUT_SECONDS` | `15` | with the next row a call takes at most 20 s |
+   | `LLM_MAX_ATTEMPTS` | `1` | `LOOKUP_DEADLINE_SECONDS` stays at its default, 50 |
+   | `LLM_CACHE_PATH`, `LLM_USAGE_PATH` | stay a single space | only `/tmp` is writable |
+   | `LLM_API_KEY` | the key, **added by the owner**: `vercel env add LLM_API_KEY production`, pasted at the prompt, marked Sensitive | never in a file, a chat, a commit or a log |
+
+2. **Redeploy** - environment changes reach only new deployments. Deploy `main` (with PRs #8 and
+   #9 merged) from a clean checkout, as in "Deploying on Vercel": `vercel deploy --prod`.
+3. **Smoke checks**, from a linked checkout (`vercel curl` handles Deployment Protection):
+   - `vercel curl /health` - `llm_configured: true`, `model` as set, `codebooks.state: loaded`.
+   - One lookup through the model: a file `body.json` holding `{"isin": "DE0005140008"}`, then
+     `vercel curl /api/suggest -X POST -H "content-type: application/json" --data-binary @body.json`
+     (PowerShell mangles inline JSON quotes, hence the file). Expect `"answered": true` and
+     `nace.proposal.basis` `"model"` with a confidence; `nace.reason` explains any abstention.
+   - The page: `DE0005140008` shows the navrhovaný kód with "jistota ..." instead of "podle
+     pravidel".
+   - The golden run through the model runs locally (step 3 of the local list), not on Vercel.
+4. **Reading a failure** (the reason on the page, in `nace.reason`, or in the golden run):
+   `401` - the key, or an Azure endpoint that wants the `api-key` header (adapter); `400` naming
+   a parameter - the endpoint table; "cannot be enforced" - `LLM_DAILY_TOKEN_BUDGET` is not 0;
+   "no time left for the model" - the registers were slow, the rules' proposal stands.
+5. **Rollback**: `LLM_ENABLED=false` and redeploy - the tool is back in deterministic mode, with
+   the rules' proposals.
 
 ## Hard rules that already shape the code
 
