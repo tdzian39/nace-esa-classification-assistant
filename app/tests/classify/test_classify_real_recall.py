@@ -23,6 +23,10 @@ import pytest
 from config.settings import get_settings
 from core.classify.candidates import DEFAULT_LIMIT, EsaCandidateFilter, NaceCandidateFilter
 from core.classify.golden import ESA, NACE, load_golden, score_recall
+from core.classify.hints import HINTS, REGISTER_RULES
+from core.classify.models import Classification
+from core.classify.nace_en import NACE_TITLES_EN
+from core.classify.proposal import propose
 from core.codebooks.errors import CodebookError
 from core.codebooks.loaders import load_and_check
 from core.codebooks.models import CodebookSet
@@ -112,3 +116,28 @@ def test_captive_vehicle_is_not_classified_as_a_bank_by_the_filter_alone(
 
     assert "2002703" in codes
     assert "2002213" in codes
+
+
+def test_the_rules_propose_no_bank_for_the_captive_trap(real_codebooks: CodebookSet) -> None:
+    """Without a model, "bank" and "captive" tie for this description; proposing the first of
+    them would propose the bank - the exact error the trap exists to catch."""
+    case = next(c for c in load_golden() if c.id == "captive-funding-spv")
+    candidates = EsaCandidateFilter(real_codebooks).shortlist(case.description)
+    assert propose(Classification(kind=ESA, abstained=True), candidates) is None
+
+
+def test_every_code_the_rules_name_exists_in_cts(real_codebooks: CodebookSet) -> None:
+    """A hint naming a division or family CTS does not have would silently do nothing."""
+    divisions = {division.code for division in real_codebooks.nace_divisions()}
+    families = EsaCandidateFilter(real_codebooks).families
+    for hint in HINTS:
+        assert set(hint.nace) <= divisions, hint.note
+        assert set(hint.esa_families) <= set(families), hint.note
+    assert {rule.nace for rule in REGISTER_RULES} <= divisions
+
+
+def test_the_english_titles_cover_exactly_the_cts_divisions(real_codebooks: CodebookSet) -> None:
+    """CZ-NACE 2025: 87 divisions, no 45. A title for a missing division would be dead; a
+    missing title would leave that division Czech-only."""
+    divisions = {division.code for division in real_codebooks.nace_divisions()}
+    assert set(NACE_TITLES_EN) == divisions

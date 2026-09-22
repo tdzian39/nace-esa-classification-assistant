@@ -29,6 +29,7 @@ from datetime import UTC, datetime
 from core.classify.candidates import DEFAULT_LIMIT, EsaCandidateFilter, NaceCandidateFilter
 from core.classify.llm import LlmClassifier
 from core.classify.models import ESA, NACE, CandidateSet, Classification
+from core.classify.proposal import Proposal, propose
 from core.codebooks.models import CodebookSet
 from core.identifiers.isin import InvalidIsinError, normalize_isin
 from core.sources.identity import NO_IDENTITY, IssuerIdentifier, IssuerIdentity
@@ -122,8 +123,18 @@ class IssuerSuggestion:
 
     @property
     def answered(self) -> bool:
-        """True when at least one codebook produced a suggestion."""
+        """True when the model produced a suggestion for at least one codebook."""
         return bool(self.nace.suggestions or self.esa.suggestions)
+
+    @property
+    def nace_proposal(self) -> Proposal | None:
+        """The proposed NACE code ("navrhovaný kód"): the model's pick, else a rule's."""
+        return propose(self.nace, self.nace_candidates)
+
+    @property
+    def esa_proposal(self) -> Proposal | None:
+        """The proposed ESA code ("navrhovaný kód"): the model's pick, else a rule's."""
+        return propose(self.esa, self.esa_candidates)
 
     @property
     def all_notes(self) -> tuple[str, ...]:

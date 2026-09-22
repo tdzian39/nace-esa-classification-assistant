@@ -102,9 +102,13 @@
   /* Line the two columns up row by row, so "top pick" sits beside "top pick" and the
      runners-up beside the runners-up. Without this the longer Czech label in one column
      pushes its card down and the two suggestions stop being comparable at a glance.
-     Guarded: browsers without subgrid keep the plain, unaligned layout. */
+     Guarded: browsers without subgrid keep the plain, unaligned layout.
+     16 rows = heading, codebook, pick or abstention, list title and up to twelve candidates
+     (the shortlist limit): a subgrid stacks any child beyond its last row on top of the
+     previous one, which is what the deterministic lists did with six. Unused rows are empty
+     and, with no row gap, cost nothing. */
   @supports (grid-template-rows: subgrid) {
-    .panels { grid-template-rows: repeat(6, auto); }
+    .panels { grid-template-rows: repeat(16, auto); row-gap: 0; }
     .panel { display: grid; grid-row: 1 / -1; grid-template-rows: subgrid; row-gap: 0; }
     .panel > * { align-self: start; }
     .pick, .alt { align-self: stretch; }
@@ -119,6 +123,11 @@
     border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-top: 8px;
   }
   .pick { border-color: var(--good); background: var(--pick); }
+  .pick-title {
+    font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em;
+    color: var(--good); margin-bottom: 4px;
+  }
+  .why.tie { color: var(--warn); }
   .code-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   .code { font: 600 21px/1.2 ui-monospace, "Cascadia Mono", Consolas, monospace; }
   .alt .code { font-size: 16px; }
@@ -160,7 +169,7 @@
     .fields { grid-template-columns: 1fr; }
     .wrap { padding-left: 12px; padding-right: 12px; }
     .card { padding: 14px; }
-    .panels { gap: 10px; }
+    .panels { column-gap: 10px; }
     .pick, .alt { padding: 9px; }
     .code { font-size: 17px; }
     .alt .code { font-size: 14px; }
@@ -169,7 +178,7 @@
     .conf { margin-left: 0; }
   }
   @media (max-width: 460px) {
-    .panels { gap: 8px; }
+    .panels { column-gap: 8px; }
     .code { font-size: 15px; }
     .ctsid { font-size: 11px; padding: 3px 5px; }
     .label { font-size: 12px; }
@@ -241,6 +250,7 @@
         <div class="codebook">číselník CTS_OKEC_NACE2 · první 2 číslice</div>
 
         <div class="pick">
+          <div class="pick-title">navrhovaný kód</div>
           <div class="code-row">
             <span class="code">64</span>
             <span class="ctsid">CTS ID 512</span>
@@ -281,6 +291,7 @@
         <div class="codebook">číselník BA0036 · jen elementární kódy · nerezident</div>
 
         <div class="pick">
+          <div class="pick-title">navrhovaný kód</div>
           <div class="code-row">
             <span class="code">2002703</span>
             <span class="ctsid">CTS ID 655</span>

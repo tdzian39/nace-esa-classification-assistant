@@ -8,9 +8,9 @@ Columns of a row, in sheet order (:data:`SUGGESTION_COLUMNS`):
   with what was asked;
 * ``issuer_*`` and ``description`` - who the issuer is: the name shown, the LEI and country
   from GLEIF, and the activity description the classifier read;
-* ``NACE_*`` / ``ESA_*`` - per codebook: the top pick with its CTS ID, label, confidence and
-  justification, two alternatives, and the whole shortlist (``*_candidates``), which is the
-  entire result when the classifier abstained;
+* ``NACE_*`` / ``ESA_*`` - per codebook: the proposed code with its CTS ID, label, confidence
+  and justification, two alternatives, and the whole shortlist (``*_candidates``), which is
+  the entire result when nothing was proposed;
 * ``source``, ``retrieved_at``, ``codebook_version``, ``model``, ``prompt_version``,
   ``evidence_urls``, ``notes`` - what every output row must carry to be attributable.
 
@@ -145,8 +145,11 @@ def _alternative(suggestions: tuple[object, ...], index: int) -> str | None:
 def suggestion_row(suggestion: object) -> dict[str, object]:
     """Build the output row for one :class:`~core.suggest.IssuerSuggestion`.
 
-    An abstention leaves the code columns empty and puts the reason in ``notes``: a reviewer
-    must be able to see that the tool declined, not find a blank row and guess why.
+    The code columns hold the proposal (:mod:`core.classify.proposal`): the model's pick, or,
+    when the model abstained, the first candidate a rule put first - then with an empty
+    ``*_confidence`` (only a model has one) and a justification naming the rules. When
+    nothing was proposed the code columns stay empty and the reason is in ``notes``: a
+    reviewer must be able to see that the tool declined, not find a blank row and guess why.
     """
     request = suggestion.request  # type: ignore[attr-defined]
     row: dict[str, object] = dict.fromkeys(SUGGESTION_COLUMNS)
@@ -168,30 +171,42 @@ def suggestion_row(suggestion: object) -> dict[str, object]:
             ),
         }
     )
-    for prefix, classification, candidates in (
-        ("NACE", suggestion.nace, suggestion.nace_candidates),  # type: ignore[attr-defined]
-        ("ESA", suggestion.esa, suggestion.esa_candidates),  # type: ignore[attr-defined]
+    for prefix, classification, candidates, proposal in (
+        (
+            "NACE",
+            suggestion.nace,  # type: ignore[attr-defined]
+            suggestion.nace_candidates,  # type: ignore[attr-defined]
+            suggestion.nace_proposal,  # type: ignore[attr-defined]
+        ),
+        (
+            "ESA",
+            suggestion.esa,  # type: ignore[attr-defined]
+            suggestion.esa_candidates,  # type: ignore[attr-defined]
+            suggestion.esa_proposal,  # type: ignore[attr-defined]
+        ),
     ):
-        # The shortlist goes in the sheet whether or not a code was chosen. When the tool
-        # abstained it is the entire result, and even when it chose, it shows what else was
-        # on the table - which is what a reviewer needs to overrule it.
+        # The shortlist goes in the sheet whether or not a code was chosen. When nothing
+        # was proposed it is the entire result, and even when something was, it shows what
+        # else was on the table - which is what a reviewer needs to overrule it.
         row[f"{prefix}_candidates"] = tuple(
             f"{item.code} (CTS {item.cts_id}) – {item.label}" for item in candidates
         )
-        row[f"{prefix}_alt1"] = _alternative(classification.suggestions, 1)
-        row[f"{prefix}_alt2"] = _alternative(classification.suggestions, 2)
         row["model"] = classification.model or row["model"]
         row["prompt_version"] = classification.prompt_version or row["prompt_version"]
-        top = classification.top
-        if top is None:
+        if proposal is None:
             continue
+        justification = " ".join(
+            part for part in (proposal.justification, proposal.tie_note) if part
+        )
         row.update(
             {
-                f"{prefix}_code": top.code,
-                f"{prefix}_cts_id": top.cts_id,
-                f"{prefix}_label": top.label,
-                f"{prefix}_confidence": top.confidence,
-                f"{prefix}_justification": top.justification,
+                f"{prefix}_code": proposal.code,
+                f"{prefix}_cts_id": proposal.cts_id,
+                f"{prefix}_label": proposal.label,
+                f"{prefix}_confidence": proposal.confidence,
+                f"{prefix}_justification": justification,
+                f"{prefix}_alt1": _alternative(proposal.alternatives, 0),
+                f"{prefix}_alt2": _alternative(proposal.alternatives, 1),
             }
         )
     return row

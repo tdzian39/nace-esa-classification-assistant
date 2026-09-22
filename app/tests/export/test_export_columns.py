@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, date, datetime
 
 import pytest
 
+from core.classify.models import NACE, Candidate, CandidateSet
 from core.export.columns import (
     SUGGESTION_COLUMNS,
     SUGGESTION_TEXT_COLUMNS,
@@ -97,6 +99,36 @@ class TestSuggestionRow:
         assert len(row["NACE_candidates"]) == 3  # the shortlist is then the whole result
         assert f"NACE: {ABSTAIN_REASON}" in row["notes"]
         assert f"ESA: {ABSTAIN_REASON}" in row["notes"]
+
+    def test_a_rule_based_proposal_fills_the_codes_without_a_confidence(self) -> None:
+        """The model abstained, but a rule put a code first: the row carries it, marked."""
+        ruled = CandidateSet(
+            kind=NACE,
+            candidates=(
+                Candidate(
+                    NACE,
+                    "01",
+                    "0455",
+                    "Rostlinná a živočišná výroba, myslivost",
+                    score=10.2,
+                    reasons=("keyword: agriculture", "text match 0.20"),
+                ),
+                Candidate(NACE, "10", "0464", "Výroba potravinářských výrobků", score=0.1),
+            ),
+            considered=87,
+            filter_name="test",
+        )
+        row = suggestion_row(replace(suggestion(abstain=True), nace_candidates=ruled))
+        assert row["NACE_code"] == "01"
+        assert row["NACE_cts_id"] == "0455"
+        assert row["NACE_confidence"] is None  # only a model has one
+        assert row["NACE_justification"] == (
+            "Podle pravidel, bez modelu: keyword: agriculture; text match 0.20."
+        )
+        assert row["NACE_alt1"] == "10 (CTS 0464) – Výroba potravinářských výrobků"
+        assert row["NACE_alt2"] is None
+        assert f"NACE: {ABSTAIN_REASON}" in row["notes"]  # why the rules had to decide
+        assert row["ESA_code"] is None  # no rule stood behind that shortlist
 
     def test_a_name_lookup_leaves_the_register_columns_empty(self) -> None:
         row = suggestion_row(suggestion(isin=None, name="Nordkap"))
