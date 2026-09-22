@@ -218,10 +218,23 @@ class Settings(BaseSettings):
     )
     llm_provider: str = Field(default="openai", description="Provider adapter: 'openai' or 'stub'.")
     llm_model: str = Field(
-        default="gpt-4o-mini",
+        default="gpt-5.6-luna",
         description=(
-            "Model id. Default to the cheapest that passes /tests/golden; measure before "
-            "changing. TODO: confirm the current cheapest id with the provider."
+            "Model id (the deployment name on Azure OpenAI). The default is OpenAI's current "
+            "cost-sensitive model, which supports Chat Completions and structured outputs "
+            "(developers.openai.com, checked 23 Sept 2026). Measure with "
+            "`python -m core.classify --golden --model` before changing."
+        ),
+    )
+    llm_reasoning_effort: str | None = Field(
+        default="none",
+        description=(
+            "Sent as `reasoning_effort`. 'none' suits a classification and keeps temperature "
+            "allowed. Any other value makes the adapter drop `temperature`, which OpenAI "
+            "rejects on reasoning models unless the effort is 'none', and needs a larger "
+            "LLM_MAX_OUTPUT_TOKENS, because reasoning tokens count against it. Empty means not "
+            "sent: use that for a model or gateway without the parameter (gpt-4o-mini, many "
+            "gateways)."
         ),
     )
     llm_api_key: SecretStr | None = Field(
@@ -329,6 +342,7 @@ class Settings(BaseSettings):
         "codebook_download_dir",
         "llm_cache_path",
         "llm_usage_path",
+        "llm_reasoning_effort",
         mode="before",
     )
     @classmethod

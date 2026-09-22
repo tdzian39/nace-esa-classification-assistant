@@ -47,6 +47,10 @@ what follows is the short list that separates "works for Jakub" from "MO uses it
    offered; it turns on Q15), EBRD and the EU (GLEIF files them `GENERAL`, so 99 is second), and ESA precedence
    between families (a money-market fund still ranks the non-MMF family first; BNP Paribas the insurers) —
    that is E4 proper, only if MO asks.
+3a. **E9 switch-on readiness — PR #9 (in progress, 23 Sept 2026; merge PR #8 first).** The endpoint arriving on
+   24 Sept is not known yet, so no new adapter: `app/README.md` → "Enabling the model" has the steps per case
+   (OpenAI and Azure v1 need no code; Azure classic and the Claude API need an adapter). The `gpt-4o-mini`
+   placeholder is replaced by `gpt-5.6-luna` with `LLM_REASONING_EFFORT=none` (OpenAI's docs, checked 23 Sept).
 4. **E5-lite: the FIRDS LEI fallback.** GLEIF maps 25 of 36 golden ISINs; the misses (Eurobond, LU/IE funds) include
    all four captive vehicles, the core ESA trap. ESMA FIRDS returns the issuer LEI for them; `/probe` already
    shows the host reachable from Vercel.

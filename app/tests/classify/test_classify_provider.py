@@ -88,6 +88,51 @@ class TestRequestShape:
         assert seen["temperature"] == 0.0
         assert seen["model"] == "test-model"
 
+    def test_the_default_effort_none_is_sent_and_keeps_temperature(self) -> None:
+        """The default model is a reasoning model; 'none' is the one effort that allows
+        temperature 0 and spends no output tokens on reasoning."""
+        seen: dict = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.update(json.loads(request.content))
+            return httpx.Response(200, json=chat_response())
+
+        provider_with(handler).complete(prompt())
+        assert seen["reasoning_effort"] == "none"
+        assert seen["temperature"] == 0.0
+        assert seen["max_completion_tokens"] == 700
+
+    def test_a_real_effort_drops_temperature(self) -> None:
+        """OpenAI rejects temperature on a reasoning model unless the effort is 'none'."""
+        seen: dict = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.update(json.loads(request.content))
+            return httpx.Response(200, json=chat_response())
+
+        provider_with(handler, llm_reasoning_effort="low").complete(prompt())
+        assert seen["reasoning_effort"] == "low"
+        assert "temperature" not in seen
+
+    @pytest.mark.parametrize("blank", ["", "  "])
+    def test_an_empty_effort_is_not_sent(self, blank: str) -> None:
+        """gpt-4o-mini and many gateways do not know the parameter at all."""
+        seen: dict = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.update(json.loads(request.content))
+            return httpx.Response(200, json=chat_response())
+
+        provider_with(handler, llm_reasoning_effort=blank).complete(prompt())
+        assert "reasoning_effort" not in seen
+        assert seen["temperature"] == 0.0
+
+    def test_the_default_model_is_a_current_one(self) -> None:
+        """The gpt-4o-mini placeholder is gone; checked against OpenAI's model list 2026-09-23."""
+        defaults = Settings(_env_file=None)
+        assert defaults.llm_model == "gpt-5.6-luna"
+        assert defaults.llm_reasoning_effort == "none"
+
     def test_the_key_travels_in_the_authorization_header(self) -> None:
         seen: dict[str, str] = {}
 

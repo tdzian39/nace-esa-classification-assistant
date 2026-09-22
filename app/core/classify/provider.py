@@ -155,10 +155,18 @@ def _usage(payload: Mapping[str, Any]) -> tuple[int | None, int | None]:
 class OpenAiProvider:
     """Chat Completions with a strict JSON schema, spoken over plain HTTP.
 
-    Request shape verified against the structured-outputs guide on 2026-09-22:
-    ``response_format = {"type": "json_schema", "json_schema": {"name", "strict", "schema"}}``
-    with ``additionalProperties: false`` and every property required - which
+    Request shape verified against the structured-outputs guide on 2026-09-22 and again on
+    2026-09-23 (developers.openai.com): ``response_format = {"type": "json_schema",
+    "json_schema": {"name", "strict", "schema"}}``, every object ``additionalProperties:
+    false`` with every property required, ``enum`` and ``description`` supported, and array
+    ``maxItems`` supported (except on fine-tuned models) - which
     :func:`~core.classify.prompts.response_schema` produces.
+
+    ``reasoning_effort`` (``LLM_REASONING_EFFORT``) is sent when set. OpenAI's reasoning
+    models (the GPT-5.x families, including the default ``gpt-5.6-luna``) default to
+    ``medium`` and reject ``temperature`` unless the effort is ``none`` (latest-model guide,
+    2026-09-23), so ``temperature`` goes out only with no effort or ``none``. Leave the
+    effort empty for a model or gateway that does not know the parameter.
     """
 
     name = "openai"
@@ -196,9 +204,8 @@ class OpenAiProvider:
             self._client = None
 
     def _body(self, prompt: Prompt) -> dict[str, Any]:
-        return {
+        body: dict[str, Any] = {
             "model": self.model,
-            "temperature": self._settings.llm_temperature,
             # A ceiling on output: three picks with one Czech sentence each is a few hundred
             # tokens. Without it a model that starts rambling is billed for the rambling.
             "max_completion_tokens": self._settings.llm_max_output_tokens,
@@ -215,6 +222,12 @@ class OpenAiProvider:
                 },
             },
         }
+        effort = self._settings.llm_reasoning_effort
+        if effort:
+            body["reasoning_effort"] = effort
+        if not effort or effort == "none":
+            body["temperature"] = self._settings.llm_temperature
+        return body
 
     def complete(self, prompt: Prompt) -> LlmResponse:
         client = self._ensure_client()

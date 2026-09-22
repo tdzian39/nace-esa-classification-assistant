@@ -655,11 +655,29 @@ deploying seat (roadmap D1).
 
 ## Enabling the model (deferred, roadmap E9)
 
+### Which endpoint - decide this first
+
+The adapter speaks OpenAI Chat Completions with a strict JSON schema. Checked against the
+providers' docs on 23 Sept 2026:
+
+| Endpoint | Code needed | What to set |
+|---|---|---|
+| **OpenAI** | none | the defaults: `LLM_BASE_URL=https://api.openai.com/v1`, `LLM_MODEL=gpt-5.6-luna`, `LLM_REASONING_EFFORT=none`. The structured-outputs guide lists everything `provider.py` sends as supported in strict mode (`enum`, `description`, array `maxItems`, `additionalProperties: false` with every field required); `gpt-5.6-luna` is OpenAI's cost-sensitive model ($0.20 / $1.20 per million input / output tokens, about a tenth of a cent per issuer), supports Chat Completions and structured outputs, and, being a reasoning model, rejects `temperature` unless the effort is `none` - which the adapter handles. |
+| **Azure OpenAI, v1 API** (`https://<resource>.openai.azure.com/openai/v1/`) | none expected | `LLM_BASE_URL=https://<resource>.openai.azure.com/openai/v1`, `LLM_MODEL=<deployment name>`, `LLM_REASONING_EFFORT` as for the deployed model (empty for a non-reasoning one such as gpt-4.1-nano). Microsoft's v1 examples point the standard OpenAI client at that URL with the Azure API key, and that client sends the key as `Authorization: Bearer` like this adapter; their raw REST example uses an `api-key` header instead. **If the first call answers 401**, the key has to travel in `api-key`: that is the small adapter below. |
+| **Azure OpenAI, classic** (`.../openai/deployments/<name>/chat/completions?api-version=...`) | the small adapter in roadmap E9 | an `api-key` header, the `api-version` query and the deployment in the path, tested against a fake transport like `OpenAiProvider`. Not built. |
+| **Claude API** (Anthropic) | a Messages API adapter, not built | build it from the `claude-api` skill with the official `anthropic` SDK, not from memory and not through Anthropic's OpenAI-compatibility shim: `POST https://api.anthropic.com/v1/messages` with `x-api-key` and `anthropic-version: 2023-06-01`, the schema in `output_config.format`, no `temperature` on current models (a 400), and no `maxItems` (not supported there). The model is the owner's choice - the skill's default is `claude-opus-5` ($5 / $25 per million tokens), `claude-sonnet-5` ($2 / $10) and `claude-haiku-4-5` ($1 / $5) are cheaper - and the golden run through the model decides. |
+| **Another OpenAI-compatible gateway** (a bank proxy, LiteLLM, vLLM) | none if it passes the request through | `LLM_BASE_URL=<gateway>/v1`, `LLM_MODEL` as the gateway names it, usually `LLM_REASONING_EFFORT=` (empty). Whether it forwards `response_format` with a strict `json_schema`, a Bearer key and `max_completion_tokens` **cannot be told without its docs**: run the smoke test below; a 400 that names a parameter says which one it refuses (an unknown `reasoning_effort`: set it empty; only `max_tokens` accepted: a one-line change in `provider.py`). |
+
+Every model or endpoint change is measured with the golden run through the model before it
+stays (below).
+
+### Switching it on
+
 1. Put the key in `app/.env` (git-ignored, never in code or chat):
    ```
    LLM_API_KEY=sk-...
    ```
-2. Confirm `LLM_MODEL`. The default is a cheap placeholder marked TODO; model names change.
+2. Set `LLM_BASE_URL`, `LLM_MODEL` and `LLM_REASONING_EFFORT` for the endpoint (table above).
 3. Run a few real issuers. **The provider path has never made a live call** - the request
    shape is verified against the docs and tested against a mock, but expect to fix something
    small the first time.
