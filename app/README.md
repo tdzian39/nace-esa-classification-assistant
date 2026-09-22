@@ -381,6 +381,7 @@ come from?".
 python -m core.classify "captive funding vehicle of a banking group" --verbose
 python -m core.classify --golden        # recall + top-1 over tests/golden, no API key needed
 python -m core.classify --golden-capture   # re-record the golden register answers (network)
+python -m core.classify --golden --model   # the same cases through the model: top-1 vs the rules, tokens (costs money)
 ```
 
 The classifier is never asked to *produce* a code; it chooses from a list. Every candidate

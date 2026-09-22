@@ -1,11 +1,18 @@
 """Inspect and score the candidate pre-filter: ``python -m core.classify [DESCRIPTION]``.
 
-Two modes, neither of which calls a model or needs an API key:
+These modes call no model and need no API key:
 
     python -m core.classify "captive funding vehicle of a bank"   # show both shortlists
     python -m core.classify --golden                              # recall over the golden set
     python -m core.classify "..." --estimate                      # prompt size before paying
     python -m core.classify --golden-capture                      # re-record the register answers
+
+One does, and refuses to start without a configured model (LLM_API_KEY):
+
+    python -m core.classify --golden --model   # the model's top-1 next to the rules', tokens used
+
+It sends every golden case to the configured endpoint - two calls per case, about 3,400
+input tokens per issuer - so it costs money; answers are cached like any other lookup.
 
 A golden case with an ISIN (a real issuer, roadmap E8) is scored the way the pipeline works:
 its description plus the issuer's register fact sheet, replayed from the GLEIF/OpenFIGI answers
@@ -17,7 +24,7 @@ the shortlist at all. A code the filter never offers is one the classifier can n
 so this number is the ceiling on everything downstream.
 
 Exit codes: 0 fine, 1 a golden case's correct code was missed, 2 the codebooks or the golden
-file could not be loaded.
+file could not be loaded, 3 ``--model`` without a model that can be called.
 """
 
 from __future__ import annotations
@@ -45,7 +52,8 @@ from core.classify.golden import (
 )
 from core.classify.golden_fixtures import capture, load_answers, replaying_identifier
 from core.classify.models import CandidateSet
-from core.classify.prompts import build_prompt
+from core.classify.prompts import Prompt, build_prompt
+from core.classify.provider import LlmProvider, LlmResponse, NullLlmProvider, build_provider
 from core.codebooks.errors import CodebookError
 from core.codebooks.loaders import load_and_check
 from core.codebooks.models import CodebookSet
@@ -53,6 +61,7 @@ from core.codebooks.models import CodebookSet
 EXIT_OK = 0
 EXIT_MISSES = 1
 EXIT_LOAD_FAILED = 2
+EXIT_NO_MODEL = 3
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -87,6 +96,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "--estimate",
         action="store_true",
         help="report the prompt size the classifier would send (no model call)",
+    )
+    parser.add_argument(
+        "--model",
+        action="store_true",
+        help="with --golden: send every case to the configured model (costs money, needs "
+        "LLM_API_KEY) and print its top-1 next to the rules' and the tokens used",
     )
     return parser
 
@@ -191,6 +206,117 @@ def _run_golden(codebooks: CodebookSet, limit: int, resident: bool, settings) ->
     return EXIT_MISSES if misses else EXIT_OK
 
 
+class _CountingProvider:
+    """Adds up what the provider reports it used, for the ``--golden --model`` summary."""
+
+    def __init__(self, inner: LlmProvider) -> None:
+        self._inner = inner
+        self.name = inner.name
+        self.model = inner.model
+        self.calls = 0
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+
+    def complete(self, prompt: Prompt) -> LlmResponse:
+        response = self._inner.complete(prompt)
+        self.calls += 1
+        self.prompt_tokens += response.prompt_tokens or 0
+        self.completion_tokens += response.completion_tokens or 0
+        return response
+
+
+def _model_refusal(settings) -> str | None:
+    """Why ``--golden --model`` must not start, or ``None`` when a model can be called."""
+    from core.classify.budget import build_ledger
+
+    if isinstance(build_provider(settings), NullLlmProvider):
+        return (
+            "the golden run through the model needs a configured model: LLM_ENABLED=true, "
+            "LLM_PROVIDER=openai and LLM_API_KEY (app/README.md -> 'Enabling the model'). "
+            "Nothing was sent."
+        )
+    if settings.llm_daily_token_budget > 0 and not getattr(
+        build_ledger(settings.llm_usage_path), "can_track", False
+    ):
+        return (
+            "LLM_DAILY_TOKEN_BUDGET is set but LLM_USAGE_PATH records nothing, so every call "
+            "would be refused; set LLM_DAILY_TOKEN_BUDGET=0 or a usable LLM_USAGE_PATH. "
+            "Nothing was sent."
+        )
+    return None
+
+
+def _run_golden_model(
+    codebooks: CodebookSet,
+    limit: int,
+    resident: bool,
+    settings,
+    *,
+    provider: LlmProvider | None = None,
+) -> int:
+    """Every golden case through the configured model: its top-1 next to the rules'."""
+    from core.classify.llm import build_classifier
+
+    cases = load_golden()
+    texts = _golden_texts(cases, settings)
+    counter = _CountingProvider(provider if provider is not None else build_provider(settings))
+    classifier = build_classifier(settings, provider=counter, codebook_version=codebooks.version.id)
+    filters = {
+        NACE: NaceCandidateFilter(codebooks),
+        ESA: EsaCandidateFilter(codebooks, resident=resident),
+    }
+    stats = counts(cases)
+    print(
+        f"golden set through the model {counter.model} ({settings.llm_base_url}): "
+        f"{stats['cases']} case(s), {stats['verified']} verified"
+    )
+    if stats["verified"] == 0:
+        print("WARNING: no case is verified yet - these figures are provisional, not accuracy")
+
+    for label, group in (
+        ("real issuers", [case for case in cases if case.real]),
+        ("fictional trap cases", [case for case in cases if not case.real]),
+    ):
+        if not group:
+            continue
+        for kind, attribute in ((NACE, "expected_nace"), (ESA, "expected_esa")):
+            print(f"\n--- {kind}, {label} ---")
+            print(f"  {'case':<48} {'expected':<9} {'rules':<9} model")
+            rules_right = model_right = abstained = 0
+            for case in group:
+                expected = getattr(case, attribute)
+                shortlist = filters[kind].shortlist(texts[case.id], limit=limit)
+                rules = shortlist.candidates[0].code if len(shortlist) else "-"
+                result = classifier.classify(
+                    shortlist, issuer_name=case.issuer, description=texts[case.id]
+                )
+                if result.top is None:
+                    abstained += 1
+                    model = f"abstained: {(result.abstain_reason or '')[:70]}"
+                else:
+                    model = f"{result.top.code} ({result.top.confidence})"
+                    model_right += result.top.code == expected
+                rules_right += rules == expected
+                marks = ("=" if rules == expected else "x") + (
+                    "=" if result.top is not None and result.top.code == expected else "x"
+                )
+                print(f"  {case.id:<48} {expected or '-':<9} {rules:<9} {model}  [{marks}]")
+            size = len(group)
+            print(
+                f"  top-1: rules {rules_right}/{size} ({rules_right / size:.0%}) | model "
+                f"{model_right}/{size} ({model_right / size:.0%}); the model abstained on "
+                f"{abstained}"
+            )
+
+    total = counter.prompt_tokens + counter.completion_tokens
+    print(
+        f"\ntokens: {counter.prompt_tokens:,} in + {counter.completion_tokens:,} out = "
+        f"{total:,} in {counter.calls} call(s) to {counter.model} (answers served from the "
+        "cache cost nothing and are not counted)"
+    )
+    return EXIT_OK
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI; returns the process exit code."""
     args = _build_parser().parse_args(argv)
@@ -211,6 +337,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"recorded {recorded} register answer(s) in tests/golden/identity.json")
         return EXIT_OK
 
+    if args.model:
+        # Refuse before loading anything: a run that cannot call the model must not look
+        # like one whose model abstained 92 times.
+        if not args.golden:
+            print("error: --model goes with --golden", file=sys.stderr)
+            return EXIT_NO_MODEL
+        refusal = _model_refusal(settings)
+        if refusal is not None:
+            print(f"error: {refusal}", file=sys.stderr)
+            return EXIT_NO_MODEL
+
     try:
         codebooks = _load(settings)
     except (CodebookError, OSError) as exc:
@@ -223,6 +360,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.golden:
         try:
+            if args.model:
+                return _run_golden_model(codebooks, args.limit, args.resident, settings)
             return _run_golden(codebooks, args.limit, args.resident, settings)
         except GoldenError as exc:
             print(f"error: {exc}", file=sys.stderr)

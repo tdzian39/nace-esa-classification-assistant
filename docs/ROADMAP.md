@@ -753,6 +753,7 @@ python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]
 ../.venv/Scripts/python.exe -m core.classify "popis cinnosti" --verbose   # shortlist for a description
 ../.venv/Scripts/python.exe -m core.classify --golden        # recall@12 + top-1 over tests/golden (needs the xlsx)
 ../.venv/Scripts/python.exe -m core.classify --golden-capture  # re-record the register answers (network, ~2 min)
+../.venv/Scripts/python.exe -m core.classify --golden --model  # through the model: its top-1 vs the rules', tokens (needs LLM_API_KEY)
 ../.venv/Scripts/python.exe -m uvicorn api.main:app --port 8000           # local web tool (needs the xlsx)
 ```
 

@@ -270,6 +270,13 @@ class TestBuildProvider:
     def test_null_when_no_key(self) -> None:
         assert build_provider(settings(llm_api_key=None)).name == "none"
 
+    @pytest.mark.parametrize("blank", ["", "   "])
+    def test_null_when_the_key_is_blank(self, blank: str) -> None:
+        """A blank LLM_API_KEY (how Vercel spells "unset") is no key: it used to build an
+        OpenAI provider that sent an illegal `Authorization: Bearer ` header on every call."""
+        assert settings(llm_api_key=blank).llm_api_key is None
+        assert build_provider(settings(llm_api_key=blank)).name == "none"
+
     def test_null_when_disabled(self) -> None:
         assert build_provider(settings(llm_enabled=False)).name == "none"
 

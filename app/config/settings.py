@@ -353,6 +353,7 @@ class Settings(BaseSettings):
 
     @field_validator(
         "lookup_user",
+        "llm_api_key",
         "openfigi_api_key",
         "blob_read_write_token",
         "blob_store_id",
@@ -367,7 +368,9 @@ class Settings(BaseSettings):
         """An empty or whitespace-only variable means "not set", not an empty value.
 
         For the two SQLite paths this is what switches them off: ``LLM_CACHE_PATH=`` used to
-        parse as ``Path(".")``, which is not "no cache" but a cache nobody can open.
+        parse as ``Path(".")``, which is not "no cache" but a cache nobody can open. For
+        ``LLM_API_KEY`` it means deterministic mode: a blank key used to count as configured
+        and sent ``Authorization: Bearer `` - an illegal header - on every call.
         """
         if isinstance(value, str) and not value.strip():
             return None

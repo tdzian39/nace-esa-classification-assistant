@@ -153,6 +153,7 @@ so quote it.
 ../.venv/Scripts/python.exe -m core.classify "popis cinnosti"  # Tool 1 shortlist (--verbose)
 ../.venv/Scripts/python.exe -m core.classify --golden       # pre-filter recall + top-1 over tests/golden
 ../.venv/Scripts/python.exe -m core.classify --golden-capture   # re-record the golden register answers
+../.venv/Scripts/python.exe -m core.classify --golden --model   # the golden set through the model (needs LLM_API_KEY, costs money)
 ../.venv/Scripts/python.exe -m pytest                        # full suite (pythonpath="." is set in pyproject)
 ../.venv/Scripts/python.exe -m pytest tests/identifiers/test_ico.py -k checksum   # one file / one test
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .   # lint + format check
