@@ -28,6 +28,15 @@ ESA_RECALL_FLOOR = 8
 MAX_TOKENS_PER_ISSUER = 4000
 
 
+def trap_cases():
+    """The fictional trap cases: controlled texts that must always be recalled in full.
+
+    The real issuers (roadmap E8) are measured, not asserted - their recall is a figure to
+    improve (`python -m core.classify --golden`), not a gate a new case may break.
+    """
+    return tuple(case for case in load_golden() if not case.real)
+
+
 @pytest.fixture(scope="module")
 def real_codebooks() -> CodebookSet:
     settings = get_settings()
@@ -146,7 +155,7 @@ class TestRecallFloor:
         assert DEFAULT_LIMIT > ESA_RECALL_FLOOR
 
     def test_recall_holds_at_the_default(self, real_codebooks: CodebookSet) -> None:
-        cases = load_golden()
+        cases = trap_cases()
         for kind, chooser in (
             (NACE, NaceCandidateFilter(real_codebooks)),
             (ESA, EsaCandidateFilter(real_codebooks)),
@@ -158,7 +167,7 @@ class TestRecallFloor:
     def test_trimming_definitions_did_not_cost_recall(self, real_codebooks: CodebookSet) -> None:
         """Recall is a property of the shortlist, not the prompt - but assert it after the
         cost work, because that is the change most likely to have broken it."""
-        cases = load_golden()
+        cases = trap_cases()
         chooser = EsaCandidateFilter(real_codebooks)
         shortlists = [(case, chooser.shortlist(case.description)) for case in cases]
         assert score_recall(cases, shortlists, ESA).misses() == ()

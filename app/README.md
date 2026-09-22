@@ -33,10 +33,10 @@ instrument (market name, security type, market sector); both are public and keyl
 legal name becomes the web query and the facts go into the shortlist and the prompt, so a
 bank is a bank because the register says so. See "Tool 1: issuer identification by ISIN".
 
-**Ready for Vercel (roadmap E1).** The app loads its codebooks lazily from a private Blob
-store, reports a codebook problem as HTTP 503 instead of dying, and has a `/probe` page for
-the registers; see "Deploying on Vercel". The first deployment waits for the Vercel project
-(roadmap D1) and the four codebook files. Enabling the OpenAI API is deferred (E9): the
+**Running on Vercel (roadmap E1, 22 Sept 2026).** Production is up behind Vercel
+Authentication, with the real codebooks in the private Blob store; the app loads them lazily,
+reports a codebook problem as HTTP 503 instead of dying, and has a `/probe` page for the
+registers; see "Deploying on Vercel". What comes next is in `docs/ROADMAP.md` section 0. Enabling the OpenAI API is deferred (E9): the
 classifier, prompts, cache and spending limits are built and tested against a stub; see
 "Enabling the model" below.
 

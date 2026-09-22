@@ -56,6 +56,8 @@ Do not scrape apl.czso.cz or or.justice.cz.
   step 5 RES mapping that needed one left with Tool 2; which of those items a bank gets is
   still open (roadmap Q7).
 - CTS_OKEC_NACE2.xlsx: ID (CTS ID), VALUE (first 2 chars of NACE), DESCRIPTION.
+  **CTS is on CZ-NACE 2025 (NACE Rev. 2.1)** (roadmap Q5, answered 22 Sept 2026): 87 divisions,
+  no 45, CTS ID 496 missing exactly where 45 sat. Codes from Rev. 2 sources need mapping.
   REAL FILE (received 2026-09-22): matches the spec exactly. Sheet `Sheet1` (a blank
   `Sheet2` follows it), 87 divisions, CTS IDs 455-542.
 - NACE_STAT.xlsx: NACE (2-digit), Zkrtext, Text. Multiple rows per 2-digit code.
@@ -184,9 +186,10 @@ an indication for developers, not an accuracy figure to quote - so it is genuine
 its own; it just cannot justify its choice or resolve the distinctions that turn on a
 sentence ("holds no banking licence", "not a money market fund").
 
-**NEXT STEP: follow `docs/ROADMAP.md`** - E1 is deployed (22 Sept 2026: project
-`nace-esa-assistant` on Jakub's Hobby team, behind Vercel Authentication, empty private Blob
-store); upload the four codebook files, check `DE0005140008` end to end, then E2 (access and audit), E3-E5 (name lookup, structured hints, more sources), E6-E7 (batch,
+**NEXT STEP: `docs/ROADMAP.md` section 0** - E0, E1 and E8 are done (live on Vercel with the
+real codebooks since 22 Sept 2026). The short list: E2 (login + audit, needs D4), the Pro plan,
+two cheap E4 rules + English labels, the FIRDS LEI fallback; the rest is optional. Older plan:
+E2 (access and audit), E3-E5 (name lookup, structured hints, more sources), E6-E7 (batch,
 confirm/history), E8 (real golden set) alongside. Taken so far: PR #1 (ISIN -> GLEIF/OpenFIGI
 identity) and E0.3, the removal of the parked Tool 2 and the unused `pandas` (PR #5). E0 is
 complete: E0.2 (a private repository) was dropped on 22 Sept 2026 - the repository stays

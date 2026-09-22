@@ -103,8 +103,8 @@ Conventions the codes rest on, stated so a checker can overturn them wholesale i
   country does, soukromé národní otherwise (BMW Finance N.V. in NL, owned by BMW AG in DE:
   foreign-controlled; widely held Deutsche Bank AG: national private). If CTS judges control
   from the Czech point of view instead, every case with `depends_on_q7` changes.
-- **NACE:** Rev. 2 divisions; where CZ-NACE 2025 (Rev. 2.1) would differ, the reasoning says
-  so (roadmap Q5).
+- **NACE:** CTS uses CZ-NACE 2025 (Rev. 2.1) — roadmap Q5, answered from the real file. Every
+  division these cases use is the same in Rev. 2 and Rev. 2.1.
 
 ## The fictional trap cases
 
