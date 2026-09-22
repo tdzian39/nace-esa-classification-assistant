@@ -17,6 +17,10 @@ venv/
 # Local configuration and secrets (never commit)
 app/.env
 .env
+.env*.local
+
+# Vercel CLI link and build output (vercel link / vercel build)
+.vercel/
 
 # Codebook xlsx files are bank-internal; they live locally only
 app/data/codebooks/*.xlsx

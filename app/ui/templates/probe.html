@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Diagnostika – ESA a NACE našeptávač</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --surface: #ffffff; --border: #d8dce3; --text: #1a1d23; --muted: #5d6673;
+    --good: #1a7f4b; --warn: #9a6700; --bad: #b3261e; --radius: 8px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14161a; --surface: #1c1f25; --border: #2e333c; --text: #e8eaed; --muted: #9aa3b0;
+      --good: #4ec98a; --warn: #e0b341; --bad: #f2837a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 20px; margin: 0 0 4px; font-weight: 650; }
+  h2 { font-size: 15px; margin: 24px 0 8px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+          padding: 14px 16px; overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  code { font-size: 12px; overflow-wrap: anywhere; }
+  .ok { color: var(--good); font-weight: 650; }
+  .candidate { color: var(--warn); font-weight: 650; }
+  .fail { color: var(--bad); font-weight: 650; }
+  .verdict { font-size: 16px; margin: 0 0 12px; }
+  nav a { color: inherit; margin-right: 14px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Diagnostika nasazení</h1>
+  <p class="sub">Jeden neškodný dotaz na každý registr, časový limit {{ report.timeout_s }} s, bez opakování.
+    Spuštěno {{ report.checked_at }} (UTC), celkem {{ report.total_ms }} ms.</p>
+  <nav>
+    <a href="probe">registry v provozu</a>
+    <a href="probe?set=all">včetně budoucích zdrojů (E5)</a>
+    <a href="probe?format=json{% if report.set == 'all' %}&amp;set=all{% endif %}">JSON</a>
+    <a href="./">zpět na našeptávač</a>
+  </nav>
+
+  <h2>Registry</h2>
+  <div class="card">
+    <p class="verdict">
+      {% if report.ok %}<span class="ok">Registry v provozu odpovídají.</span>
+      {% else %}<span class="fail">Některý registr v provozu neodpovídá – viz tabulka.</span>{% endif %}
+    </p>
+    <table>
+      <tr><th>Zdroj</th><th>Host</th><th>Stav</th><th>HTTP</th><th class="num">ms</th><th>Podrobnosti</th></tr>
+      {% for host in report.hosts %}
+      <tr>
+        <td>{{ host.label }}{% if not host.in_use %} <span class="candidate">(E5)</span>{% endif %}</td>
+        <td><code>{{ host.method }} {{ host.host }}</code></td>
+        <td class="{{ 'ok' if host.status == 'ok' else ('candidate' if not host.in_use else 'fail') }}">
+          {{ host.status }}<br><span class="sub">{{ host.status_cs }}</span></td>
+        <td>{{ host.http_status if host.http_status is not none else '–' }}</td>
+        <td class="num">{{ host.ms }}</td>
+        <td><code>{{ host.detail }}</code></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <h2>Číselníky</h2>
+  <div class="card">
+    {% if report.codebooks %}
+    <table>
+      {% for key, value in report.codebooks.items() %}
+      <tr><th>{{ key }}</th><td><code>{{ value if value is not none else '–' }}</code></td></tr>
+      {% endfor %}
+    </table>
+    {% else %}<p class="sub">Stav číselníků není k dispozici.</p>{% endif %}
+  </div>
+
+  <h2>Nastavení (tajné hodnoty jen jako „nastaveno“)</h2>
+  <div class="card">
+    <table>
+      <tr><th>Proměnná</th><th>Nastaveno</th><th>Hodnota</th></tr>
+      {% for row in report.configuration %}
+      <tr><td><code>{{ row.name }}</code></td><td>{{ 'ano' if row.present else 'ne' }}</td>
+          <td><code>{{ row.value if row.value is not none else '–' }}</code></td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <h2>Běhové prostředí</h2>
+  <div class="card">
+    <table>
+      {% for key, value in report.runtime.items() if key != 'libraries' %}
+      <tr><th>{{ key }}</th><td><code>{{ value if value is not none else '–' }}</code></td></tr>
+      {% endfor %}
+      <tr><th>knihovny</th><td><code>{% for name, version in report.runtime.libraries.items() %}{{ name }} {{ version }}{% if not loop.last %} · {% endif %}{% endfor %}</code></td></tr>
+    </table>
+  </div>
+</div>
+</body>
+</html>

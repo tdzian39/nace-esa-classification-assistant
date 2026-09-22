@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -52,6 +53,39 @@ class Settings(BaseSettings):
     codebook_version_label: str | None = Field(
         default=None,
         description="Optional human-readable label appended to the computed codebook version.",
+    )
+
+    # --- Where the codebooks come from (roadmap E1, decision D3) --------------------------
+    # The repository is public and the codebooks are bank-internal, so on Vercel they live
+    # in a private Blob store and are downloaded once per instance (core/codebooks/blob.py).
+    codebook_source: Literal["dir", "blob"] = Field(
+        default="dir",
+        description="'dir' reads CODEBOOK_DIR; 'blob' downloads the four files from a private "
+        "Vercel Blob store before the first lookup (the Vercel setting).",
+    )
+    blob_read_write_token: SecretStr | None = Field(
+        default=None,
+        description="Read-write token of the private Blob store holding the codebooks. It can "
+        "also overwrite and delete the store: a Sensitive variable, Production and Preview only.",
+    )
+    blob_store_id: str | None = Field(
+        default=None,
+        description="Id of that store ('store_' prefix optional); taken from the token when unset.",
+    )
+    codebook_blob_prefix: str = Field(
+        default="codebooks/",
+        description="Pathname prefix of the four files in the store, e.g. 'codebooks/2026-09/'.",
+    )
+    codebook_blob_timeout_seconds: float = Field(
+        default=10.0, gt=0, description="Per-request timeout of a codebook download."
+    )
+    codebook_blob_max_attempts: int = Field(
+        default=2, ge=1, le=5, description="Attempts per file on a timeout or a 5xx (never on 4xx)."
+    )
+    codebook_download_dir: Path | None = Field(
+        default=None,
+        description="Where downloaded codebooks are written; the system temp dir (/tmp on "
+        "Vercel) when unset.",
     )
 
     # --- Web evidence for foreign issuers (build step 6) ---------------------------------
@@ -104,7 +138,10 @@ class Settings(BaseSettings):
         description="Cap on the assembled description; keeps the classifier prompt small.",
     )
     web_user_agent: str = Field(
-        default="RBCZ-NACE-ESA-assistant/0.1 (internal Finance/MIS tool)",
+        # Contact information is not decoration: Wikimedia answered 403 "Please respect our
+        # robot policy" to httpx requests without it and 200 with it (tested via /probe
+        # ?set=all on 22 Sept 2026). Override with a bank contact on a deployment if wanted.
+        default="RBCZ-NACE-ESA-assistant/0.1 (+https://github.com/tdzian39/nace-esa-classification-assistant)",
         description="User-Agent sent on web requests.",
     )
 
@@ -265,6 +302,11 @@ class Settings(BaseSettings):
 
     # --- Logging ------------------------------------------------------------------------
     log_level: str = Field(default="INFO", description="Python logging level name.")
+    probe_enabled: bool = Field(
+        default=True,
+        description="Serve the /probe diagnostics page (fixed, harmless register checks). "
+        "False answers 404.",
+    )
 
     @field_validator("codebook_dir", mode="after")
     @classmethod
@@ -279,10 +321,23 @@ class Settings(BaseSettings):
             return None
         return value
 
-    @field_validator("lookup_user", "openfigi_api_key", mode="before")
+    @field_validator(
+        "lookup_user",
+        "openfigi_api_key",
+        "blob_read_write_token",
+        "blob_store_id",
+        "codebook_download_dir",
+        "llm_cache_path",
+        "llm_usage_path",
+        mode="before",
+    )
     @classmethod
     def _blank_is_none(cls, value: object) -> object:
-        """An empty or whitespace-only variable means "not set", not an empty value."""
+        """An empty or whitespace-only variable means "not set", not an empty value.
+
+        For the two SQLite paths this is what switches them off: ``LLM_CACHE_PATH=`` used to
+        parse as ``Path(".")``, which is not "no cache" but a cache nobody can open.
+        """
         if isinstance(value, str) and not value.strip():
             return None
         return value

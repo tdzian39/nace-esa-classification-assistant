@@ -23,6 +23,7 @@ picking up. Then run the tests (§8) before changing anything.
 | 2026-09-22 | DWS access is not granted for this project (from `CLAUDE.md`); irrelevant to Tool 1, which never touched it. | bank |
 | 2026-09-22 | Issuer identification by ISIN (GLEIF + OpenFIGI) added in PR #1; the pattern for every further source: public, keyless, fail-soft, trimmed live payloads as test fixtures. | Jakub / Claude |
 | 2026-09-22 | **D2 — the repository stays public.** E0.2 (make it private) is dropped and E1 no longer waits for it. The rule "nothing bank-internal in git" stays, so the codebooks live only in a private Vercel Blob store — which settles **D3 as Blob** (the CSV option needed a private repo). | Jakub |
+| 2026-09-22 | **D1 confirmed — Hobby for now.** The project `nace-esa-assistant` lives in Jakub's personal Hobby team (its terms are personal, non-commercial use; Pro is the upgrade path). | Jakub |
 | 2026-09-22 | **D1 — there is a Vercel account.** Claude looks up its team and plan and confirms them with Jakub before creating the project. The plan sets `maxDuration` (Hobby 60 s, Pro 300 s). | Jakub |
 | 2026-09-22 | **D5 / Q-A1 — no Entra ID app registration.** The E2.1 shared-password gate with a self-declared name becomes the permanent login. E2 keeps the untrusted-header rule and audit persistence; E2.2 (OIDC) and Q-A1 are dropped. | Jakub |
 | 2026-09-22 | **D6 — no data-classification sign-off is needed**; E1 go-live is not gated on it. The §4 data-flow list stays as documentation. | Jakub |
@@ -68,8 +69,18 @@ not an oracle: **a human confirms every code**.
 - `main` after all three: `7f75af3`.
 - **PR #5** `chore/remove-parked-tool2` — "Remove the parked Tool 2" (E0.3, below; 22 Sept 2026). When
   it merges, add the merge time here and the new `main` hash to the line above, as for #1, #3 and #4.
+- **PR #6** `feat/e1-vercel-deterministic` — the E1 code (22 Sept 2026): lazy codebooks from private Blob,
+  503 instead of a dead instance, `/probe`, the Vercel config. Built on PR #5's branch but opened against
+  `main` from the start (the lesson of #2), so until #5 merges its diff also shows #5's commits; merge #5
+  first.
 
-### Where the next session starts: E1
+### Where the next session starts: E1's codebooks, then E2 and E8
+
+**E1 is deployed** (22 Sept 2026, see E1 below): `nace-esa-assistant` in Jakub's Hobby team, production behind
+Vercel Authentication, the private Blob store connected and empty, so `/health` says which file is missing. The
+next step is uploading the four codebook files (`app/README.md` → "Deploying on Vercel" → step 3), then checking
+`DE0005140008` end to end and measuring the cold start with codebooks. Then E2 (the login), with E8 alongside.
+
 
 E0.3 is done in PR #5. It deleted the twelve Tool 2 files — `core/sources/{dws,ares,resolver,__main__}.py`
 and `core/batch/{runner,__main__}.py` (1 829 lines) and their six test modules (1 270 lines) — cut
@@ -84,14 +95,15 @@ until E6 (D7). Measured on `main` before the removal, the owner's (`tdzian39`) T
 7 750 lines and his tests that stay 5 889 (PR #1 added 2 029): roughly four fifths of the original work
 stays, and all of Tool 1 is his.
 
-**E1** (§5) puts the deterministic mode on a Vercel preview. D2 and D3 are settled (the repository stays
-public; the codebooks go to a private Blob store), so nothing blocks the code. Creating the Vercel project
-waits for Jakub's confirmation of the team and plan (D1), and a preview with real data waits for the four
-codebook files, which are with the repository owner (perhaps in `tdzian39/rb_files`); §10 lists what to
-verify about the Python runtime. Start from a fresh clone and a
-fresh venv (`pip install -e ".[dev]"`, or `tests/api` will not collect — §3 gotchas). Write E1's
-`requirements.txt` from the runtime list in E1 item 1, not from `pip freeze`: a venv from before PR #5
-still carries `pandas`, and every dev venv carries `numpy`, `pytest` and `ruff`.
+**E1** (§5) puts the deterministic mode on a Vercel preview. **Its code is done in PR #6**: every
+Vercel fact it relies on was checked against the docs and the builder source on 22 Sept 2026 (§10), and it
+was run locally the way Vercel runs it (`uvicorn api.main:app`, live GLEIF/OpenFIGI, live `/probe`). What
+is left of E1 is the deployment itself, and it waits for two things: Jakub's go-ahead to create the project
+in his team (D1 — the team is on Hobby, whose terms are personal, non-commercial use only), and the four
+codebook files, which are with the repository owner (perhaps in `tdzian39/rb_files`). With both in hand,
+follow `app/README.md` → "Deploying on Vercel" and write the measured cold start into E1 below. Start from
+a fresh clone and a fresh venv (`pip install -e ".[dev]"`, or `tests/api` will not collect — §3 gotchas).
+E8 (the golden set, Q8) can run alongside; E2 (the login) comes next.
 
 ---
 
@@ -104,20 +116,24 @@ pydantic-settings, httpx, openpyxl, ruff, pytest. Everything under `app/`:
 
 ```
 app/
-  api/main.py            FastAPI: GET / · POST /suggest · POST /api/suggest · GET /suggest.xlsx · GET /health
-  ui/templates/suggest.html   (generated from ui/prototype/suggest.html — keep the prototype in step)
+  api/main.py            FastAPI: GET / · POST /suggest · POST /api/suggest · GET /suggest.xlsx · GET /health · GET /probe
+                         codebooks load once per process (startup or first use); unusable → 503 with the reason (E1)
+  ui/templates/suggest.html   (generated from ui/prototype/suggest.html — keep the prototype in step) · probe.html
   config/settings.py     pydantic-settings; relative paths resolve against app/
+  vercel.json · .vercelignore · .python-version · [tool.vercel]/[tool.uv] in pyproject.toml   (E1, §4)
   core/
     suggest.py           the pipeline: request → identity → evidence → shortlist → classifier → IssuerSuggestion
     identifiers/         isin.py (ISO 6166 + Luhn) · ico.py (IČO, only for batch/reader.py until E6)
     codebooks/           xlsx reader, loaders, models (CodebookSet), normalize, consistency check, versioning
+                         blob.py (the four files from a private Vercel Blob store, E1)
+    probe.py             the /probe checks: one fixed request per register, status per failure mode (E1)
     sources/             base.py (Source literal, Provenance, Source*Error) · gleif.py · openfigi.py · identity.py · web.py
     classify/            candidates.py (pre-filter) · hints.py (keyword table + ESA family grid) · text.py (IDF)
                          prompts.py · provider.py · llm.py · cache.py · budget.py · golden.py (LLM path, off)
     export/              columns.py (the suggestion row contract) · xlsx.py (Subjects + Run sheets)
     batch/               reader.py (messy xlsx in — E6 reuses it; nothing calls it yet)
     audit.py             one log line per lookup: identifier, time, user, sources, outcome — never content
-  tests/                 963 passed / 16 skipped (skips = tests needing the real xlsx); fixtures are trimmed live payloads
+  tests/                 1050 passed / 16 skipped (skips = tests needing the real xlsx); fixtures are trimmed live payloads
 ```
 
 ### The pipeline, concretely
@@ -213,8 +229,9 @@ Sample ISINs for tests and demos: `DE0005140008` Deutsche Bank AG (GENERAL, no p
  browser (MO, Czech UI, htmx)
     │  HTTPS, Vercel edge
     ▼
- Vercel Serverless Function  app/api/index.py  →  FastAPI ASGI app (api.main:app)
-    │  cold start: load codebooks (Blob → /tmp → CodebookSet, consistency check, version id)
+ Vercel Function, FastAPI preset: api.main:app  ([tool.vercel] entrypoint; one function, no rewrites)
+    │  cold start (lifespan): load codebooks (Blob → /tmp → CodebookSet, consistency check, version id);
+    │  a failure is reported (503 + /health), never raised
     │  per request: identity (GLEIF, OpenFIGI, later FIRDS/Wikidata/Wikipedia) → evidence → shortlist → page/JSON/xlsx
     ├──► api.gleif.org · api.openfigi.com · registers.esma.europa.eu · wikidata.org · wikipedia.org   (outbound, no whitelist needed)
     ├──► Vercel Blob (private): the four codebooks                                            (D3)
@@ -227,15 +244,15 @@ Sample ISINs for tests and demos: `DE0005140008` Deutsche Bank AG (GENERAL, no p
 | Vercel fact | Consequence |
 |---|---|
 | Python functions are stateless; **no writable disk except `/tmp`** (ephemeral, per instance) | codebooks are fetched at cold start, SQLite caches/ledgers are impossible → in-memory per instance now, Postgres/KV later; `tempfile` for the xlsx download still works |
-| FastAPI `lifespan` may not run under Vercel's ASGI handler | load codebooks **lazily** (`functools.lru_cache`-ed `get_service()`), keep `/health` dependency-free |
-| Function duration is capped (default ~10–15 s; up to 60 s on Hobby, 300 s on Pro; set `maxDuration` explicitly) | one ISIN = up to 4 GLEIF + 1 OpenFIGI requests, spaced 1.0 s / 2.5 s → ~3–6 s live; cap per-request timeouts so the worst case fits (8 s, 2 attempts); **batch must be chunked** (E6) |
+| FastAPI `lifespan` **does** run (before the first request), and a lifespan that raises takes the whole instance down, `/health` included (verified 22 Sept 2026) | the lifespan warms the codebooks but never raises; a failure is remembered (retry after 30 s) and answered with 503 + the reason; the first request loads them if the lifespan did not; `/health` never loads anything |
+| Function duration is capped: with Fluid compute (on by default for new projects) 300 s on Hobby and up to 800 s on Pro; without it 60 s / 300 s (verified 22 Sept 2026) | `maxDuration` 60 s in `vercel.json`, valid on every plan; one ISIN = up to 4 GLEIF + 1 OpenFIGI requests, spaced 1.0 s / 2.5 s → ~4 s live (measured locally 22 Sept); on Vercel set 5 s timeouts and 2 attempts so the worst case fits; **batch must be chunked** (E6) |
 | Request body limit ~4.5 MB | fine for a sheet of ISINs; large sheets are chunked client-side anyway |
-| Cold starts scale with bundle size | no `pandas` (dropped in PR #5); keep `openpyxl`; `.vercelignore` tests, prototype, data |
+| Cold starts scale with bundle size; the whole Root Directory is bundled, and the CLI uploads what `.vercelignore` does not exclude (it never reads `.gitignore`) | no `pandas` (PR #5), uvicorn only in extras (Vercel brings its own), `[tool.uv] package = false`; `.vercelignore` and `excludeFiles` keep out tests, prototype, `data/`, `*.xlsx`, `.env` |
 | No reverse proxy, no bank SSO in front | the app must authenticate users itself (E2); `X-Remote-User` is untrusted |
-| Runtime logs are kept briefly; Log Drains are a paid feature | audit events go to Postgres (E2) |
+| Runtime logs are kept 1 hour on Hobby, 1 day on Pro; Log Drains are a paid feature | audit events go to Postgres (E2); a codebook failure must be visible on `/health` and `/probe`, not only in the log |
 | Outbound internet is open | **no egress/whitelist request** (the biggest simplification vs CodeNOW); the third-party data flows are documented below (D6: no sign-off needed) |
 | Env vars ≤ 64 KB total | codebooks cannot travel as env vars → private Blob store (D3) |
-| Preview deployment per PR | free review of every change; previews are protected by Vercel Authentication (team login), production by E2 |
+| Previews per PR need the GitHub integration, which only the repository owner can connect | deploys run from a checkout with the Vercel CLI; previews are protected by Vercel Authentication by default, production by "All Deployments" protection (free on every plan since 9 Sept 2026) until the E2 login exists |
 | Concurrency: each instance throttles on its own | per-instance throttle is enough at MO's volume (a few lookups a day); a shared limiter (KV) only if volume grows |
 
 **Data that leaves the bank** (documentation; D6 decided 22 Sept 2026 that no data-classification sign-off is
@@ -271,43 +288,67 @@ explains *why*, then wait for a go-ahead.
 **DoD:** `python -m pytest` green with Tool 2 gone; no `pandas`; README/CLAUDE describe one tool; nothing
 bank-internal in the repository.
 
-### E1 — Deploy the deterministic mode on Vercel (M)
+### E1 — Deploy the deterministic mode on Vercel (M) — *code done in PR #6; the deployment waits for D1 and the codebook files*
 
 **Goal:** a preview URL where an ISIN returns the identity facts and the two shortlists with CTS IDs.
-**Work:**
-1. Entry and config in `app/`:
-   ```
-   api/index.py     from api.main import app          # Vercel serves this ASGI app
-   vercel.json      {"rewrites":[{"source":"/(.*)","destination":"/api/index"}],
-                     "functions":{"api/index.py":{"maxDuration":60}}}
-   requirements.txt pinned export of the runtime deps (fastapi, pydantic, pydantic-settings, jinja2,
-                    python-multipart, httpx, openpyxl — no pandas, no uvicorn needed in prod)
-   .vercelignore    tests/  ui/prototype/  data/  .venv/  *.sqlite3
-   ```
-   Vercel project: Root Directory `app`, framework "Other", Python 3.12 (pin the way the docs prescribe — §10).
-   The existing `api/main.py` also becomes a function under `/api/main`; harmless, but everything is rewritten
-   to `/api/index`.
-2. **Lazy startup**: replace the `_state` dict filled in `lifespan` with a cached `get_service()` that loads and
-   checks the codebooks on first use; keep `lifespan` for local `uvicorn`; `/health` reports `status`,
-   `codebook_version` (only if already loaded — it must not force a load), `python`, `region`, `cold` flag.
-   An inconsistent codebook set must still refuse to serve suggestions (HTTP 503 with the report summary).
-3. **Codebooks from Vercel Blob** (`CODEBOOK_SOURCE=blob|dir`, default `dir` locally): at cold start download the
-   four xlsx from a private Blob store (token `BLOB_READ_WRITE_TOKEN`, keys `codebooks/<file>.xlsx`) into
-   `/tmp/codebooks/` and hand the existing loaders the paths — loaders, consistency check and version id stay
-   untouched. Document the upload procedure (E10 runbook). Blob is the only delivery (D3, 22 Sept 2026): the
-   repository stays public, so the CSV-in-git alternative is gone.
-4. **`/probe` diagnostics page** (port of the design source's `src/main/probe.py`): one harmless request per
-   register (`api.gleif.org`, `api.openfigi.com`; `?set=all` adds FIRDS, Wikidata, Wikipedia), 5 s timeout,
-   status per host (`ok`, `timeout`, `tls`, `dns`, `blocked`, `http_error`, `unexpected_body`), runtime facts
-   (Python, region, cold/warm, codebook version, library versions). Never called by `/health`. Behind the E2 gate.
-5. Timeouts inside the cap: `GLEIF_TIMEOUT_SECONDS=8`, `OPENFIGI_TIMEOUT_SECONDS=8`, attempts 2 on Vercel (env),
-   so the worst case (4 + 1 requests) stays under `maxDuration`.
-6. Vercel env: `LLM_ENABLED=false`, `LLM_CACHE_PATH=` and `LLM_USAGE_PATH=` empty, `WEB_USER_HEADER=` empty,
-   `CODEBOOK_SOURCE=blob`, `WEB_USER_AGENT` naming the bank tool.
+**Work** — as built in PR #6, after the plan was checked against the Vercel docs and the builder source on
+22 Sept 2026 (§10). The first plan (an `api/index.py`, a catch-all rewrite, framework "Other", a pinned
+`requirements.txt`) would not have worked: under the FastAPI preset a rewrite shows the app every request
+as one path, and a `requirements.txt` next to `pyproject.toml` is ignored.
+1. **Entry and config in `app/`:** Root Directory `app`, FastAPI preset (auto-detected, pinned in
+   `vercel.json`), `[tool.vercel] entrypoint = "api.main:app"` in `pyproject.toml` (the file-name search finds
+   `api/main.py` only through an undocumented path), one function, no rewrites. `vercel.json`: region `fra1`,
+   `maxDuration` 60 s (valid on every plan), `excludeFiles` for tests, prototype, `data/`, `*.xlsx`, `.env`.
+   `.python-version` = 3.12 (Vercel's default is announced to move to 3.14). Dependencies come from
+   `pyproject.toml` via uv; `[tool.uv] package = false` stops a second copy of the app under `_vendor/`;
+   uvicorn moved to the `server`/`dev` extras because Vercel's runtime brings its own.
+   `.vercelignore` exists because the CLI never reads `.gitignore`. `tests/test_vercel_config.py` keeps the
+   files consistent.
+2. **Lazy startup, never fatal:** the codebooks load once per process — in the lifespan, which Vercel runs
+   before the first request, or on the first lookup — under a lock, so concurrent first requests share one
+   load. A lifespan that raises would take the instance down, `/health` included, so a failed load is
+   remembered (retried after 30 s) and suggestion requests answer **503 with the reason** (the page keeps
+   what was typed). `/health` never loads anything; it reports `codebooks.state` (`loaded` / `not_loaded` /
+   `error` + reason), version, load time, Python, region, commit, and turns 503 after a failed load.
+3. **Codebooks from Vercel Blob** (`CODEBOOK_SOURCE=blob`, default `dir`): `core/codebooks/blob.py`
+   downloads the four files with plain `GET https://<store>.private.blob.vercel-storage.com/codebooks/<file>`
+   and `Authorization: Bearer <BLOB_READ_WRITE_TOKEN>` into `/tmp`, atomically, with no list or head call
+   (both are metered, and Hobby stops Blob for 30 days past its quota); the store id comes from
+   `BLOB_STORE_ID` or the token. OIDC is not used: in Python the token belongs to a request and is not there
+   at startup. Loaders, consistency check and version id are untouched. Upload and update procedure:
+   `app/README.md` → "Deploying on Vercel".
+4. **`/probe`** (port of the design source's `src/main/probe.py`): one harmless request per register
+   (GLEIF, OpenFIGI; `?set=all` adds FIRDS, Wikidata with its follow-up, Wikipedia cs/en), 5 s timeout, no
+   retry, a status per failure mode (`ok`, `unexpected_body`, `http_error`, `proxy_auth`, `tls`,
+   `proxy_error`, `dns`, `timeout`, `blocked`, `error`), the codebook state, the settings with secrets shown
+   as present/absent only, and the runtime (Python, region, commit, library versions, which `settings.py`
+   was imported). `PROBE_ENABLED=false` turns it off; E2 puts it behind the login. Its first live run found
+   that Wikimedia refuses httpx requests whose User-Agent carries no contact (403 "Please respect our robot
+   policy"); the default `WEB_USER_AGENT` now names the repository URL, and all six hosts answer `ok`.
+5. **Vercel env** (Production and Preview): `CODEBOOK_SOURCE=blob`, `BLOB_READ_WRITE_TOKEN` (Sensitive),
+   `LLM_ENABLED=false`, `LLM_CACHE_PATH=` and `LLM_USAGE_PATH=` empty (an empty value now really switches
+   them off — it used to parse as `Path(".")`), `WEB_USER_HEADER=` empty, `GLEIF_TIMEOUT_SECONDS=5`,
+   `OPENFIGI_TIMEOUT_SECONDS=5`, both `*_MAX_ATTEMPTS=2`, so the worst case (4 + 1 requests) stays under 60 s.
+6. Also fixed on the way: `/suggest.xlsx` returned 500 for an issuer name outside latin-1 ("Česká
+   spořitelna"): the name now goes into `filename*` (RFC 5987) with an ASCII fallback.
+**Verified locally (22 Sept 2026):** `uvicorn api.main:app` from `app/` (what Vercel runs), synthetic
+codebooks: loaded at startup in 46 ms; `DE0005140008` → Deutsche Bank via GLEIF + OpenFIGI in about 4 s;
+`/probe?set=all` all six hosts `ok` in about 2.3 s; with `CODEBOOK_SOURCE=blob` and no token the app starts,
+`/health`, the API, the page and the download answer 503 with the reason and the empty form still opens.
 **DoD:** preview deployment renders `DE0005140008` with LEI, facts, both shortlists and CTS IDs; `/health` and
 `/probe` answer; cold-start time measured and written here; the Dockerfile still builds for local use.
-**Depends on:** no epic (E0.2 was dropped, D2). Before the Vercel project is created: Jakub's confirmation of
-the team and plan (D1). Before a preview with real data: the four codebook files from the repository owner.
+**Deployed 22 Sept 2026** (from a clean checkout of PR #6 with the Vercel CLI) to production,
+`https://nace-esa-assistant.vercel.app`, behind Vercel Authentication: build and deploy 21 s; Python 3.12.14,
+region `fra1`, entrypoint `api/main.py`, the source copy of the app imported (`/var/task/config/settings.py`);
+`/probe?set=all` from `fra1`: all six hosts `ok` in 1.7 s; `/health` 503 "codebooks/CTS_BA0036_NEW.xlsx is not
+in the Blob store" — the store was reached with the connected token and is still empty, exactly as designed;
+cold start about 1 s without codebooks. Protected deployments are checked with `vercel curl <path>` from a
+linked checkout (it handles the protection bypass).
+**Status:** code, tests (1050 passed / 16 skipped), docs and the deployment done; the DoD's last two items -
+`DE0005140008` end to end with CTS IDs, and the cold start with codebooks - wait for the four codebook files.
+**Depends on:** no epic (E0.2 was dropped, D2); D1 confirmed. Before real data: the four codebook files from the
+repository owner (perhaps in `tdzian39/rb_files`, where Jakub has a pending invite), uploaded with
+`vercel blob put` as in `app/README.md`.
 
 ### E2 — Access and audit on Vercel (M)
 
@@ -372,7 +413,7 @@ visible on the page.
 1. `core/sources/wikidata.py`: LEI → item (`haswbstatement:P1278=`), `P452` industry → `P4496` NACE code →
    division candidates with evidence ("Wikidata: automotive industry → NACE 29"); description (cs/en) and
    sitelinks → `wikipedia.py` REST summary (cs first, en fallback) as the evidence description when nothing
-   was typed and no provider is configured. Descriptive `User-Agent` (Wikimedia requires it; 200/min).
+   was typed and no provider is configured. Descriptive `User-Agent` with a contact (Wikimedia requires it; 200/min; `/probe?set=all` showed a 403 without one).
 2. `core/sources/firds.py`: ISIN → CFI code, issuer LEI (fallback when GLEIF has no mapping), instrument full
    name, currency. CFI → structured hints: `DA…`/`DG…` asset/mortgage-backed → securitisation; `C…` collective
    investment → funds; `DN…` municipal → local government; `E…` equity of the issuer itself.
@@ -500,8 +541,10 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
   protection; Pro gives 300 s, Log Drains, more concurrency), region (`fra1` Frankfurt). *Needed by E1.*
   **Answer:** 2026-09-22 — there is a Vercel account (Jakub); its team and plan are confirmed with Jakub before
   the project is created, and the plan sets `maxDuration` (Jakub: Hobby 60 s, Pro 300 s). Looked up through the
-  Vercel API the same day: Jakub's personal team `10930795-6863s-projects`, plan **Hobby** — awaiting his
-  confirmation. Checked against the Vercel docs on 22 Sept 2026: 60 s / 300 s are the limits *without* Fluid
+  Vercel API the same day: Jakub's personal Vercel team, plan **Hobby**; **confirmed the same evening: use
+  Hobby for now (Jakub)**, knowing its terms (below). Project `nace-esa-assistant` created then — Root Directory
+  `app`, FastAPI preset, `fra1`, Vercel Authentication on all deployments — with the private Blob store
+  `nace-esa-codebooks` (`fra1`) connected, which put `BLOB_READ_WRITE_TOKEN` into every environment. Checked against the Vercel docs on 22 Sept 2026: 60 s / 300 s are the limits *without* Fluid
   compute; Fluid is on by default for new projects and allows 300 s on Hobby and 800 s on Pro, so E1 sets
   `maxDuration` to 60 s explicitly, which is valid on every plan. Also verified: the Hobby plan is for
   personal, non-commercial use only (Vercel fair-use guidelines), and Pro is $20 per month per deploying seat.
@@ -576,7 +619,7 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 ```bash
 cd app
 python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]"   # Windows paths; the repo path may contain spaces — quote it
-../.venv/Scripts/python.exe -m pytest -q          # 963 passed, 16 skipped without the real xlsx (skips are expected)
+../.venv/Scripts/python.exe -m pytest -q          # 1050 passed, 16 skipped without the real xlsx (skips are expected)
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .
 ../.venv/Scripts/python.exe -m core.codebooks     # startup consistency check against data/codebooks (needs the xlsx)
 ../.venv/Scripts/python.exe -m core.classify "popis cinnosti" --verbose   # shortlist for a description
@@ -616,6 +659,11 @@ python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]
   → "government", LOCAL_GOVERNMENT → "municipality", INTERNATIONAL_ORGANIZATION → "supranational", OpenFIGI `Govt`
   → "government, sovereign", `Mtge` → "mortgage-backed, asset-backed". E4 makes this structural; until then the
   words are the mechanism — do not "clean them up".
+- **Settings added by E1 (PR #6)**: `CODEBOOK_SOURCE` (`dir` | `blob`), `BLOB_READ_WRITE_TOKEN`, `BLOB_STORE_ID`,
+  `CODEBOOK_BLOB_PREFIX` (`codebooks/`), `CODEBOOK_BLOB_TIMEOUT_SECONDS` (10), `CODEBOOK_BLOB_MAX_ATTEMPTS` (2),
+  `CODEBOOK_DOWNLOAD_DIR` (system temp), `PROBE_ENABLED` (true). Changed: an empty `LLM_CACHE_PATH` /
+  `LLM_USAGE_PATH` now means off (it parsed as `Path(".")`); the default `WEB_USER_AGENT` carries the repository
+  URL as contact (Wikimedia refuses httpx requests without one).
 - **Settings removed by PR #5**: `DWS_DSN`, `DWS_USER`, `DWS_PASSWORD`, `DWS_SCHEMA`, `DWS_TIMEOUT_SECONDS` and the
   six `ARES_*`; an old `app/.env` that still sets them loads fine (unknown variables are ignored).
 - **`Source` literal**: `WEB`, `GLEIF`, `OPENFIGI` (`DWS` and `ARES_LIVE` left with Tool 2 in PR #5); row `source` =
@@ -631,14 +679,35 @@ python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]
 
 ## 10. Verify at implementation (things this document could not check live)
 
-- Vercel Python runtime: how to pin **Python 3.12** for the project (config file vs project setting); whether
-  dependencies are read from `pyproject.toml` or only `requirements.txt`; whether **FastAPI `lifespan`** runs
-  under the runtime (design assumes *not* — lazy init either way).
-- `maxDuration` ceilings and default on the chosen plan; request body limit (assumed 4.5 MB); `/tmp` size.
-- Vercel Blob private access from Python (REST with `BLOB_READ_WRITE_TOKEN`) — the only delivery since D3.
-- Deployment Protection: Vercel Authentication on previews (assumed available on all plans); Password Protection
-  on production (assumed paid) — hence the app-level gate in E2.
+*The first four were answered on 22 Sept 2026 from the Vercel docs, the changelog and the builder source
+(`vercel/vercel`, `@vercel/python` 14.x, `vercel-runtime` 0.23): three researchers, then a skeptic who
+re-checked every design-driving claim (109 confirmed, 4 corrected, 2 left open). Re-check at the first real
+deployment: the public source can lag what the build machines run.*
+
+- ~~Python pin / dependency file / lifespan~~ — **answered:** 3.12 is the default (3.13, 3.14 available; the
+  default is announced to move to 3.14), pinned with `app/.python-version`, which wins over `requires-python`.
+  Dependencies come from `pyproject.toml`, installed with uv (`uv sync --no-dev`, extras not installed); a
+  `requirements.txt` next to it is ignored. **`lifespan` runs** before the first request, under Vercel's own
+  uvicorn, and a raising lifespan stops the server. Open: whether a Hobby instance serves concurrent requests
+  (the code is safe either way).
+- ~~`maxDuration` / body limit / `/tmp`~~ — **answered:** Fluid compute (on by default for new projects): Hobby
+  300 s default and maximum, Pro 300 s default and 800 s maximum; without Fluid 60 s / 300 s. Request and
+  response bodies 4.5 MB (413 above). `/tmp` 500 MB, per instance, shared by concurrent requests. Memory on
+  Hobby fixed at 2 GB / 1 vCPU. Runtime logs 1 h on Hobby, 1 day on Pro.
+- ~~Vercel Blob private access from Python~~ — **answered:** private stores are GA on all plans since 30 June
+  2026; a private blob is a plain `GET https://<store>.private.blob.vercel-storage.com/<path>` with
+  `Authorization: Bearer <BLOB_READ_WRITE_TOKEN>`; the store id is in the token. The Python SDK (`vercel` on
+  PyPI) is not needed and has no OIDC; OIDC tokens arrive per request, so they cannot serve a cold start.
+  No read-only token exists: the read-write token can delete the store.
+- ~~Deployment Protection~~ — **answered:** new projects get Standard Protection (previews and generated URLs
+  behind Vercel Authentication; the production domain public); "All Deployments" is free on every plan since
+  9 Sept 2026, but on Hobby admits only the owner, one external user and one shareable link. Password
+  Protection is not on Hobby ($20 per project per month on Pro) — the app's own gate (E2, D5) is the login.
+  Only the repository owner can connect the GitHub integration; CLI deploys need nothing from him.
 - GLEIF full-text search filter name (`filter[fulltext]`) and its ranking; `filter[entity.legalName]` behaviour
   with partial names.
-- ECB list reuse terms before bundling anything (E4b); Wikimedia `User-Agent` policy wording (E5).
+- ECB list reuse terms before bundling anything (E4b); Wikimedia `User-Agent` policy wording (E5) — *seen in
+  practice on 22 Sept 2026: Wikimedia answered httpx requests without a contact in the User-Agent with 403
+  "Please respect our robot policy" and with 200 once the repository URL was in it (curl passed either way);
+  the default `WEB_USER_AGENT` carries it now.*
 - Neon Postgres via Vercel Marketplace: connection pooling for serverless (use the pooled DSN).

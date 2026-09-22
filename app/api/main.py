@@ -1,10 +1,21 @@
-"""The FastAPI application: the suggester page, its JSON endpoint and the xlsx download.
+"""The FastAPI application: the suggester page, its JSON endpoint, the xlsx download and /probe.
 
 Design notes worth keeping:
 
-* **The codebooks are loaded once, at startup**, and the consistency check runs there. An
-  inconsistent codebook should stop the service coming up, not surface as a wrong CTS ID in
-  a report three weeks later. ``python -m core.codebooks --no-strict`` prints the full report.
+* **The codebooks are loaded once per process, lazily**: at startup when the server runs
+  the lifespan (uvicorn locally, and Vercel, which runs it before the first request), or
+  else on the first request that needs them. The consistency check runs there. An
+  inconsistent or missing codebook set **never serves a suggestion** - emitting a CTS ID
+  from a bad codebook is the failure nobody would catch downstream - but it no longer stops
+  the process: suggestion requests answer 503 with the reason while ``/health``, the empty
+  form and ``/probe`` keep working, so an operator can see what is wrong. On Vercel a
+  startup that raises takes the whole instance down, ``/health`` included (verified against
+  the runtime source on 22 Sept 2026). ``python -m core.codebooks --no-strict`` prints the
+  full report.
+* **On Vercel the codebooks come from a private Blob store** (``CODEBOOK_SOURCE=blob``,
+  roadmap D3): the repository is public and they are bank-internal. A failed load is
+  remembered for :data:`RETRY_AFTER_SECONDS` rather than retried on every request, which
+  would spend Blob operations and bury the logs.
 * **An ISIN is resolved before anything is searched.** GLEIF gives the issuer's legal
   name, country, legal form, entity category and parents, OpenFIGI the instrument. Both
   are public registers; they land in the evidence list, the row and the audit trail as
@@ -19,16 +30,23 @@ Design notes worth keeping:
 from __future__ import annotations
 
 import logging
+import os
+import platform
+import threading
+import time
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
-from typing import Annotated
+from contextlib import asynccontextmanager, suppress
+from datetime import UTC, datetime
+from typing import Annotated, Final
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, Form, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 
 from config.settings import APP_ROOT, Settings, get_settings
 from core.audit import current_user, log_lookup
+from core.codebooks.errors import CodebookError
 from core.codebooks.loaders import load_and_check
 from core.suggest import IssuerSuggestion, SuggestionRequest, SuggestionService, build_service
 
@@ -36,28 +54,76 @@ LOGGER = logging.getLogger(__name__)
 
 TEMPLATES = Jinja2Templates(directory=str(APP_ROOT / "ui" / "templates"))
 
-#: Set at startup so every request shares one loaded codebook set and one classifier.
+#: After a failed codebook load, suggestion requests answer 503 at once for this long before
+#: the next attempt, so a missing Blob token does not become one download per request.
+RETRY_AFTER_SECONDS: Final[float] = 30.0
+
+#: One loaded service per process, shared by every request (tests put theirs here directly).
+#: Keys: ``settings``, ``service``, ``codebook_error``, ``codebook_error_at``,
+#: ``codebook_loaded_ms``.
 _state: dict[str, object] = {}
+_load_lock = threading.Lock()
+
+_STARTED_MONOTONIC: Final[float] = time.monotonic()
+_STARTED_UTC: Final[datetime] = datetime.now(UTC)
+
+
+class CodebooksUnavailableError(RuntimeError):
+    """No usable codebook set, so no suggestion can be served (HTTP 503 with the reason)."""
+
+
+def _load_service(settings: Settings) -> SuggestionService:
+    """Load and check the codebooks and build the service, once per process.
+
+    Concurrent first requests (Fluid compute runs several in one instance) wait for one load
+    instead of starting their own. A failure is remembered, and repeated for
+    :data:`RETRY_AFTER_SECONDS` without another attempt.
+
+    Raises:
+        CodebooksUnavailableError: the codebooks could not be fetched, read or checked.
+    """
+    with _load_lock:
+        service = _state.get("service")
+        if service is not None:
+            return service  # type: ignore[return-value]
+        failed_at = _state.get("codebook_error_at")
+        if isinstance(failed_at, float) and time.monotonic() - failed_at < RETRY_AFTER_SECONDS:
+            raise CodebooksUnavailableError(str(_state.get("codebook_error")))
+        started = time.perf_counter()
+        try:
+            codebooks, report = load_and_check(settings, strict=False)
+            if not report.ok:
+                raise CodebooksUnavailableError(f"codebooks are inconsistent: {report.summary()}")
+            service = build_service(settings, codebooks=codebooks)
+        except Exception as exc:
+            expected = isinstance(exc, CodebookError | CodebooksUnavailableError)
+            reason = str(exc) if expected else f"{type(exc).__name__}: {exc}"
+            if not expected:
+                LOGGER.exception("unexpected failure while loading the codebooks")
+            LOGGER.error("codebooks unavailable: %s", reason)
+            _state["codebook_error"] = reason
+            _state["codebook_error_at"] = time.monotonic()
+            raise CodebooksUnavailableError(reason) from exc
+        _state["service"] = service
+        _state["codebook_loaded_ms"] = round((time.perf_counter() - started) * 1000)
+        _state.pop("codebook_error", None)
+        _state.pop("codebook_error_at", None)
+        LOGGER.info("%s (loaded in %d ms)", codebooks.describe(), _state["codebook_loaded_ms"])
+        return service
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Load and check the codebooks once, then build the service."""
+    """Configure logging and warm the service. Never raises: see the module docstring."""
     settings = get_settings()
     logging.basicConfig(
         level=logging.getLevelName(settings.log_level.strip().upper() or "INFO"),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    codebooks, report = load_and_check(settings, strict=False)
-    LOGGER.info("%s", codebooks.describe())
-    if not report.ok:
-        # Emitting a CTS ID from an inconsistent codebook is the one failure nobody would
-        # catch downstream, so it stops the service rather than degrading it.
-        LOGGER.error("codebooks are inconsistent:\n%s", report.summary())
-        raise RuntimeError(f"codebooks are inconsistent: {report.summary()}")
-
     _state["settings"] = settings
-    _state["service"] = build_service(settings, codebooks=codebooks)
+    # A failure is already logged and remembered; suggestion requests answer 503 with it.
+    with suppress(CodebooksUnavailableError):
+        _load_service(settings)
     try:
         yield
     finally:
@@ -72,19 +138,43 @@ app = FastAPI(
 )
 
 
-def get_service() -> SuggestionService:
-    service = _state.get("service")
-    if service is None:  # pragma: no cover - only before startup completes
-        raise RuntimeError("the suggestion service is not ready")
-    return service  # type: ignore[return-value]
-
-
 def get_app_settings() -> Settings:
     return _state.get("settings") or get_settings()  # type: ignore[return-value]
 
 
+def get_service() -> SuggestionService:
+    """The loaded service; loads it on first use (raises CodebooksUnavailableError)."""
+    service = _state.get("service")
+    if service is not None:
+        return service  # type: ignore[return-value]
+    return _load_service(get_app_settings())
+
+
 ServiceDep = Annotated[SuggestionService, Depends(get_service)]
 SettingsDep = Annotated[Settings, Depends(get_app_settings)]
+
+
+@app.exception_handler(CodebooksUnavailableError)
+async def codebooks_unavailable(
+    request: Request, exc: CodebooksUnavailableError
+) -> JSONResponse | PlainTextResponse:
+    """503 with the reason: JSON for the API, plain text for the download."""
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"detail": "codebooks unavailable", "reason": str(exc)}, 503)
+    return PlainTextResponse(f"Číselníky nejsou k dispozici: {exc}", status_code=503)
+
+
+def codebook_status(settings: Settings) -> dict[str, object]:
+    """What /health and /probe say about the codebooks, without ever loading them."""
+    service = _state.get("service")
+    error = _state.get("codebook_error")
+    return {
+        "state": "loaded" if service else ("error" if error else "not_loaded"),
+        "source": settings.codebook_source,
+        "version": service.codebooks.version.id if service else None,  # type: ignore[union-attr]
+        "loaded_ms": _state.get("codebook_loaded_ms") if service else None,
+        "error": None if service else error,
+    }
 
 
 def request_user(http_request: Request | None, settings: Settings) -> str:
@@ -94,7 +184,8 @@ def request_user(http_request: Request | None, settings: Settings) -> str:
     same name for everybody and would not satisfy "log the requesting user". The signed-in
     user comes from a header set by the reverse proxy or SSO in front of this app
     (``WEB_USER_HEADER``); that proxy must strip any client-supplied copy of it, since
-    anything a browser can set is not an identity.
+    anything a browser can set is not an identity. On Vercel there is no such proxy - it
+    passes client headers through - so ``WEB_USER_HEADER`` stays empty there (roadmap E2).
 
     Falls back to :func:`~core.audit.current_user` for local runs, where the OS account
     really is the person.
@@ -126,24 +217,61 @@ def _run(
     return suggestion
 
 
-# -- health ------------------------------------------------------------------------------
+# -- health and diagnostics --------------------------------------------------------------
 
 
 @app.get("/health", include_in_schema=False)
 def health(settings: SettingsDep) -> JSONResponse:
-    """Liveness plus the facts an operator needs: codebook version and model."""
-    service = _state.get("service")
-    codebook_version = service.codebooks.version.id if service else None  # type: ignore[union-attr]
+    """Liveness plus the facts an operator needs. Never loads the codebooks itself.
+
+    503 only when a codebook load has failed: an instance that has not loaded them yet is
+    healthy (Vercel loads them at startup, a local run on the first lookup).
+    """
+    codebooks = codebook_status(settings)
     return JSONResponse(
         {
-            "status": "ok" if service else "starting",
-            "codebook_version": codebook_version,
+            "status": {"loaded": "ok", "not_loaded": "starting"}.get(
+                str(codebooks["state"]), "error"
+            ),
+            "codebook_version": codebooks["version"],
+            "codebooks": codebooks,
             "model": settings.llm_model if settings.llm_api_key else None,
             "llm_configured": settings.llm_api_key is not None and settings.llm_enabled,
             "search_configured": bool(settings.web_search_url),
             "gleif_enabled": settings.gleif_enabled,
             "openfigi_enabled": settings.openfigi_enabled,
-        }
+            "python": platform.python_version(),
+            "region": os.environ.get("VERCEL_REGION"),
+            "vercel_env": os.environ.get("VERCEL_ENV"),
+            "commit": (os.environ.get("VERCEL_GIT_COMMIT_SHA") or "")[:12] or None,
+            "instance_started": _STARTED_UTC.isoformat(timespec="seconds"),
+            "uptime_s": round(time.monotonic() - _STARTED_MONOTONIC),
+        },
+        status_code=503 if codebooks["state"] == "error" else 200,
+    )
+
+
+@app.get("/probe", include_in_schema=False, response_model=None)
+def probe(
+    request: Request,
+    settings: SettingsDep,
+    which: Annotated[str, Query(alias="set")] = "",
+    output: Annotated[str, Query(alias="format")] = "html",
+) -> HTMLResponse | JSONResponse:
+    """Diagnostics: one fixed, harmless request per register, plus the runtime facts.
+
+    ``?set=all`` adds the E5 candidates (FIRDS, Wikidata, Wikipedia); ``?format=json`` returns
+    the machine-readable report. Nothing a user types reaches the network.
+    """
+    if not settings.probe_enabled:
+        return JSONResponse({"detail": "Not Found"}, status_code=404)
+    from core.probe import report
+
+    result = report(settings, extended=which == "all", codebooks=codebook_status(settings))
+    if output == "json":
+        return JSONResponse(result)
+    return TEMPLATES.TemplateResponse(
+        request=request, name="probe.html", context={"report": result}
     )
 
 
@@ -163,26 +291,38 @@ def index(request: Request, settings: SettingsDep) -> HTMLResponse:
 @app.post("/suggest", response_class=HTMLResponse, include_in_schema=False)
 def suggest_form(
     request: Request,
-    service: ServiceDep,
     settings: SettingsDep,
     isin: Annotated[str, Form()] = "",
     name: Annotated[str, Form()] = "",
     description: Annotated[str, Form()] = "",
 ) -> HTMLResponse:
-    """Handle the form. Returns the whole page; htmx swaps the result region."""
+    """Handle the form. Returns the whole page; htmx swaps the result region.
+
+    Without usable codebooks the page comes back with the reason and the form as typed
+    (HTTP 503), rather than a bare error: MO should see why, and not lose the input.
+    """
     payload = SuggestionRequest(isin=isin, name=name, description=description)
     form = {"isin": isin, "name": name, "description": description}
-    if payload.is_empty:
+
+    def page_with(error: str, status_code: int = 200) -> HTMLResponse:
         return TEMPLATES.TemplateResponse(
             request=request,
             name="suggest.html",
             context={
                 "suggestion": None,
                 "form": form,
-                "error": "Vyplňte alespoň jednu položku.",
+                "error": error,
                 "warnings": _warnings(settings),
             },
+            status_code=status_code,
         )
+
+    if payload.is_empty:
+        return page_with("Vyplňte alespoň jednu položku.")
+    try:
+        service = get_service()
+    except CodebooksUnavailableError as exc:
+        return page_with(f"Číselníky nejsou k dispozici, návrh teď nelze vytvořit: {exc}", 503)
     suggestion = _run(service, settings, payload, request)
     return TEMPLATES.TemplateResponse(
         request=request,
@@ -270,12 +410,23 @@ def suggest_xlsx(
         load_workbook(io.BytesIO(data)).close()
 
     stem = (suggestion.issuer_name if suggestion else None) or "navrh"
-    filename = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in stem)[:40] or "navrh"
     return StreamingResponse(
         io.BytesIO(data),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}.xlsx"'},
+        headers={"Content-Disposition": _attachment(stem)},
     )
+
+
+def _attachment(stem: str) -> str:
+    """``Content-Disposition`` for ``<stem>.xlsx`` that survives any issuer name.
+
+    HTTP headers are latin-1, so a raw "Česká spořitelna" made the download fail with a 500.
+    The plain ``filename`` gets an ASCII copy; ``filename*`` (RFC 6266 / RFC 5987) carries the
+    real name, which every current browser prefers.
+    """
+    safe = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in stem)[:40] or "navrh"
+    ascii_only = "".join(ch if ch.isascii() else "_" for ch in safe)
+    return f"attachment; filename=\"{ascii_only}.xlsx\"; filename*=UTF-8''{quote(safe)}.xlsx"
 
 
 # -- helpers -----------------------------------------------------------------------------

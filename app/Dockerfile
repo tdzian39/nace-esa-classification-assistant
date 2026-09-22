@@ -1,4 +1,5 @@
-# Container for internal deployment. No PaaS config is provided, by design (CLAUDE.md).
+# Container for local runs and any container host. The deployment target is Vercel (roadmap
+# E1: app/vercel.json, [tool.vercel] in pyproject.toml); this image is kept for local use.
 #
 # Build from the repository root:
 #   docker build -f app/Dockerfile -t naceesa:0.1 app
@@ -28,7 +29,7 @@ COPY core ./core
 COPY api ./api
 COPY ui ./ui
 COPY config ./config
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir ".[server]"
 
 # Writable state: the answer cache and the usage ledger.
 RUN mkdir -p /app/data/cache /app/data/codebooks \
