@@ -238,7 +238,16 @@ def load_and_check(
     Errors are logged at ERROR, warnings at WARNING, infos at INFO. When ``strict`` is true
     and the report has errors a :class:`CodebookConsistencyError` (with ``.report`` and
     ``.codebooks``) is raised; otherwise both the codebooks and the report are returned.
+
+    With ``CODEBOOK_SOURCE=blob`` and no explicit ``codebook_dir`` the four files are first
+    downloaded from the private Blob store (:mod:`core.codebooks.blob`, which raises
+    :class:`~core.codebooks.blob.CodebookFetchError`); everything after that is identical.
     """
+    settings = settings if settings is not None else get_settings()
+    if codebook_dir is None and settings.codebook_source == "blob":
+        from core.codebooks.blob import fetch_codebooks
+
+        codebook_dir = fetch_codebooks(settings, target_dir=settings.codebook_download_dir)
     codebooks = load_codebooks(settings, codebook_dir=codebook_dir)
     report = check_consistency(codebooks)
     for finding in report.errors:

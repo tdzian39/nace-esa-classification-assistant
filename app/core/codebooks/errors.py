@@ -23,6 +23,15 @@ class CodebookFileError(CodebookError):
     """A codebook file is missing, unreadable or not an xlsx workbook."""
 
 
+class CodebookFetchError(CodebookError):
+    """The codebooks could not be downloaded from the private Blob store (roadmap E1, D3).
+
+    The message says which file and why - no token, the store refused the token, the file
+    was never uploaded, the store could not be reached - because on Vercel it is what
+    ``/health`` shows an operator.
+    """
+
+
 class CodebookSchemaError(CodebookError):
     """The required columns were not found.
 

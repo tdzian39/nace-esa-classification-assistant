@@ -11,7 +11,6 @@ requires-python = ">=3.12"
 license = { text = "Proprietary - Raiffeisenbank a.s. internal use" }
 dependencies = [
   "fastapi>=0.115",
-  "uvicorn[standard]>=0.30",
   "openpyxl>=3.1",
   "pydantic>=2.7",
   "pydantic-settings>=2.3",
@@ -21,7 +20,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# The ASGI server for local runs and the container. Not a runtime dependency on Vercel,
+# whose Python runtime brings its own uvicorn (verified 22 Sept 2026).
+server = [
+  "uvicorn[standard]>=0.30",
+]
 dev = [
+  "uvicorn[standard]>=0.30",
   "pytest>=8",
   "pytest-cov>=5",
   "ruff>=0.5",
@@ -29,6 +34,17 @@ dev = [
   # normalisers. Test-only: numpy is not a runtime dependency.
   "numpy>=1.26",
 ]
+
+# Vercel (roadmap E1): Root Directory app/, FastAPI preset, this module:variable is the one
+# function. Pinned rather than left to file-name discovery, which finds api/main.py only
+# through an undocumented search path; an entrypoint that does not resolve fails the build.
+[tool.vercel]
+entrypoint = "api.main:app"
+
+# uv (Vercel installs with it) must not build this project into a wheel: the source tree is
+# already in the bundle, and a second copy under _vendor/ would lack the templates.
+[tool.uv]
+package = false
 
 [tool.setuptools.packages.find]
 where = ["."]

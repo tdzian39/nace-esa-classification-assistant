@@ -59,7 +59,15 @@ def test_env_names_are_case_insensitive(monkeypatch: pytest.MonkeyPatch) -> None
 @pytest.mark.parametrize("raw", ["", "   "])
 @pytest.mark.parametrize(
     ("variable", "field"),
-    [("LOOKUP_USER", "lookup_user"), ("OPENFIGI_API_KEY", "openfigi_api_key")],
+    [
+        ("LOOKUP_USER", "lookup_user"),
+        ("OPENFIGI_API_KEY", "openfigi_api_key"),
+        ("BLOB_READ_WRITE_TOKEN", "blob_read_write_token"),
+        ("BLOB_STORE_ID", "blob_store_id"),
+        ("CODEBOOK_DOWNLOAD_DIR", "codebook_download_dir"),
+        ("LLM_CACHE_PATH", "llm_cache_path"),
+        ("LLM_USAGE_PATH", "llm_usage_path"),
+    ],
 )
 def test_blank_optional_values_mean_not_set(
     monkeypatch: pytest.MonkeyPatch, variable: str, field: str, raw: str
@@ -84,3 +92,37 @@ def test_an_old_env_file_with_removed_variables_still_loads(
     settings = Settings(_env_file=env_file)
     assert settings.log_level == "WARNING"
     assert not hasattr(settings, "dws_dsn")
+
+
+def test_an_empty_cache_path_switches_the_cache_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """LLM_CACHE_PATH= used to parse as Path(".") - a cache nobody can open, not no cache.
+
+    The Vercel settings rely on it: only /tmp is writable there, so both SQLite files are off.
+    """
+    monkeypatch.setenv("LLM_CACHE_PATH", "")
+    monkeypatch.setenv("LLM_USAGE_PATH", "")
+    settings = Settings(_env_file=None)
+    assert settings.llm_cache_path is None
+    assert settings.llm_usage_path is None
+
+
+def test_codebooks_come_from_the_directory_unless_blob_is_chosen(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("CODEBOOK_SOURCE", raising=False)
+    assert Settings(_env_file=None).codebook_source == "dir"
+    monkeypatch.setenv("CODEBOOK_SOURCE", "blob")
+    assert Settings(_env_file=None).codebook_source == "blob"
+
+
+def test_an_unknown_codebook_source_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CODEBOOK_SOURCE", "git")
+    with pytest.raises(ValueError, match="codebook_source"):
+        Settings(_env_file=None)
+
+
+def test_the_blob_token_is_never_shown(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_Store1_secret")
+    settings = Settings(_env_file=None)
+    assert "secret" not in repr(settings)
+    assert settings.blob_read_write_token.get_secret_value().endswith("secret")

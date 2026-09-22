@@ -1,0 +1,26 @@
+# What a `vercel deploy` from a local checkout must never upload.
+#
+# The Vercel CLI does NOT read .gitignore, and its built-in ignore list does not cover a plain
+# .env - so without this file the bank-internal codebooks (git-ignored in data/codebooks/) and
+# any local secrets would be uploaded and bundled into the function. The codebooks reach the
+# function from the private Blob store instead (roadmap D3). Verified 22 Sept 2026.
+
+# secrets and local configuration
+.env
+.env.*
+.vercel/
+
+# the codebooks and anything else bank-internal or local
+data/
+*.xlsx
+*.xlsm
+*.sqlite3
+
+# not needed at runtime
+tests/
+ui/prototype/
+.venv/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+Dockerfile

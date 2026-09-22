@@ -15,6 +15,7 @@ from core.codebooks.consistency import (
 from core.codebooks.errors import (
     CodebookConsistencyError,
     CodebookError,
+    CodebookFetchError,
     CodebookFileError,
     CodebookSchemaError,
     InvalidEsaCodeError,
@@ -58,6 +59,7 @@ from core.codebooks.versioning import build_version, fingerprint_file
 __all__ = [
     "CodebookConsistencyError",
     "CodebookError",
+    "CodebookFetchError",
     "CodebookFile",
     "CodebookFileError",
     "CodebookSchemaError",
