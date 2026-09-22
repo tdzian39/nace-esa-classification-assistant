@@ -114,6 +114,31 @@ class TestHintTable:
             assert hint.nace or hint.esa_families, f"hint {hint.note!r} does nothing"
             assert hint.note, "a hint needs a note; it becomes the candidate's reason"
 
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "BMW Finance N.V.",
+            "Volkswagen International Finance N.V.",
+            "Deutsche Telekom International Finance B.V.",
+            "Toyota Motor Credit Corporation",
+            "Nordkap Funding B.V.",
+        ],
+    )
+    def test_a_finance_vehicle_name_reaches_the_captive_family(self, name: str) -> None:
+        """GLEIF files these as plain GENERAL entities; with no description, the name is
+        the only clue that they finance a group rather than run one. Real names, checked
+        against GLEIF on 2026-09-22."""
+        sheet = f"GLEIF (LEI X): {name}. Země sídla: NL. Kategorie subjektu podle GLEIF: běžná právnická osoba [GENERAL]."
+        assert "kaptivni financni instituce a pujcovatele penez" in hinted_esa_families(sheet)
+        assert "64" in hinted_nace(sheet)
+
+    def test_a_bare_finance_word_does_not_fire_the_vehicle_hint(self) -> None:
+        """'finance' alone is half of section K; only the vehicle spelling counts."""
+        assert not any(
+            hint.note == "finance-vehicle name"
+            for hint in matching_hints("Ministry of Finance of the Republic of Austria")
+        )
+
     def test_matching_hints_can_return_several(self) -> None:
         hits = matching_hints("bank and insurance group")
         assert len(hits) >= 2

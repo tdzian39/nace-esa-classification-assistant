@@ -139,8 +139,10 @@ class TestIsinAlone:
         suggestion = svc.suggest(SuggestionRequest(isin=ISIN))
         assert suggestion.description is None
         assert suggestion.classifier_text.startswith("GLEIF (LEI")
-        assert len(suggestion.nace_candidates) > 0
-        assert len(suggestion.esa_candidates) > 0
+        # 'BMW Finance N.V.' fires the finance-vehicle name hint: division 64 and the
+        # captive family (2002703 here) are on the list even with no description at all.
+        assert "64" in suggestion.nace_candidates.codes
+        assert "2002703" in suggestion.esa_candidates.codes
 
     def test_the_register_page_leads_the_evidence_and_the_sources_are_named(self) -> None:
         svc, _, _ = service()

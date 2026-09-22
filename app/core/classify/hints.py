@@ -225,6 +225,34 @@ HINTS: Final[tuple[Hint, ...]] = (
         note="captive finance vehicle",
     ),
     Hint(
+        # The captive's *name*, when its description is missing. Group finance vehicles
+        # are registered as '<Group> Finance N.V.', '<Group> International Finance B.V.',
+        # '<Group> Funding B.V.' or '<Group> Motor Credit Corporation' (GLEIF, 2026-09-22:
+        # BMW Finance N.V., Volkswagen International Finance N.V., Deutsche Telekom
+        # International Finance B.V., Toyota Motor Credit Corporation - all category
+        # GENERAL, so the register does not say 'captive'; the name does). The phrase
+        # includes the legal-form suffix on purpose: bare 'finance' fires on half of
+        # section K, but 'Finance N.V.' is how a Dutch funding vehicle is spelled.
+        triggers=(
+            "finance n.v.",
+            "finance b.v.",
+            "finance nv",
+            "finance bv",
+            "finance s.a.",
+            "funding n.v.",
+            "funding b.v.",
+            "funding corporation",
+            "international finance",
+            "finance corporation",
+            "credit corporation",
+            "capital corporation",
+            "treasury b.v.",
+        ),
+        nace=("64",),
+        esa_families=("kaptivni financni instituce a pujcovatele penez",),
+        note="finance-vehicle name",
+    ),
+    Hint(
         triggers=("holding", "holdingová"),
         nace=("64", "70"),
         esa_families=("kaptivni financni instituce a pujcovatele penez",),
