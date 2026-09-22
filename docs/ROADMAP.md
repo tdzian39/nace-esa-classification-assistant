@@ -12,6 +12,49 @@ picking up. Then run the tests (§8) before changing anything.
 
 ---
 
+## 0. Next steps (22 Sept 2026) — read this first
+
+**Where it stands.** E0, E1 and E8 are done. The tool does what the brief asks, in deterministic mode: an ISIN,
+name or description goes in; the issuer's register facts and two shortlists — NACE and ESA, every candidate with
+its CTS ID — come out, and a person picks. It runs on Vercel (production behind Vercel Authentication, the real
+codebooks in the private Blob store, `DE0005140008` end to end in about 5 s). It is not gold-plated, and should
+not be: what follows is the short list that separates "works for Jakub" from "MO uses it", then what is optional.
+
+**Needed before MO uses it**
+
+1. **E2 — the login (S–M).** Vercel Authentication on Hobby admits the owner plus one external user, so MO cannot
+   get in yet. Build the shared-password gate with a self-declared name (D5) and the untrusted-header rule. The
+   hard rule "log every lookup with its user" needs somewhere to keep the log — Vercel keeps runtime logs 1 hour
+   on Hobby — so **decide D4** (a Neon Postgres free tier via the Vercel Marketplace, one `audit_events` table,
+   is the smallest honest answer).
+2. **Plan (owner decision).** Hobby's terms are personal, non-commercial use; move the project to Pro ($20 per
+   month per deploying seat) before the bank relies on it.
+
+**Cheap accuracy wins the golden run found (S each, do them next)**
+
+3. **E4-lite: two rules and English labels.** GLEIF category `RESIDENT_GOVERNMENT_ENTITY` (and OpenFIGI `Govt`)
+   → offer NACE 84; `INTERNATIONAL_ORGANIZATION` → NACE 99; add the English NACE labels from the design source
+   (`data/reference/nace_rev2_divisions.csv`, mapped to CZ-NACE 2025) to the lexical filter. That targets 10 of
+   the 10 NACE misses of the first run (six governments, EBRD, EU, Volkswagen, Unilever). Re-run
+   `python -m core.classify --golden` and write the new provisional figures below.
+4. **E5-lite: the FIRDS LEI fallback.** GLEIF maps 25 of 36 golden ISINs; the misses (Eurobond, LU/IE funds) include
+   all four captive vehicles, the core ESA trap. ESMA FIRDS returns the issuer LEI for them; `/probe` already
+   shows the host reachable from Vercel.
+5. **Have someone with CTS access check the 36 real golden cases** (an hour's work). It turns provisional figures
+   into an accuracy that can be quoted, and settles Q7 and Q15 on the way.
+
+**Optional — only if MO asks**
+
+- E3 (name → issuer via GLEIF full text): a name alone already works through the typed description.
+- E6 (batch): only if the one-off CTS clean-up (Q9) is wanted. E7 (confirm/history): only after E2 and D4.
+- E10: a one-page Czech user guide when MO starts; the runbook is `app/README.md` → "Deploying on Vercel".
+- **Parked:** E9 (the LLM) until an approved endpoint exists; E4b (ECB lists offline).
+
+**Open questions that still matter:** Q7 (control axis — changes 15 golden ESA codes and the candidate order),
+Q15 (a listed parent's NACE), D4 (database, for the audit), Q10 (volume; a free OpenFIGI key if volume grows).
+
+---
+
 ## 1. Decisions log
 
 | Date | Decision | By |
@@ -73,13 +116,16 @@ not an oracle: **a human confirms every code**.
   503 instead of a dead instance, `/probe`, the Vercel config. Built on PR #5's branch but opened against
   `main` from the start (the lesson of #2), so until #5 merges its diff also shows #5's commits; merge #5
   first.
+- **PR #7** `feat/e8-golden-set` — E8 (22 Sept 2026): 36 real foreign issuers, provisional, scored with their
+  recorded register facts. Built on #6's branch, opened against `main`; merge after #5 and #6.
 
-### Where the next session starts: E1's codebooks, then E2 and E8
+### Where the next session starts: §0 above
 
-**E1 is deployed** (22 Sept 2026, see E1 below): `nace-esa-assistant` in Jakub's Hobby team, production behind
+*Superseded by §0 (the next steps). Kept for the record:* **E1 is deployed** (22 Sept 2026, see E1 below): `nace-esa-assistant` in Jakub's Hobby team, production behind
 Vercel Authentication, the private Blob store connected and empty, so `/health` says which file is missing. The
 next step is uploading the four codebook files (`app/README.md` → "Deploying on Vercel" → step 3), then checking
-`DE0005140008` end to end and measuring the cold start with codebooks. Then E2 (the login), with E8 alongside.
+`DE0005140008` end to end and measuring the cold start with codebooks. Then E2 (the login). E8's cases are in
+PR #7; their first numbers need the same codebook files (`python -m core.classify --golden`).
 
 
 E0.3 is done in PR #5. It deleted the twelve Tool 2 files — `core/sources/{dws,ares,resolver,__main__}.py`
@@ -129,11 +175,14 @@ app/
     probe.py             the /probe checks: one fixed request per register, status per failure mode (E1)
     sources/             base.py (Source literal, Provenance, Source*Error) · gleif.py · openfigi.py · identity.py · web.py
     classify/            candidates.py (pre-filter) · hints.py (keyword table + ESA family grid) · text.py (IDF)
-                         prompts.py · provider.py · llm.py · cache.py · budget.py · golden.py (LLM path, off)
+                         prompts.py · provider.py · llm.py · cache.py · budget.py (LLM path, off)
+                         golden.py (cases, recall@12, top-1) · golden_fixtures.py (register answers: capture / replay)
     export/              columns.py (the suggestion row contract) · xlsx.py (Subjects + Run sheets)
     batch/               reader.py (messy xlsx in — E6 reuses it; nothing calls it yet)
     audit.py             one log line per lookup: identifier, time, user, sources, outcome — never content
-  tests/                 1050 passed / 16 skipped (skips = tests needing the real xlsx); fixtures are trimmed live payloads
+  tests/                 1248 passed / 16 skipped (skips = tests needing the real xlsx); fixtures are trimmed live payloads
+    golden/              cases.json (10 fictional trap cases + 36 real issuers, all provisional) · identity.json
+                         (recorded GLEIF/OpenFIGI answers) · ba0036_v044_nonresident.json (the public CNB list)
 ```
 
 ### The pipeline, concretely
@@ -170,9 +219,16 @@ app/
   sector/type, last digit control (1 veřejné, 2 soukromé národní, 3 pod zahraniční kontrolou). Examples used in
   tests: `2002703` kaptivní finanční instituce pod zahraniční kontrolou · `2002213` banky pod zahraniční
   kontrolou (`2002212` soukromé národní, `2002211` veřejné) · `2001003` nefinanční podniky pod zahraniční
-  kontrolou · `2002803` pojišťovny · `2002513` sekuritizace · `2002533` úvěrové instituce · `2002403` investiční
+  kontrolou · `2002803` pojišťovny · `2002513` sekuritizace · `2002533` finanční instituce poskytující úvěry (S.125 lenders — not banks) · `2002403` investiční
   fondy jiné než FPT · `2002303` fondy peněžního trhu · `2009031` mezinárodní rozvojové banky; resident block
   `1221300`, `1100300`. Foreign issuers → the `2…` block (`EsaCandidateFilter(resident=False)`).
+- **The public source of BA0036** (found 22 Sept 2026, E8): the ČNB SDAT portal, *Metodické informace → Knihovna →
+  Číselníky*, code BA0036 "Ekonomické sektory podle ESA2010 v úpravě ČNB", version 044 (valid from 1 Jan 2025;
+  the 2024 version 042 has the same 321 items). Its non-resident aggregate `2000000` has exactly **56** elementary
+  items — the 56 in CTS, and all 16 codes read from the CTS export match in meaning. The resident aggregate has 54,
+  so ČNB has 110 leaves where `BA0036_2024_jen_validni.xlsx` has 109: one resident leaf is missing from the CTS
+  file (irrelevant for foreign issuers; whoever has the file can diff it). The E8 golden cases take their ESA codes
+  from this list.
 - **The S.12203 problem**: RES/ARES report ESA in the `S.xxxxx` form (`12203` for Raiffeisenbank); CTS splits
   S.1220x into banks (1221x) / credit unions (1222x) / other deposit-takers (1224x), so a RES sector is **not** a
   lexical lookup into BA0036. Irrelevant for foreign issuers, relevant if anyone ever maps register sectors.
@@ -344,8 +400,11 @@ region `fra1`, entrypoint `api/main.py`, the source copy of the app imported (`/
 in the Blob store" — the store was reached with the connected token and is still empty, exactly as designed;
 cold start about 1 s without codebooks. Protected deployments are checked with `vercel curl <path>` from a
 linked checkout (it handles the protection bypass).
-**Status:** code, tests (1050 passed / 16 skipped), docs and the deployment done; the DoD's last two items -
-`DE0005140008` end to end with CTS IDs, and the cold start with codebooks - wait for the four codebook files.
+**Status: DONE (22 Sept 2026).** The four codebooks were uploaded to the private store the same evening;
+on Vercel `/health` reports `ok`, version `cb-cc2c7e89a673069c`, codebooks fetched, parsed and checked in
+348 ms; `DE0005140008` returns Deutsche Bank AG via GLEIF + OpenFIGI in about 5 s, NACE `64` (CTS 512)
+first and the bank family (`2002213` CTS 635, `2002212` 634, `2002211` 633) first on ESA. Uploading needed
+`BLOB_STORE_ID` as a project variable (the CLI refuses the OIDC token without it).
 **Depends on:** no epic (E0.2 was dropped, D2); D1 confirmed. Before real data: the four codebook files from the
 repository owner (perhaps in `tdzian39/rb_files`, where Jakub has a pending invite), uploaded with
 `vercel blob put` as in `app/README.md`.
@@ -419,6 +478,10 @@ visible on the page.
    investment → funds; `DN…` municipal → local government; `E…` equity of the issuer itself.
 3. Register order in `IssuerIdentifier`: GLEIF → FIRDS (if no LEI yet) → OpenFIGI → Wikidata → Wikipedia;
    all fail-soft, all cited, `/probe?set=all` covers the hosts.
+   *Measured on the E8 golden set (22 Sept 2026): GLEIF's ISIN filter resolves 25 of 36 real ISINs; the misses
+   are Eurobond (XS), Luxembourg and Irish fund ISINs - among them all four captive vehicles, the core ESA trap,
+   whose fact sheet therefore lacks the parent. OpenFIGI knows all 36. The FIRDS LEI fallback is the first thing
+   E5 should add; the golden run shows its effect directly.*
 **DoD:** Volkswagen AG's ISIN yields a NACE 29 candidate with Wikidata evidence; Deutsche Bank gets a Czech or
 English summary as description; recorded fixtures for all three sources.
 
@@ -476,6 +539,22 @@ Realkreditaktieselskab, Unilever PLC.
 **DoD:** ~30 real cases with ISIN, sources and reasoning, all provisional; recorded identity fixtures; the runner
 reports recall@12 and top-1 labelled *provisional* wherever the numbers appear; no accuracy claim anywhere
 without `verified_by`; a case turns verified only when someone has checked it against CTS.
+**Status: done in PR #7 (22 Sept 2026) except the numbers.** 36 real issuers - 6 governments, 6 supranationals,
+KfW, 7 banks, 2 insurers, 4 corporates, 5 financing vehicles, 4 funds, 1 securitisation vehicle - researched by
+four agents from GLEIF, OpenFIGI, FIRDS, issuer reports and the ECB lists, each group re-checked by an independent
+reviewer who tried to refute it (all 36 ISINs and LEIs held; six descriptions, one ISIN and some citations were
+corrected). Confidence: 20 high, 13 medium, 3 low; 15 cases depend on Q7. Notable traps: the **EIB** is
+`2002211` banky veřejné, not `2009031` - the CNB's own note to `2009031` says it has been reported among
+non-resident banks since 2010; **Toyota Motor Credit** lends to customers, so `2002533`, not a captive; the
+**Unilever** and **TotalEnergies** NACE turn on Q15. The register answers are recorded (146, trimmed) in
+`tests/golden/identity.json`. The first recall/top-1 run needs the real codebooks; the numbers go here and in the
+README labelled provisional.
+**First run with the real codebooks (22 Sept 2026), all cases provisional — a measurement of the pre-filter, not
+an accuracy figure:** real issuers NACE recall@12 72% (top-1 53%), ESA recall@12 97% (top-1 42%); fictional
+traps NACE 100% (90%), ESA 100% (60%). NACE misses: all six governments (84 never offered), EBRD and EU (99),
+Volkswagen (29), Unilever (20); ESA miss: the Amundi money-market fund. §0 item 3 targets them. With the real
+codebooks present the full suite runs without skips: 1264 passed; the 100%-recall tests assert the trap
+cases only — the real ones are measured, not gated.
 
 ### E9 — LLM second opinion (M) — *deferred until an approved endpoint exists*
 
@@ -578,7 +657,12 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 ### Domain (MO / Ivča / CTS owners)
 
 - **Q5. NACE revision.** Does `CTS_OKEC_NACE2` contain division **45**? (87 divisions vs Rev. 2's 88.) Is the CTS
-  value always exactly the first two digits? Special items (unknown / not applicable)? **Answer:**
+  value always exactly the first two digits? Special items (unknown / not applicable)? **Answer:** 2026-09-22 —
+  read from the real file: **CTS is on CZ-NACE 2025 (NACE Rev. 2.1).** 87 divisions, **no 45**, the set equal to
+  CZ-NACE 2025's, Rev. 2.1 titles (e.g. 63 "Poskytování počítač. infrastr., zprac. dat, hosting…"); CTS IDs
+  455–542 with one gap, **496, exactly where 45 sat** in the Rev. 2 order — 45 was dropped when CTS moved.
+  `NACE_STAT` has the same 87. The value is the first two digits (the updated brief says so); no special items.
+  Consequence: codes from Rev. 2 sources (Wikidata P4496, E5) need mapping — 45 → 46/47, and the J/K re-cut.
 - **Q7. BA0036 semantics for foreign issuers.** Does CTS use the control split (…1/…2/…3) for non-residents at
   all, and how — is "pod zahraniční kontrolou" judged from the issuer's own country? Two concrete examples settle
   it: how are **Deutsche Bank AG** and a **US Treasury** issuer coded in CTS today? Also the S.12203 question:
@@ -599,7 +683,18 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 - **Q13. Web search provider.** Is a paid search API (Brave/Bing/Google CSE) acceptable and procurable, or do we
   rely on Wikipedia summaries (E5) + typed descriptions? **Answer:**
 - **Q14. ESA descriptions dictionary** ("Ivča ještě dodá" in the brief): does it exist beyond
-  `BA0036_2024_jen_validni.xlsx`'s `Popis` column? **Answer:**
+  `BA0036_2024_jen_validni.xlsx`'s `Popis` column? **Answer:** 2026-09-22 — no: the updated brief names
+  `BA0036_2024_jen_validni.xlsx` itself as the dictionary ("upravený číselník s popisy významů", the list of
+  the only elementary codes CTS accepts). `Popis` is filled for 81 of 109 leaves; empty for the S.125 split
+  (securitisation, securities dealers, lenders, specialised institutions) and NPISH — empty in the CNB's SDAT
+  list too, so no public source fills them. The one resident leaf of BA0036 v044 missing from the CTS list
+  is `1312000` (S.1312 state government, which has no Czech units). The file set loads with 0 errors as
+  version `cb-cc2c7e89a673069c` (the id hashes file bytes; the copies differ from tdzian39's by save stamp).
+- **Q15. NACE of a listed group parent** (raised by E8, 22 Sept 2026): does CTS record the legal unit's own
+  activity - for Unilever PLC or TotalEnergies SE that is 70 (activities of head offices), as the national
+  registers, ESA 2010 2.14 and FINREP (EBA Q&A 2022_6672) do - or the group's main activity (20 soaps and
+  detergents, 06 oil and gas extraction)? The golden cases take the group view with 70 as the first alternative.
+  Captive financing vehicles stay 64 either way: financing is their own activity. **Answer:**
 
 ### Answered / decided log
 
@@ -619,10 +714,12 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 ```bash
 cd app
 python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]"   # Windows paths; the repo path may contain spaces — quote it
-../.venv/Scripts/python.exe -m pytest -q          # 1050 passed, 16 skipped without the real xlsx (skips are expected)
+../.venv/Scripts/python.exe -m pytest -q          # 1248 passed, 16 skipped without the real xlsx (skips are expected)
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .
 ../.venv/Scripts/python.exe -m core.codebooks     # startup consistency check against data/codebooks (needs the xlsx)
 ../.venv/Scripts/python.exe -m core.classify "popis cinnosti" --verbose   # shortlist for a description
+../.venv/Scripts/python.exe -m core.classify --golden        # recall@12 + top-1 over tests/golden (needs the xlsx)
+../.venv/Scripts/python.exe -m core.classify --golden-capture  # re-record the register answers (network, ~2 min)
 ../.venv/Scripts/python.exe -m uvicorn api.main:app --port 8000           # local web tool (needs the xlsx)
 ```
 

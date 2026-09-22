@@ -56,6 +56,8 @@ Do not scrape apl.czso.cz or or.justice.cz.
   step 5 RES mapping that needed one left with Tool 2; which of those items a bank gets is
   still open (roadmap Q7).
 - CTS_OKEC_NACE2.xlsx: ID (CTS ID), VALUE (first 2 chars of NACE), DESCRIPTION.
+  **CTS is on CZ-NACE 2025 (NACE Rev. 2.1)** (roadmap Q5, answered 22 Sept 2026): 87 divisions,
+  no 45, CTS ID 496 missing exactly where 45 sat. Codes from Rev. 2 sources need mapping.
   REAL FILE (received 2026-09-22): matches the spec exactly. Sheet `Sheet1` (a blank
   `Sheet2` follows it), 87 divisions, CTS IDs 455-542.
 - NACE_STAT.xlsx: NACE (2-digit), Zkrtext, Text. Multiple rows per 2-digit code.
@@ -87,7 +89,7 @@ Do not scrape apl.czso.cz or or.justice.cz.
   /ui                 minimal: the single lookup page (a batch page comes with E6)
   /tests
     /fixtures         reserved for recorded register payloads (only a README so far)
-    /golden           verified issuer name/description → expected NACE/ESA
+    /golden           cases.json (fictional traps + real issuers, all provisional), identity.json
   /config             settings via pydantic-settings
   .env.example        the settings with their defaults; copy to app/.env (git-ignored)
   vercel.json, .vercelignore, .python-version   the Vercel config (E1; with [tool.vercel] in pyproject)
@@ -149,7 +151,8 @@ so quote it.
 ```bash
 ../.venv/Scripts/python.exe -m pip install -e ".[dev]"      # install (editable)
 ../.venv/Scripts/python.exe -m core.classify "popis cinnosti"  # Tool 1 shortlist (--verbose)
-../.venv/Scripts/python.exe -m core.classify --golden       # pre-filter recall over tests/golden
+../.venv/Scripts/python.exe -m core.classify --golden       # pre-filter recall + top-1 over tests/golden
+../.venv/Scripts/python.exe -m core.classify --golden-capture   # re-record the golden register answers
 ../.venv/Scripts/python.exe -m pytest                        # full suite (pythonpath="." is set in pyproject)
 ../.venv/Scripts/python.exe -m pytest tests/identifiers/test_ico.py -k checksum   # one file / one test
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .   # lint + format check
@@ -183,9 +186,10 @@ an indication for developers, not an accuracy figure to quote - so it is genuine
 its own; it just cannot justify its choice or resolve the distinctions that turn on a
 sentence ("holds no banking licence", "not a money market fund").
 
-**NEXT STEP: follow `docs/ROADMAP.md`** - E1 is deployed (22 Sept 2026: project
-`nace-esa-assistant` on Jakub's Hobby team, behind Vercel Authentication, empty private Blob
-store); upload the four codebook files, check `DE0005140008` end to end, then E2 (access and audit), E3-E5 (name lookup, structured hints, more sources), E6-E7 (batch,
+**NEXT STEP: `docs/ROADMAP.md` section 0** - E0, E1 and E8 are done (live on Vercel with the
+real codebooks since 22 Sept 2026). The short list: E2 (login + audit, needs D4), the Pro plan,
+two cheap E4 rules + English labels, the FIRDS LEI fallback; the rest is optional. Older plan:
+E2 (access and audit), E3-E5 (name lookup, structured hints, more sources), E6-E7 (batch,
 confirm/history), E8 (real golden set) alongside. Taken so far: PR #1 (ISIN -> GLEIF/OpenFIGI
 identity) and E0.3, the removal of the parked Tool 2 and the unused `pandas` (PR #5). E0 is
 complete: E0.2 (a private repository) was dropped on 22 Sept 2026 - the repository stays
@@ -286,11 +290,17 @@ Spending limits are already enforced and fail closed (see `core/classify/budget.
   recall on the golden set. Do not turn it into a plain fallback.
 - **Golden set** (`tests/golden/`, loader in `classify/golden.py`): a case counts only when
   `verified_by` is set. Verified and provisional are scored separately and **no accuracy may
-  be quoted from provisional cases**. All 10 shipped cases are provisional; each one traps a
-  specific failure (see the README there). `python -m core.classify --golden` reports
-  recall@k with no API key. Roadmap E8 (decided 22 Sept 2026, Q8) adds ~30 real issuers
-  built from ISINs and public sources without asking MO; they stay provisional too -
-  `verified_by` empty - until someone checks each case against CTS.
+  be quoted from provisional cases**. Every case is provisional: 10 fictional ones, each
+  trapping a specific failure (see the README there), and since E8 (PR #7, 22 Sept 2026)
+  36 real foreign issuers built from ISINs and public sources without asking MO (Q8), each
+  with its reasoning, alternatives, confidence and evidence, `verified_by` empty until
+  someone checks it against CTS. ESA codes come from the public CNB list BA0036 v044
+  (`tests/golden/ba0036_v044_nonresident.json`, the same 56 non-resident leaves as CTS).
+  A real case is scored like the pipeline: description PLUS the register fact sheet,
+  replayed from GLEIF/OpenFIGI answers recorded in `tests/golden/identity.json`
+  (`core/classify/golden_fixtures.py`; an unrecorded request is an error, never a silent
+  miss). `python -m core.classify --golden` reports recall@k and top-1, real and fictional
+  apart (needs the real codebooks); `--golden-capture` re-records the answers (network).
 - **Issuer identity** (`core/sources/gleif.py`, `openfigi.py`, `identity.py`; added
   2026-09-22): an ISIN is resolved BEFORE the web is searched. GLEIF
   `GET /lei-records?filter[isin]=` gives the LEI record (legal name, country, legal form

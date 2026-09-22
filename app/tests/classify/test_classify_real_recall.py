@@ -28,6 +28,15 @@ from core.codebooks.loaders import load_and_check
 from core.codebooks.models import CodebookSet
 
 
+def trap_cases():
+    """The fictional trap cases: controlled texts that must always be recalled in full.
+
+    The real issuers (roadmap E8) are measured, not asserted - their recall is a figure to
+    improve (`python -m core.classify --golden`), not a gate a new case may break.
+    """
+    return tuple(case for case in load_golden() if not case.real)
+
+
 @pytest.fixture(scope="module")
 def real_codebooks() -> CodebookSet:
     settings = get_settings()
@@ -51,7 +60,7 @@ def real_codebooks() -> CodebookSet:
 
 
 def test_every_expected_nace_code_is_offered(real_codebooks: CodebookSet) -> None:
-    cases = load_golden()
+    cases = trap_cases()
     chooser = NaceCandidateFilter(real_codebooks)
     shortlists = [
         (case, chooser.shortlist(case.description, limit=DEFAULT_LIMIT)) for case in cases
@@ -62,7 +71,7 @@ def test_every_expected_nace_code_is_offered(real_codebooks: CodebookSet) -> Non
 
 
 def test_every_expected_esa_code_is_offered(real_codebooks: CodebookSet) -> None:
-    cases = load_golden()
+    cases = trap_cases()
     chooser = EsaCandidateFilter(real_codebooks)
     shortlists = [
         (case, chooser.shortlist(case.description, limit=DEFAULT_LIMIT)) for case in cases
@@ -75,7 +84,7 @@ def test_every_expected_esa_code_is_offered(real_codebooks: CodebookSet) -> None
 def test_the_correct_code_ranks_near_the_top(real_codebooks: CodebookSet) -> None:
     """Not a correctness requirement, but a shortlist whose answer sits at rank 11 of 12 is
     a filter about to start missing. Guards against silent drift."""
-    cases = load_golden()
+    cases = trap_cases()
     chooser = NaceCandidateFilter(real_codebooks)
     shortlists = [(case, chooser.shortlist(case.description)) for case in cases]
     mean_rank = score_recall(cases, shortlists, NACE).mean_rank(verified_only=False)

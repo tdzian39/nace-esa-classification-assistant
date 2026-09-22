@@ -27,6 +27,7 @@ from typing import Final
 
 from config.settings import APP_ROOT
 from core.classify.models import ESA, NACE, CandidateSet, Kind
+from core.identifiers.isin import try_normalize_isin
 
 #: Where the cases live.
 GOLDEN_PATH: Final[Path] = APP_ROOT / "tests" / "golden" / "cases.json"
@@ -49,7 +50,21 @@ class GoldenCase:
         verified_by: Who at the bank confirmed it. ``None`` means provisional.
         verified_on: ISO date of that confirmation.
         note: Why this case is interesting - usually the trap it sets.
-        source: Where the description came from.
+        source: Where the description came from (``fictional`` for the trap cases).
+        isin: A real, outstanding instrument of the issuer (roadmap E8). Real cases are scored
+            the way the pipeline works: description plus the register fact sheet, replayed
+            from recorded GLEIF/OpenFIGI answers (:mod:`core.classify.golden_fixtures`).
+        lei: The issuer's LEI, as a check on the recorded identity.
+        category: bank, insurer, corp, vehicle, gov, supra, fund, fvc or agency.
+        country: Country of the legal address (GLEIF).
+        confidence: How sure the author of a provisional case is (``high`` / ``medium`` /
+            ``low``) - of the codes, not of the tool.
+        evidence: Where the description and the codes came from (URLs).
+        nace_reasoning, esa_reasoning: Why those codes, so that whoever checks the case against
+            CTS can see the argument, not just the answer.
+        nace_alternatives, esa_alternatives: Codes a careful reviewer might defend instead.
+        depends_on_q7: The ESA code rests on the control-axis convention of roadmap Q7
+            (control judged from the issuer's own country) and would change under the other.
     """
 
     id: str
@@ -61,11 +76,27 @@ class GoldenCase:
     verified_on: str | None = None
     note: str = ""
     source: str = ""
+    isin: str | None = None
+    lei: str | None = None
+    category: str | None = None
+    country: str | None = None
+    confidence: str | None = None
+    evidence: tuple[str, ...] = ()
+    nace_reasoning: str = ""
+    esa_reasoning: str = ""
+    nace_alternatives: tuple[str, ...] = ()
+    esa_alternatives: tuple[str, ...] = ()
+    depends_on_q7: bool = False
 
     @property
     def verified(self) -> bool:
         """Whether a human at the bank has signed this case off."""
         return bool(self.verified_by)
+
+    @property
+    def real(self) -> bool:
+        """A real issuer with an ISIN, as opposed to a fictional trap case."""
+        return self.isin is not None
 
     def expected(self, kind: Kind) -> str | None:
         return self.expected_nace if kind == NACE else self.expected_esa
@@ -113,6 +144,17 @@ def load_golden(path: Path | None = None) -> tuple[GoldenCase, ...]:
                 verified_on=_optional(entry.get("verified_on")),
                 note=str(entry.get("note") or "").strip(),
                 source=str(entry.get("source") or "").strip(),
+                isin=_isin(entry.get("isin"), case_id),
+                lei=_optional(entry.get("lei")),
+                category=_optional(entry.get("category")),
+                country=_optional(entry.get("country")),
+                confidence=_optional(entry.get("confidence")),
+                evidence=_texts(entry.get("evidence")),
+                nace_reasoning=str(entry.get("nace_reasoning") or "").strip(),
+                esa_reasoning=str(entry.get("esa_reasoning") or "").strip(),
+                nace_alternatives=_texts(entry.get("nace_alternatives")),
+                esa_alternatives=_texts(entry.get("esa_alternatives")),
+                depends_on_q7=bool(entry.get("depends_on_q7", False)),
             )
         )
     return tuple(cases)
@@ -121,6 +163,22 @@ def load_golden(path: Path | None = None) -> tuple[GoldenCase, ...]:
 def _optional(value: object) -> str | None:
     text = str(value).strip() if value is not None else ""
     return text or None
+
+
+def _texts(value: object) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        return ()
+    return tuple(text for text in (str(item).strip() for item in value) if text)
+
+
+def _isin(value: object, case_id: str) -> str | None:
+    """The normalised ISIN, or None; a malformed one is an error in the file, not a skip."""
+    if value is None or not str(value).strip():
+        return None
+    isin = try_normalize_isin(value)
+    if isin is None:
+        raise GoldenError(f"golden case {case_id} has a malformed ISIN: {value!r}")
+    return isin
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,6 +218,13 @@ class RecallReport:
         """The cases whose correct code was never offered - the ones worth fixing."""
         return tuple(r for r in self._subset(verified_only=verified_only) if not r.found)
 
+    def top1(self, *, verified_only: bool = True) -> float | None:
+        """Share of cases whose correct code the deterministic ranking put first."""
+        subset = self._subset(verified_only=verified_only)
+        if not subset:
+            return None
+        return sum(1 for r in subset if r.rank == 1) / len(subset)
+
     def mean_rank(self, *, verified_only: bool = True) -> float | None:
         """Average position of the correct code among those that were found."""
         ranks = [r.rank for r in self._subset(verified_only=verified_only) if r.rank is not None]
@@ -175,6 +240,9 @@ class RecallReport:
             "recall (all cases)      : "
             + ("n/a" if overall is None else f"{overall:.0%} of {len(self.results)}"),
         ]
+        top = self.top1(verified_only=False)
+        if top is not None:
+            lines.append(f"top-1 (all cases)       : {top:.0%}")
         rank = self.mean_rank(verified_only=False)
         if rank is not None:
             lines.append(f"mean rank of correct code: {rank:.1f}")

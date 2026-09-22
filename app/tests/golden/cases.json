@@ -1,17 +1,19 @@
 {
   "_comment": [
-    "Golden cases for the foreign-issuer classifier (Tool 1).",
+    "Golden cases for the foreign-issuer classifier (Tool 1). See README.md in this folder.",
     "",
-    "EVERY CASE BELOW IS PROVISIONAL: verified_by is null, meaning nobody at the bank has",
-    "signed the codes off yet. They exist to exercise the machinery and to encode the traps",
-    "we expect, NOT to prove accuracy. Scoring reports verified and provisional separately,",
-    "and no accuracy figure may be quoted from provisional cases.",
+    "EVERY CASE IS PROVISIONAL: verified_by is null - nobody at the bank has checked a code against",
+    "CTS. Scoring reports verified and provisional separately, and no accuracy figure may be quoted",
+    "from provisional cases.",
     "",
-    "To verify a case: have MO confirm both codes, then fill in verified_by and verified_on.",
-    "Issuer names are fictional on purpose - a golden case should not assert a classification",
-    "about a real company until someone at the bank stands behind it.",
+    "Two kinds of case. The ten fictional ones (source 'fictional') each trap one known pre-filter",
+    "failure with a controlled text. The real ones (roadmap E8, 22 Sept 2026) are foreign issuers of",
+    "the kinds MO sets up, researched from public sources (GLEIF, OpenFIGI, ESMA FIRDS, issuer reports,",
+    "the ECB lists) and re-checked by an independent reviewer; each carries its ISIN, the reasoning,",
+    "the alternatives and the evidence. ESA codes come from CNB BA0036 version 044; the control axis is",
+    "judged from the issuer's own country (roadmap Q7) - see depends_on_q7.",
     "",
-    "See README.md in this folder."
+    "To verify a case: check it against CTS, then fill in verified_by and verified_on."
   ],
   "cases": [
     {
@@ -23,7 +25,8 @@
       "verified_by": null,
       "verified_on": null,
       "note": "The core trap: the group name contains 'Bank' and the entity issues bank-like paper, but it is a captive finance vehicle, not a bank. Distinguishing 2002703 from 2002213 is the whole point of the ESA half.",
-      "source": "fictional"
+      "source": "fictional",
+      "category": "fictional"
     },
     {
       "id": "captive-funding-spv-cs",
@@ -34,7 +37,8 @@
       "verified_by": null,
       "verified_on": null,
       "note": "Same case in Czech. Pairs with captive-funding-spv to measure how much the pre-filter loses when the description is not in the codebook's language.",
-      "source": "fictional"
+      "source": "fictional",
+      "category": "fictional"
     },
     {
       "id": "foreign-carmaker",
@@ -45,7 +49,8 @@
       "verified_by": null,
       "verified_on": null,
       "note": "No financial vocabulary at all. Exists because an early version of the pre-filter returned zero ESA candidates here: the residual sector 'Nefinanční podniky' has to be reachable without a keyword hit.",
-      "source": "fictional"
+      "source": "fictional",
+      "category": "fictional"
     },
     {
       "id": "foreign-bank",
@@ -56,7 +61,8 @@
       "verified_by": null,
       "verified_on": null,
       "note": "The straightforward bank, and the control axis: foreign-owned, so 2002213 rather than 2002212.",
-      "source": "fictional"
+      "source": "fictional",
+      "category": "fictional"
     },
     {
       "id": "insurer",
@@ -67,7 +73,8 @@
       "verified_by": null,
       "verified_on": null,
       "note": "NACE 65 covers insurance and pension funding together; ESA separates insurers from pension funds.",
-      "source": "fictional"
+      "source": "fictional",
+      "category": "fictional"
     },
     {
       "id": "securitisation-vehicle",
@@ -78,7 +85,8 @@
       "verified_by": null,
       "verified_on": null,
       "note": "Must land on the securitisation sector 2002513 rather than the generic captive 2002703 - both are 'special purpose' entities in ordinary language.",
-      "source": "fictional"
+      "source": "fictional",
+      "category": "fictional"
     },
     {
       "id": "leasing-company",
@@ -89,7 +97,8 @@
       "verified_by": null,
       "verified_on": null,
       "note": "Lender rather than captive: it lends to third parties, not only within its group.",
-      "source": "fictional"
+      "source": "fictional",
+      "category": "fictional"
     },
     {
       "id": "investment-fund",
@@ -100,7 +109,8 @@
       "verified_by": null,
       "verified_on": null,
       "note": "Explicitly not a money market fund, so 2002403 rather than 2002303.",
-      "source": "fictional"
+      "source": "fictional",
+      "category": "fictional"
     },
     {
       "id": "supranational-bank",
@@ -111,7 +121,8 @@
       "verified_by": null,
       "verified_on": null,
       "note": "A supranational is neither a resident nor an ordinary foreign bank; it has its own ESA sector. A pre-filter that only knows the word 'bank' will get this wrong.",
-      "source": "fictional"
+      "source": "fictional",
+      "category": "fictional"
     },
     {
       "id": "retailer",
@@ -122,7 +133,1358 @@
       "verified_by": null,
       "verified_on": null,
       "note": "A second non-financial issuer, with the word 'Holdings' in the name to check that it does not drag the answer towards a holding-company classification.",
-      "source": "fictional"
+      "source": "fictional",
+      "category": "fictional"
+    },
+    {
+      "id": "gov-de-bund",
+      "issuer": "Bundesrepublik Deutschland (Federal Republic of Germany)",
+      "category": "gov",
+      "isin": "DE000BU2Z015",
+      "instrument": "Bund 2.60% 15 Aug 2033, EUR 30.5bn fixed-rate federal bond (FIRDS CFI DBFTFB; OpenFIGI DBR 2.6 08/15/33, Govt)",
+      "lei": "529900AQBND3S6YJLY83",
+      "country": "DE",
+      "description": "Federal Republic of Germany, borrowing at central (federal) government level. Its debt management office, Bundesrepublik Deutschland - Finanzagentur GmbH in Frankfurt, a company wholly owned by the Federation, issues federal securities such as Bunds, Bobls, Schätze and Bubills on the Federation's behalf to finance the federal budget.",
+      "expected_nace": "84",
+      "expected_esa": "2003110",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": false,
+      "nace_reasoning": "Issuing debt is the state financing itself, which NACE treats as general public administration: class 84.11 explicitly covers budget implementation and management of public funds and public debt, including raising money (explanatory notes of NACE Rev. 2, p. 288, and Rev. 2.1). The Finanzagentur is only the agent; the issuer is the Federation itself, so 64/66 (financial services) would describe the agent, not the issuer. Division 84 in both Rev. 2 (section O) and Rev. 2.1 (section P).",
+      "nace_alternatives": [],
+      "esa_reasoning": "ESA 2010 S.1311 central government: the Bund is Germany's federal (central) level, recorded by GLEIF as RESIDENT_GOVERNMENT_ENTITY / CENTRAL_GOVERNMENT. Non-resident BA0036 leaf 2003110 'Ústřední vládní instituce' (verified in ČNB SDAT BA0036 v044; described as analogous to resident 1311000). Q7 does not apply: BA0036 has no control split for government units or international institutions, so the code is the same under the own-country and the Czech-side convention.",
+      "esa_alternatives": [],
+      "note": "Trap: FIRDS names the issuer 'BUNDESREPUBLIK DEUTSCHLAND - FINANZAGENTUR GMBH' and GLEIF gives a c/o Finanzagentur GmbH address, so a name-based classifier may treat the issuer as a limited company (public corporation 2001001 or auxiliary 2002601, NACE 66/70). The GmbH is only the debt agent; the issuer is the sovereign.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.deutsche-finanzagentur.de/en/",
+        "https://api.gleif.org/api/v1/lei-records/529900AQBND3S6YJLY83",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:DE000BU2Z015&wt=json&rows=1",
+        "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1013-detail-verze-ciselniku.zul?id=22765&contextId=22321",
+        "https://ec.europa.eu/eurostat/documents/3859598/21633320/KS-GQ-24-007-EN-N.pdf",
+        "https://ec.europa.eu/eurostat/documents/3859598/5902521/KS-RA-07-015-EN.PDF",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=DE000BU2Z015",
+        "https://api.openfigi.com/v3/mapping (POST ID_ISIN DE000BU2Z015)"
+      ]
+    },
+    {
+      "id": "gov-at-republic",
+      "issuer": "Republik Österreich (Republic of Austria)",
+      "category": "gov",
+      "isin": "AT0000A33SH3",
+      "instrument": "RAGB 2.90% 23 May 2029, EUR 7.6bn fixed-rate federal government bond (FIRDS CFI DBFTFB; OpenFIGI RAGB 2.9 05/23/29, Govt)",
+      "lei": "529900QWWUI4XRVR7I03",
+      "country": "AT",
+      "description": "Republic of Austria as a sovereign borrower at federal (central government) level. Its debt management office, the Austrian Treasury (OeBFA) in Vienna, borrows for the Republic's account, issuing Austrian government bonds (RAGB), treasury bills, commercial paper and EMTN notes to fund the federal budget and refinance maturing debt.",
+      "expected_nace": "84",
+      "expected_esa": "2003110",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": false,
+      "nace_reasoning": "Issuing debt is the state financing itself, which NACE treats as general public administration: class 84.11 explicitly covers budget implementation and management of public funds and public debt, including raising money (explanatory notes of NACE Rev. 2, p. 288, and Rev. 2.1). OeBFA is the debt office acting for the Republic; the issuer is the federal state. Division 84 in both Rev. 2 and Rev. 2.1.",
+      "nace_alternatives": [],
+      "esa_reasoning": "ESA 2010 S.1311 central government (the Bund level of Austria); GLEIF: RESIDENT_GOVERNMENT_ENTITY / CENTRAL_GOVERNMENT. BA0036 non-resident leaf 2003110 'Ústřední vládní instituce' (verified, ČNB SDAT v044). The ELF 'Körperschaft öffentlichen Rechts' is a legal form of public-law bodies, not a sign of a public corporation. Q7 does not apply: BA0036 has no control split for government units or international institutions, so the code is the same under the own-country and the Czech-side convention.",
+      "esa_alternatives": [],
+      "note": "Trap: the GLEIF legal form reads 'public-law corporation' and the address is that of the OeBFA debt office, which can push a classifier towards 'veřejné podniky' (2001001) or an auxiliary financial unit; the RAGB issuer is the Republic, i.e. central government.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.oebfa.at/en/",
+        "https://api.gleif.org/api/v1/lei-records/529900QWWUI4XRVR7I03",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:AT0000A33SH3&wt=json&rows=1",
+        "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1013-detail-verze-ciselniku.zul?id=22765&contextId=22321",
+        "https://ec.europa.eu/eurostat/documents/3859598/21633320/KS-GQ-24-007-EN-N.pdf",
+        "https://ec.europa.eu/eurostat/documents/3859598/5902521/KS-RA-07-015-EN.PDF",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=AT0000A33SH3",
+        "https://api.openfigi.com/v3/mapping (POST ID_ISIN AT0000A33SH3)"
+      ]
+    },
+    {
+      "id": "gov-us-treasury",
+      "issuer": "United States of America (U.S. Department of the Treasury)",
+      "category": "gov",
+      "isin": "US91282CNY39",
+      "instrument": "U.S. Treasury note 3.375% 15 Sep 2028, USD 58.0bn fixed-rate 3-year note (FIRDS CFI DBFTFR; OpenFIGI T 3.375 09/15/28, Govt)",
+      "lei": "254900HROIFWPRGM1V77",
+      "country": "US",
+      "description": "United States federal government, borrowing through the U.S. Department of the Treasury. The Treasury auctions marketable debt - bills, notes with 2- to 10-year terms paying a fixed coupon every six months, bonds, inflation-protected securities and floating-rate notes - to finance federal deficits and roll over maturing public debt.",
+      "expected_nace": "84",
+      "expected_esa": "2003110",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": false,
+      "nace_reasoning": "Issuing debt is the state financing itself, which NACE treats as general public administration: class 84.11 explicitly covers budget implementation and management of public funds and public debt, including raising money (explanatory notes of NACE Rev. 2, p. 288, and Rev. 2.1). 'Treasury' here is a ministry, not a financial firm, so 64/66 would be wrong. Division 84 in both revisions.",
+      "nace_alternatives": [],
+      "esa_reasoning": "ESA 2010 S.1311 central government: Treasury notes are direct obligations of the U.S. federal government; GLEIF: RESIDENT_GOVERNMENT_ENTITY / CENTRAL_GOVERNMENT. BA0036 non-resident leaf 2003110 (verified). Being outside the EU (ESA S.22) does not change the BA0036 sector leaf. Q7 does not apply: BA0036 has no control split for government units or international institutions, so the code is the same under the own-country and the Czech-side convention.",
+      "esa_alternatives": [],
+      "note": "Traps: the LEI is registered as 'United States Department of the Treasury' with legal form 'United States Government Agency', which a classifier may confuse with U.S. agency issuers (FHLB, Fannie Mae - financial corporations) or read 'Treasury' as a financial activity (64/66). FIRDS carries the when-issued label 'WIT 3 1/2 09/15/28' although the coupon is 3.375%.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.treasurydirect.gov/marketable-securities/treasury-notes/",
+        "https://api.gleif.org/api/v1/lei-records/254900HROIFWPRGM1V77",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:US91282CNY39&wt=json&rows=1",
+        "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1013-detail-verze-ciselniku.zul?id=22765&contextId=22321",
+        "https://ec.europa.eu/eurostat/documents/3859598/21633320/KS-GQ-24-007-EN-N.pdf",
+        "https://ec.europa.eu/eurostat/documents/3859598/5902521/KS-RA-07-015-EN.PDF",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=US91282CNY39",
+        "https://api.openfigi.com/v3/mapping (POST ID_ISIN US91282CNY39)"
+      ]
+    },
+    {
+      "id": "gov-pl-republic",
+      "issuer": "Republic of Poland (Skarb Państwa, represented by the Minister of Finance)",
+      "category": "gov",
+      "isin": "XS2746102479",
+      "instrument": "Republic of Poland 3.625% 11 Jan 2034, EUR 2.5bn fixed-rate EMTN bond (FIRDS CFI DTFTGB; OpenFIGI POLAND 3.625 01/11/34, Govt)",
+      "lei": "259400R9L8QEP0TPXS31",
+      "country": "PL",
+      "description": "Republic of Poland (State Treasury), represented by the Minister of Finance, who manages central government debt. It issues domestic PLN treasury securities and borrows abroad in EUR, USD and other currencies; under its Euro Medium Term Note programme it priced, for example, a EUR 2.5bn 3.625% bond due January 2034 in January 2024.",
+      "expected_nace": "84",
+      "expected_esa": "2003110",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": false,
+      "nace_reasoning": "Issuing debt is the state financing itself, which NACE treats as general public administration: class 84.11 explicitly covers budget implementation and management of public funds and public debt, including raising money (explanatory notes of NACE Rev. 2, p. 288, and Rev. 2.1). The Ministry of Finance is the central government body that manages the debt. Division 84 in both revisions.",
+      "nace_alternatives": [],
+      "esa_reasoning": "ESA 2010 S.1311 central government: the bond is an obligation of the Republic (State Treasury); the LEI holder is the Ministry of Finance, recorded by GLEIF as RESIDENT_GOVERNMENT_ENTITY / CENTRAL_GOVERNMENT. BA0036 non-resident leaf 2003110 (verified). Poland being outside the euro area (ESA S.2112) does not matter for BA0036. Q7 does not apply: BA0036 has no control split for government units or international institutions, so the code is the same under the own-country and the Czech-side convention.",
+      "esa_alternatives": [],
+      "note": "Traps: the GLEIF ISIN filter does not know this Eurobond (GLEIF maps only domestic PL ISINs and three CHF bonds to the Ministry's LEI), so an ISIN->GLEIF pipeline returns nothing; only FIRDS links XS2746102479 to the LEI. The XS ISIN, EMTN label and 'MINISTERSTWO FINANSÓW' name look nothing like 'Republic of Poland'.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.gov.pl/web/finance/pricing-of-eur-bond9",
+        "https://api.gleif.org/api/v1/lei-records/259400R9L8QEP0TPXS31",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:XS2746102479&wt=json&rows=1",
+        "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1013-detail-verze-ciselniku.zul?id=22765&contextId=22321",
+        "https://ec.europa.eu/eurostat/documents/3859598/21633320/KS-GQ-24-007-EN-N.pdf",
+        "https://ec.europa.eu/eurostat/documents/3859598/5902521/KS-RA-07-015-EN.PDF",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=lei:259400R9L8QEP0TPXS31%20AND%20gnr_notional_curr_code:EUR%20AND%20type_s:parent&wt=json&rows=200",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=XS2746102479",
+        "https://api.openfigi.com/v3/mapping (POST ID_ISIN XS2746102479)"
+      ]
+    },
+    {
+      "id": "gov-de-land-berlin",
+      "issuer": "Land Berlin",
+      "category": "gov",
+      "isin": "DE000A4DE9E5",
+      "instrument": "Land Berlin Landesschatzanweisung 2025/2030 Ausgabe 570, 2.375% 4 Jun 2030, EUR 1.5bn fixed-rate (FIRDS CFI DNFTFB; OpenFIGI BERGER 2.375 06/04/30, Govt)",
+      "lei": "529900Y6Q7R44JF7XX56",
+      "country": "DE",
+      "description": "Land Berlin, Germany's capital and a city-state: one of the 16 federal states (Länder) that also performs the tasks of a municipality. Through its Senate Department for Finance it finances the state budget partly on the capital market, notably with Landesschatzanweisungen (state treasury notes), which are direct, unsecured obligations of the Land entered in its debt register.",
+      "expected_nace": "84",
+      "expected_esa": "2003120",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": false,
+      "nace_reasoning": "Issuing debt is the state financing itself, which NACE treats as general public administration: class 84.11 explicitly covers budget implementation and management of public funds and public debt, including raising money (explanatory notes of NACE Rev. 2, p. 288, and Rev. 2.1). 84.11 covers executive and legislative administration of central, regional and local bodies alike, so the state level changes nothing. Division 84 in both revisions.",
+      "nace_alternatives": [],
+      "esa_reasoning": "ESA 2010 S.1312 state government: GLEIF records Land Berlin as RESIDENT_GOVERNMENT_ENTITY / STATE_GOVERNMENT, and Destatis defines the Länder level as the 13 area states plus the city-states Berlin, Bremen and Hamburg, so Berlin's municipal functions do not make it local government. The Czech name of S.1312 is 'Národní vládní instituce', hence BA0036 non-resident leaf 2003120 (verified), even though 'národní' literally reads 'national'. Q7 does not apply: BA0036 has no control split for government units or international institutions, so the code is the same under the own-country and the Czech-side convention.",
+      "esa_alternatives": [],
+      "note": "Double trap: Berlin is a city, pulling towards local government (2003130), while the Czech label 'Národní vládní instituce' for S.1312 sounds like central government (2003110). Correct is state government, 2003120. The OpenFIGI ticker 'BERGER' and the German 'Land' (a federal state, not real estate) add noise.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.berlin.de/sen/finanzen/vermoegen/geld-und-kreditgeschaeft/anleihen/2022-07-26-eb-lsa-543_de000a3mqyl0.pdf",
+        "https://www.destatis.de/DE/Themen/Staat/Oeffentliche-Finanzen/Glossar/laender.html",
+        "https://en.wikipedia.org/wiki/Berlin",
+        "https://api.gleif.org/api/v1/lei-records/529900Y6Q7R44JF7XX56",
+        "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1013-detail-verze-ciselniku.zul?id=22765&contextId=22321",
+        "https://ec.europa.eu/eurostat/documents/3859598/21633320/KS-GQ-24-007-EN-N.pdf",
+        "https://ec.europa.eu/eurostat/documents/3859598/5902521/KS-RA-07-015-EN.PDF",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=DE000A4DE9E5",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:DE000A4DE9E5&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST ID_ISIN DE000A4DE9E5)"
+      ]
+    },
+    {
+      "id": "gov-fr-ville-de-paris",
+      "issuer": "Ville de Paris",
+      "category": "gov",
+      "isin": "FR001400X656",
+      "instrument": "Ville de Paris 3.50% 5 Feb 2036, EUR 350m fixed-rate EMTN note (FIRDS CFI DTFNFB; OpenFIGI VDP 3.5 02/05/36 EMTN, Govt)",
+      "lei": "969500Y6KLTVY0FYAX02",
+      "country": "FR",
+      "description": "Ville de Paris, the local authority of the French capital: since 1 January 2019 a single territorial collectivity with special status that exercises both municipal and departmental powers. Alongside bank loans it borrows on the bond market through an EMTN programme reserved for qualified investors, issuing fixed- and floating-rate notes.",
+      "expected_nace": "84",
+      "expected_esa": "2003130",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": false,
+      "nace_reasoning": "Issuing debt is the state financing itself, which NACE treats as general public administration: class 84.11 explicitly covers budget implementation and management of public funds and public debt, including raising money (explanatory notes of NACE Rev. 2, p. 288, and Rev. 2.1). 84.11 includes the executive administration of local bodies. Division 84 in both revisions.",
+      "nace_alternatives": [],
+      "esa_reasoning": "ESA 2010 S.1313 local government: GLEIF records the Ville de Paris as RESIDENT_GOVERNMENT_ENTITY / LOCAL_GOVERNMENT with ELF '(Autre) Collectivité territoriale'. France has no state-government subsector, so its departmental powers do not move it to S.1312. BA0036 non-resident leaf 2003130 'Místní vládní instituce' (verified). Q7 does not apply: BA0036 has no control split for government units or international institutions, so the code is the same under the own-country and the Czech-side convention.",
+      "esa_alternatives": [],
+      "note": "Traps: the capital-city name can be taken for the French Republic (central government 2003110); the departmental powers can suggest a regional level (2003120); and the EMTN programme and 'MTN' labels look corporate. Correct is local government, 2003130.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.banquedesterritoires.fr/ville-de-paris-la-collectivite-unique-bientot-en-ordre-de-marche",
+        "https://www.legifrance.gouv.fr/codes/section_lc/LEGITEXT000006070633/LEGISCTA000006164590/",
+        "https://www.paris.fr/pages/investisseurs-4750",
+        "https://group.bnpparibas/communique-de-presse/ville-paris-lance-emission-obligataire-francs-suisses-dirigee-bnp-paribas",
+        "https://api.gleif.org/api/v1/lei-records/969500Y6KLTVY0FYAX02",
+        "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1013-detail-verze-ciselniku.zul?id=22765&contextId=22321",
+        "https://ec.europa.eu/eurostat/documents/3859598/21633320/KS-GQ-24-007-EN-N.pdf",
+        "https://ec.europa.eu/eurostat/documents/3859598/5902521/KS-RA-07-015-EN.PDF",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=FR001400X656",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:FR001400X656&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST ID_ISIN FR001400X656)"
+      ]
+    },
+    {
+      "id": "supra-eib",
+      "issuer": "European Investment Bank",
+      "category": "supra",
+      "isin": "US298785JU14",
+      "instrument": "EIB 3.875% 15 Mar 2028, USD 5bn fixed-rate global bond (FIRDS CFI DBFNGR; OpenFIGI EIB 3.875 03/15/28, Corp)",
+      "lei": "5493006YXS1U5GIHE750",
+      "country": "LU",
+      "description": "European Investment Bank, the EU's lending institution, seated in Luxembourg and owned by the 27 EU member states. It provides loans, guarantees and advisory support for projects furthering EU policy goals such as climate action, innovation and regional cohesion, inside and outside the EU, and raises its funds by issuing bonds on international capital markets.",
+      "expected_nace": "99",
+      "expected_esa": "2002211",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "low",
+      "depends_on_q7": true,
+      "nace_reasoning": "NACE Rev. 2.1 class 99.00 covers activities of international organisations under international treaties between states (naming the IMF and the World Bank) and activities of institutions and bodies of the EU; NACE Rev. 2 class 99.00 (p. 315, same wording as ISIC Rev. 4 9900) names the IMF, the World Bank and the European Communities. The EIB is an EU body set up by the Treaties, so the classification texts put it in 99 even though its activity is lending. Alternative 64 (64.19 other monetary intermediation / 64.92 other credit granting) if CTS mirrors the ČNB treatment of the EIB as a bank (see ESA). Division 99 exists in both revisions (section U in Rev. 2, V in Rev. 2.1).",
+      "nace_alternatives": [
+        "64"
+      ],
+      "esa_reasoning": "In ESA 2010 the EIB is an EU body (S.2122) and an international organisation (ECB AnaCredit list: EIB, Luxembourg, code 4C); CRR art. 117(2)(j) lists it as a multilateral development bank, which would give 2009031. But the ČNB description of 2009031 says that since 2010 the EIB is, for reporting, shown among non-resident commercial banks, so the family is 'banky'. The control digit is INFERRED: 2002211 'Banky veřejné', because the EIB is owned and controlled by the governments of the member states (by analogy with resident 1221100, banks controlled by government). Q7 convention used: control is judged from the issuer's own side; an international organisation has no country of its own, so 'controlled by general government' is read as public. If CTS judges control from the Czech side (control by other states' governments = non-resident control), or reads ESA 2010 strictly (control by a foreign government = foreign-controlled), the code becomes 2002213.",
+      "esa_alternatives": [
+        "2002213",
+        "2009031"
+      ],
+      "note": "Trap: every classification rule points to 'mezinárodní rozvojové banky' (2009031) except the ČNB reporting exception, which moves the EIB to banks; and the control digit for a bank owned by 27 governments is undefined. OpenFIGI marketSector 'Corp' and the GLEIF legal-form text 'BANK' push towards an ordinary bank.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.eib.org/en/about/index",
+        "https://api.gleif.org/api/v1/lei-records/5493006YXS1U5GIHE750",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:US298785JU14&wt=json&rows=1",
+        "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1013-detail-verze-ciselniku.zul?id=22765&contextId=22321",
+        "https://judict.eu/en/hla/32013R0575-X/article-117",
+        "https://www.ecb.europa.eu/stats/money/aggregates/anacredit/shared/pdf/List_of_International_Organisations.xlsx",
+        "https://ec.europa.eu/eurostat/cache/metadata/EN/bop_6_esms.htm",
+        "https://ec.europa.eu/eurostat/documents/3859598/21633320/KS-GQ-24-007-EN-N.pdf",
+        "https://ec.europa.eu/eurostat/documents/3859598/5902521/KS-RA-07-015-EN.PDF",
+        "https://unstats.un.org/unsd/classifications/Econ/Detail/EN/27/9900",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=US298785JU14",
+        "https://api.openfigi.com/v3/mapping (POST ID_ISIN US298785JU14)"
+      ]
+    },
+    {
+      "id": "supra-ibrd",
+      "issuer": "International Bank for Reconstruction and Development (World Bank)",
+      "category": "supra",
+      "isin": "US459058LN17",
+      "instrument": "IBRD 3.875% 16 Oct 2029, USD 5bn fixed-rate global bond (FIRDS CFI DBFUGR; OpenFIGI IBRD 3.875 10/16/29, Corp)",
+      "lei": "ZTMSNXROF84AHWJNKQ93",
+      "country": "US",
+      "description": "International Bank for Reconstruction and Development, the original lending institution of the World Bank Group, headquartered in Washington, D.C. and owned by 189 member countries. It lends to, guarantees and advises governments of middle-income and creditworthy low-income countries, and finances itself mainly by selling AAA-rated bonds on global capital markets.",
+      "expected_nace": "99",
+      "expected_esa": "2009031",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": false,
+      "nace_reasoning": "NACE Rev. 2.1 class 99.00 covers activities of international organisations under international treaties between states (naming the IMF and the World Bank) and activities of institutions and bodies of the EU; NACE Rev. 2 class 99.00 (p. 315, same wording as ISIC Rev. 4 9900) names the IMF, the World Bank and the European Communities. The World Bank is named explicitly, and NACE Rev. 2.1 class 64.11 even excludes 'activities of international organisations (e.g. the World Bank), see 99.00'. Alternative 64 only if CTS classifies development banks by their lending activity. Division 99 in both revisions.",
+      "nace_alternatives": [
+        "64"
+      ],
+      "esa_reasoning": "International organisation, non-resident of every national economy (ESA 2010 rest of the world, S.22). BA0036 splits international institutions into 2009031 'Mezinárodní rozvojové banky' (the multilateral development banks of CRR art. 117) and 2009035 'Ostatní mezinárodní instituce'. IBRD is item (a) of CRR art. 117(2) -> 2009031 (verified code). The ECB AnaCredit list of international organisations includes IBRD (code 1E). Q7 does not apply: BA0036 has no control split for government units or international institutions, so the code is the same under the own-country and the Czech-side convention.",
+      "esa_alternatives": [],
+      "note": "Trap: GLEIF's entity-supplied legal-form text says 'CENTRAL GOVERNMENT' and the legal address is in Washington, US, which invites 'US central government' (2003110) or a US bank; OpenFIGI marketSector is 'Corp'. It is a multilateral development bank: 2009031.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.worldbank.org/en/who-we-are/ibrd",
+        "https://api.gleif.org/api/v1/lei-records/ZTMSNXROF84AHWJNKQ93",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:US459058LN17&wt=json&rows=1",
+        "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1013-detail-verze-ciselniku.zul?id=22765&contextId=22321",
+        "https://judict.eu/en/hla/32013R0575-X/article-117",
+        "https://www.ecb.europa.eu/stats/money/aggregates/anacredit/shared/pdf/List_of_International_Organisations.xlsx",
+        "https://ec.europa.eu/eurostat/documents/3859598/21633320/KS-GQ-24-007-EN-N.pdf",
+        "https://ec.europa.eu/eurostat/documents/3859598/5902521/KS-RA-07-015-EN.PDF",
+        "https://unstats.un.org/unsd/classifications/Econ/Detail/EN/27/9900",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=US459058LN17",
+        "https://api.openfigi.com/v3/mapping (POST ID_ISIN US459058LN17)"
+      ]
+    },
+    {
+      "id": "supra-ebrd",
+      "issuer": "European Bank for Reconstruction and Development",
+      "category": "supra",
+      "isin": "US29874QFA76",
+      "instrument": "EBRD 4.125% 25 Jan 2029, USD 3.5bn fixed-rate global MTN (FIRDS CFI DTFUFR; OpenFIGI EBRD 4.125 01/25/29, Corp)",
+      "lei": "549300HTGDOVDU6OGK19",
+      "country": "GB",
+      "description": "European Bank for Reconstruction and Development, a multilateral development bank set up in 1990 with its headquarters in London. Its shareholders are 77 countries together with the EU and the EIB. It invests mainly in private-sector projects, advises clients and supports policy reforms that help build market economies across three continents; it funds itself by issuing bonds.",
+      "expected_nace": "99",
+      "expected_esa": "2009031",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": false,
+      "nace_reasoning": "NACE Rev. 2.1 class 99.00 covers activities of international organisations under international treaties between states (naming the IMF and the World Bank) and activities of institutions and bodies of the EU; NACE Rev. 2 class 99.00 (p. 315, same wording as ISIC Rev. 4 9900) names the IMF, the World Bank and the European Communities. The EBRD is an international organisation created by an agreement between states, so it falls in 99 rather than in banking (64) despite its name. Alternative 64 if CTS classifies development banks by activity. Division 99 in both revisions.",
+      "nace_alternatives": [
+        "64"
+      ],
+      "esa_reasoning": "International organisation (ESA 2010 rest of the world; not resident in the UK despite its seat). CRR art. 117(2)(i) lists the EBRD as a multilateral development bank -> BA0036 2009031 'Mezinárodní rozvojové banky' (verified; the ČNB codelist defines 2009031 by CRR art. 117). The ECB AnaCredit list of international organisations includes the EBRD (London, code 5F). Q7 does not apply: BA0036 has no control split for government units or international institutions, so the code is the same under the own-country and the Czech-side convention.",
+      "esa_alternatives": [],
+      "note": "Strong trap: GLEIF category is GENERAL (not INTERNATIONAL_ORGANIZATION), legal form 'BANK', jurisdiction GB and a London address, so a GLEIF-driven classifier will say 'UK bank' (2002212 or 2002213, NACE 64.19). OpenFIGI marketSector 'Corp'. It is a multilateral development bank: 2009031.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.ebrd.com/home/who-we-are.html",
+        "https://api.gleif.org/api/v1/lei-records/549300HTGDOVDU6OGK19",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:US29874QFA76&wt=json&rows=1",
+        "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1013-detail-verze-ciselniku.zul?id=22765&contextId=22321",
+        "https://judict.eu/en/hla/32013R0575-X/article-117",
+        "https://www.ecb.europa.eu/stats/money/aggregates/anacredit/shared/pdf/List_of_International_Organisations.xlsx",
+        "https://ec.europa.eu/eurostat/documents/3859598/21633320/KS-GQ-24-007-EN-N.pdf",
+        "https://ec.europa.eu/eurostat/documents/3859598/5902521/KS-RA-07-015-EN.PDF",
+        "https://unstats.un.org/unsd/classifications/Econ/Detail/EN/27/9900",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=US29874QFA76",
+        "https://api.openfigi.com/v3/mapping (POST ID_ISIN US29874QFA76)"
+      ]
+    },
+    {
+      "id": "supra-council-of-europe-development-bank",
+      "issuer": "Council of Europe Development Bank (CEB)",
+      "category": "supra",
+      "isin": "US222213BJ84",
+      "instrument": "CEB 3.75% USD global notes due 14 January 2031 (issued 2026)",
+      "lei": "549300UYNXMI821WYG82",
+      "country": "FR",
+      "description": "Multilateral development bank of the Council of Europe, created in 1956 under a partial agreement and based in Paris, with 43 member states. It lends to member governments, local authorities and financial institutions for social projects such as housing, education, health care and support for refugees, and funds itself by issuing bonds.",
+      "expected_nace": "99",
+      "expected_esa": "2009031",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "medium",
+      "depends_on_q7": false,
+      "nace_reasoning": "NACE Rev. 2 and Rev. 2.1 class 99.00 covers international organisations set up by treaties between states and names the IMF and the World Bank as examples; the CEB is such a treaty-based multilateral bank. An activity-based view gives 64 (64.92), which many commercial databases use, so the CTS convention needs confirming.",
+      "nace_alternatives": [
+        "64"
+      ],
+      "esa_reasoning": "International organisations are non-residents of every national economy. BA0036 item 2009031 'Mezinarodni rozvojove banky' is defined as the multilateral development banks of CRR article 117, and the CEB is named in article 117(2). The CNB reporting exception that books the EIB among non-resident banks is specific to the EIB and does not apply here. International organisations have no control split, so depends_on_q7=false.",
+      "esa_alternatives": [
+        "2009035",
+        "2002211"
+      ],
+      "note": "Legal-address trap: GLEIF shows Paris, so a country-driven rule makes it a French bank (2002211/2002212) or a French government unit, while it is an international organisation. Not to be confused with the Council of Europe itself (2009035). ESA code is high confidence; medium overall because NACE 99 vs 64 is a genuine convention question for CTS.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://coebank.org/en/about/mission/",
+        "https://www.coe.int/en/web/secretariat-council-of-europe-development-bank",
+        "https://mf.gov.cz/en/themes/state-debt/the-council-of-europe-development-bank",
+        "https://api.gleif.org/api/v1/lei-records/549300UYNXMI821WYG82",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=US222213BJ84",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:US222213BJ84&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST [{\"idType\":\"ID_ISIN\",\"idValue\":\"US222213BJ84\"}])",
+        "https://eur-lex.europa.eu/eli/reg/2013/575/oj",
+        "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1013-detail-verze-ciselniku.zul?id=22765&contextId=22321",
+        "https://ec.europa.eu/eurostat/documents/3859598/21633320/KS-GQ-24-007-EN-N.pdf"
+      ]
+    },
+    {
+      "id": "supra-eu",
+      "issuer": "European Union (EU-Bonds issued by the European Commission)",
+      "category": "supra",
+      "isin": "EU000A3K4DY4",
+      "instrument": "EU-Bond 3.00% 4 Mar 2053, EUR 17.8bn fixed-rate (NGEU/unified funding) bond (FIRDS CFI DNFCFB; OpenFIGI EU 3 03/04/53, Govt)",
+      "lei": "529900FZRK8FGMPEOM08",
+      "country": "BE",
+      "description": "European Union, the supranational union of 27 member states. The European Commission borrows on capital markets in the EU's name, issuing EU-Bonds, EU-Bills and NextGenerationEU green bonds through a unified funding approach, to finance recovery spending, loans to member states and support for Ukraine and other partners; repayment comes from the EU budget.",
+      "expected_nace": "99",
+      "expected_esa": "2009035",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "medium",
+      "depends_on_q7": false,
+      "nace_reasoning": "NACE Rev. 2.1 class 99.00 covers activities of international organisations under international treaties between states (naming the IMF and the World Bank) and activities of institutions and bodies of the EU; NACE Rev. 2 class 99.00 (p. 315, same wording as ISIC Rev. 4 9900) names the IMF, the World Bank and the European Communities. The EU is covered by name in both revisions. Alternative 84 because the Commission's work is public administration, but NACE 84 is meant for national administrations and 84.21 sends extraterritorial bodies to 99.00. Division 99 in both revisions.",
+      "nace_alternatives": [
+        "84"
+      ],
+      "esa_reasoning": "The EU is an EU institution (ESA 2010 S.2122, institutions and bodies of the EU other than the ECB), i.e. an international organisation, non-resident of every member state. CRR art. 118(a) lists 'the Union' among international organisations, not among the art. 117 development banks, so of BA0036's two international leaves it takes 2009035 'Ostatní mezinárodní instituce' (verified; 2120000 'Instituce EU' is a geographic item, not a sector leaf). The ECB AnaCredit list of international organisations includes the European Union and the European Commission (code 4D). Q7 does not apply: BA0036 has no control split for government units or international institutions, so the code is the same under the own-country and the Czech-side convention.",
+      "esa_alternatives": [
+        "2003110",
+        "2009031"
+      ],
+      "note": "Traps: GLEIF category GENERAL, jurisdiction BE and a Brussels address suggest a Belgian public entity; OpenFIGI puts EU bonds in marketSector 'Govt', inviting 'ústřední vládní instituce' (2003110) as for a sovereign; and a classifier may lump all supranationals into 2009031. No CTS evidence yet, hence medium.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://commission.europa.eu/strategy-and-policy/eu-budget/eu-borrower-investor-relations_en",
+        "https://api.gleif.org/api/v1/lei-records/529900FZRK8FGMPEOM08",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:EU000A3K4DY4&wt=json&rows=1",
+        "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1013-detail-verze-ciselniku.zul?id=22765&contextId=22321",
+        "https://judict.eu/en/hla/32013R0575/article-118",
+        "https://www.ecb.europa.eu/stats/money/aggregates/anacredit/shared/pdf/List_of_International_Organisations.xlsx",
+        "https://ec.europa.eu/eurostat/cache/metadata/EN/bop_6_esms.htm",
+        "https://ec.europa.eu/eurostat/documents/3859598/21633320/KS-GQ-24-007-EN-N.pdf",
+        "https://ec.europa.eu/eurostat/documents/3859598/5902521/KS-RA-07-015-EN.PDF",
+        "https://unstats.un.org/unsd/classifications/Econ/Detail/EN/27/9900",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=EU000A3K4DY4",
+        "https://api.openfigi.com/v3/mapping (POST ID_ISIN EU000A3K4DY4)"
+      ]
+    },
+    {
+      "id": "supra-esm",
+      "issuer": "European Stability Mechanism",
+      "category": "supra",
+      "isin": "EU000A1Z99S3",
+      "instrument": "ESM 3.00% 23 Aug 2033, EUR 2bn fixed-rate bond (FIRDS CFI DTFCFB; OpenFIGI ESM 3 08/23/33, Govt)",
+      "lei": "222100W4EEAQ77386N50",
+      "country": "LU",
+      "description": "European Stability Mechanism, an intergovernmental financial institution created in 2012 by a treaty among the euro area member states, which are its shareholders, and seated in Luxembourg. It provides loans and other financial assistance, subject to conditions, to euro area countries facing or threatened by severe financing problems, funding itself by issuing bonds and bills.",
+      "expected_nace": "99",
+      "expected_esa": "2009035",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "medium",
+      "depends_on_q7": false,
+      "nace_reasoning": "NACE Rev. 2.1 class 99.00 covers activities of international organisations under international treaties between states (naming the IMF and the World Bank) and activities of institutions and bodies of the EU; NACE Rev. 2 class 99.00 (p. 315, same wording as ISIC Rev. 4 9900) names the IMF, the World Bank and the European Communities. The ESM is an international organisation founded by a treaty between states, so 99. Alternative 64 (64.92 other credit granting) because its activity is lending to states; it takes no deposits. Division 99 in both revisions.",
+      "nace_alternatives": [
+        "64"
+      ],
+      "esa_reasoning": "International organisation: Eurostat counts the ESM among the EU institutions resident in the euro area, not in any member state's accounts, and since the 2019 MGDD update in their government sector (earlier financial corporations). CRR art. 118(e) lists the ESM among international organisations, not among the art. 117 development banks -> BA0036 2009035 'Ostatní mezinárodní instituce' (verified). ECB AnaCredit list: ESM, Luxembourg, code 4S. Q7 does not apply: BA0036 has no control split for government units or international institutions, so the code is the same under the own-country and the Czech-side convention.",
+      "esa_alternatives": [
+        "2009031",
+        "2003110"
+      ],
+      "note": "Traps: a Luxembourg lender registered in the CSSF 'supervised entities' register, with no 'bank' or 'fund' in its name, invites financial-corporation codes (2002533 lenders, 2002703 captives, 2002213 banks); its lending role invites 2009031; and Eurostat's 'government sector of the EU institutions' invites 2003110.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.esm.europa.eu/about-us",
+        "https://judict.eu/en/hla/32013R0575/article-118",
+        "https://api.gleif.org/api/v1/lei-records/222100W4EEAQ77386N50",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:EU000A1Z99S3&wt=json&rows=1",
+        "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1013-detail-verze-ciselniku.zul?id=22765&contextId=22321",
+        "https://judict.eu/en/hla/32013R0575-X/article-117",
+        "https://www.ecb.europa.eu/stats/money/aggregates/anacredit/shared/pdf/List_of_International_Organisations.xlsx",
+        "https://ec.europa.eu/eurostat/cache/metadata/EN/bop_6_esms.htm",
+        "https://ec.europa.eu/eurostat/web/government-finance-statistics/methodology/decisions",
+        "https://ec.europa.eu/eurostat/documents/3859598/21633320/KS-GQ-24-007-EN-N.pdf",
+        "https://ec.europa.eu/eurostat/documents/3859598/5902521/KS-RA-07-015-EN.PDF",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=EU000A1Z99S3",
+        "https://api.openfigi.com/v3/mapping (POST ID_ISIN EU000A1Z99S3)"
+      ]
+    },
+    {
+      "id": "agency-kfw",
+      "issuer": "KfW (Kreditanstalt für Wiederaufbau)",
+      "category": "agency",
+      "isin": "DE000A2YNZ16",
+      "instrument": "KfW 0.05% EUR medium-term notes due 29 September 2034 (issued 2019)",
+      "lei": "549300GDPG70E3MBBU98",
+      "country": "DE",
+      "description": "German public-law promotional bank based in Frankfurt, owned 80% by the Federal Republic and 20% by the federal states; its obligations carry a statutory federal guarantee. It finances SMEs, housing and energy efficiency, education, municipal infrastructure, export and project finance and development cooperation, funding itself mainly by issuing bonds.",
+      "expected_nace": "64",
+      "expected_esa": "2002211",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": true,
+      "nace_reasoning": "KfW lends (largely on-lent through commercial banks) and refinances itself with its own bonds: NACE Rev. 2 division 64 (64.19 other monetary intermediation or 64.92 other credit granting). NACE Rev. 2.1 adds a division-64 exclusion sending promotional institutions that act as the government's arm to 84.13; KfW's own-account lending as an ECB-listed credit institution is taken to stay in 64, but a Rev. 2.1 coder could argue 84.",
+      "nace_alternatives": [
+        "84"
+      ],
+      "esa_reasoning": "The ECB MFI list of 22 September 2026 records Kreditanstalt für Wiederaufbau (RIAD DE03467, same LEI) as a Credit Institution -> S.122; the CNB text of S.122 also covers units funded by continuous issuance of long-term debt securities. Destatis' EDP inventory keeps KfW outside general government and only reroutes operations KfW carries out on behalf of the federal government (placeholder share holdings, bilateral loans to Greece, special-purpose loans), so not S.13. Owned by the Federal Republic (80%) and the Länder (20%) with a statutory federal guarantee -> public. Control convention (open question Q7): control judged relative to the issuer's own country of residence, as ESA 2010 does. Controlled by German general government = 'verejne' -> 2002211 (verified CTS code). From the Czech point of view the German state is non-resident -> 2002213, hence depends_on_q7=true. Family caveat: KfW sits outside the CRD/KWG credit-institution definition, so a strict 'banks only' reading could give 'jine instituce prijimajici vklady - verejne' (2002221).",
+      "esa_alternatives": [
+        "2002213",
+        "2002221",
+        "2002541",
+        "2003110"
+      ],
+      "note": "State-owned and state-guaranteed is not the government sector: the trap is S.13 'ustredni vladni instituce' or NACE 84. KfW takes no retail deposits yet is on the ECB MFI list as a credit institution, and the Q7 digit flips between verejne and pod zahranicni kontrolou.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.kfw.de/About-KfW/Investor-Relations/U.S.-investors/",
+        "https://www.sec.gov/Archives/edgar/data/821533/000104746918003754/a2235558z424b3.htm",
+        "https://api.gleif.org/api/v1/lei-records/549300GDPG70E3MBBU98",
+        "https://api.gleif.org/api/v1/lei-records/549300GDPG70E3MBBU98/ultimate-parent-reporting-exception",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=DE000A2YNZ16",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:DE000A2YNZ16&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST [{\"idType\":\"ID_ISIN\",\"idValue\":\"DE000A2YNZ16\"}])",
+        "https://www.ecb.europa.eu/stats/money/mfi/general/html/dla/mfi_MID/mfi_csv_260922.csv",
+        "https://www.destatis.de/DE/Themen/Wirtschaft/Volkswirtschaftliche-Gesamtrechnungen-Inlandsprodukt/Tabellen/eu-stabilitaetspakt-eurostat-edp-info.pdf?__blob=publicationFile&v=3",
+        "https://ec.europa.eu/eurostat/documents/3859598/21633320/KS-GQ-24-007-EN-N.pdf"
+      ]
+    },
+    {
+      "id": "bank-deutsche-bank",
+      "issuer": "Deutsche Bank AG",
+      "category": "bank",
+      "isin": "DE000A4DE9Y3",
+      "instrument": "EUR 1bn 3.375% fixed-to-floating senior non-preferred notes due 13 Feb 2031, callable 13 Feb 2030 (FIRDS: 'Deutsche Bank AG FLR-MTN v.25(30/31)', seniority SNDB)",
+      "lei": "7LTWFZYICNSX8D621K86",
+      "country": "DE",
+      "description": "Universal bank headquartered in Frankfurt am Main. Takes deposits and lends to private, corporate and institutional clients, and provides investment banking, transaction banking, private banking and asset management through branches and subsidiaries worldwide. Credit institution supervised by the ECB; shares are widely held with no controlling shareholder.",
+      "expected_nace": "64",
+      "expected_esa": "2002212",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": true,
+      "nace_reasoning": "Monetary intermediation by a deposit-taking bank: NACE 64.19 (other monetary intermediation). The design-source ARES check found the Prague branch of Deutsche Bank AG registered with CZ-NACE 64190 (plus 64910, 66190). Investment banking and asset management are secondary. NACE Rev. 2.1 keeps 64.19 in division 64.",
+      "nace_alternatives": [],
+      "esa_reasoning": "S.122 deposit-taking corporation: Deutsche Bank AG is on the ECB MFI list as a credit institution (Banco de Espana mirror of the list, 22 Sep 2026). Family banky. Control: widely held (about 4.8 million shareholders); the largest notified holders in 2026 are BlackRock 8.14%, Paramount Service Holding 4.91% and Amundi 3.03%. GLEIF reports NO_KNOWN_PERSON and there is no government control, so soukromé národní. Q7 convention used: control judged from the issuer's own country of residence, as ESA 2010 does. Under it the code is 2002212; if CTS judged control from the Czech side, every non-resident corporation would be foreign-controlled and the code would be 2002213. Q7 asks for exactly this example.",
+      "esa_alternatives": [
+        "2002213"
+      ],
+      "note": "Seed case and the Q7 test example. Trap: FIRDS lists hundreds of Deutsche Bank instruments under the same LEI, including London-branch paper ('DT.BK.LONDON') and retail structured notes, while subsidiaries such as DWS have their own LEIs; the ISIN must resolve to the parent. 'Senior non-preferred' is still senior debt of the bank itself, not a vehicle. Code flips to 2002213 under the Czech-side Q7 reading.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://investor-relations.db.com/share/shareholder-structure",
+        "https://www.sec.gov/Archives/edgar/data/1159508/000115950825000020/deutschebankag-20241231.htm",
+        "https://www.bde.es/webbe/en/estadisticas/otras-clasificaciones/clasificacion-entidades/listas-instituciones-financieras/listas-instituciones-financieras-monetarias-pais/lista-mfi-de.html",
+        "https://api.gleif.org/api/v1/lei-records/7LTWFZYICNSX8D621K86",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=DE000A4DE9Y3&page[size]=1",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:DE000A4DE9Y3&wt=json&rows=1",
+        "https://investor-relations.db.com/files/documents/capital-instruments/ISINDE000A4DE9Y3.pdf",
+        "https://api.gleif.org/api/v1/lei-records/7LTWFZYICNSX8D621K86/ultimate-parent-reporting-exception"
+      ]
+    },
+    {
+      "id": "bank-erste-group",
+      "issuer": "Erste Group Bank AG",
+      "category": "bank",
+      "isin": "AT0000A3DGG2",
+      "instrument": "EUR 750m fixed-to-floating (3.25%) senior preferred notes due 27 Aug 2032, callable 2031 (FIRDS: 'Erste Group Bank AG EO-FLR Pref. MTN 2024(31/32)', seniority SNDB)",
+      "lei": "PQOH26KWDF7CG10L6792",
+      "country": "AT",
+      "description": "Vienna-based parent of Erste Group and itself an ECB-supervised credit institution. Runs capital-markets, large-corporate and treasury business directly; retail banking sits in subsidiaries such as Erste Bank Oesterreich and, in Central and Eastern Europe, Česká spořitelna. The ERSTE Foundation and its partners hold about 27% of the shares; about 73% is free float.",
+      "expected_nace": "64",
+      "expected_esa": "2002212",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": true,
+      "nace_reasoning": "The entity itself takes deposits and lends (NACE 64.19 other monetary intermediation); its role as group parent does not make its principal activity head-office management (70.10). NACE Rev. 2.1 keeps 64.19.",
+      "nace_alternatives": [
+        "70"
+      ],
+      "esa_reasoning": "S.122: on the ECB MFI list as a credit institution (code AT0000019554466, Banco de Espana mirror, 22 Sep 2026). Although it heads Erste Group, it is itself a deposit-taking bank, so ESA 2010's S.126 treatment of pure head offices does not apply. Control: no holder above 50%. Erste's own breakdown at 30 Jun 2026: ERSTE Foundation (a private Austrian savings-bank foundation) 6.08% directly, Sparkassenbeteiligungs GmbH & Co KG 12.59%, other foundations and savings banks 3.71%, Wiener Städtische Versicherungsverein 4.27% - about 27% as a syndicate. CaixaBank sold its stake in November 2021. Free float was 73.35% on 30 Jun 2026, and there is no government control. Even if the foundation were treated as controlling (it leads the syndicate), it is an Austrian private unit. Q7 convention used: control judged from the issuer's own country of residence, as ESA 2010 does. Result: soukromé národní, 2002212. A Czech-side reading gives 2002213.",
+      "esa_alternatives": [
+        "2002213",
+        "2002602"
+      ],
+      "note": "Trap: 'Group' in the name and the parent role invite S.126 head office (2002602) or NACE 70, but the legal entity is a licensed deposit-taking bank. Its Czech subsidiary Česká spořitelna is a resident case (1xxxxxx), so parent and subsidiary must not be confused. GLEIF reports a NON_CONSOLIDATING parent exception, although no one holds a majority.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.erstegroup.com/en/investors/share/shareholder-structure",
+        "https://www.erstestiftung.org/en/foundation/",
+        "https://www.bde.es/webbe/en/estadisticas/otras-clasificaciones/clasificacion-entidades/listas-instituciones-financieras/listas-instituciones-financieras-monetarias-pais/lista-mfi-at.html",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=AT0000A3DGG2&page[size]=1",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:AT0000A3DGG2&wt=json&rows=1",
+        "https://api.gleif.org/api/v1/lei-records/PQOH26KWDF7CG10L6792/direct-parent-reporting-exception"
+      ]
+    },
+    {
+      "id": "bank-raiffeisen-bank-international",
+      "issuer": "Raiffeisen Bank International AG",
+      "category": "bank",
+      "isin": "AT0000A3RCP2",
+      "instrument": "CZK 3.25% fixed-rate senior notes due 29 Jan 2029, up to CZK 2.5bn (FIRDS: 'CZK RBI Festzins 29', CFI DBFNFB, seniority SNDB; traded in Stuttgart from 30 Jan 2026)",
+      "lei": "9ZHRYM6F437SQJ6OUG95",
+      "country": "AT",
+      "description": "Vienna-based bank providing corporate and investment banking in Austria and, through subsidiary banks, retail and corporate banking in Central and Eastern Europe, including Raiffeisenbank a.s. in the Czech Republic. Credit institution supervised by the ECB. The Austrian regional Raiffeisen banks, acting in concert, hold about 61% of the shares; the remainder is free float.",
+      "expected_nace": "64",
+      "expected_esa": "2002212",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": true,
+      "nace_reasoning": "Deposit-taking and lending bank (NACE 64.19). Its parent role over CEE banks is secondary to its own banking business, so 70.10 is only a fallback. NACE Rev. 2.1 keeps 64.19.",
+      "nace_alternatives": [
+        "70"
+      ],
+      "esa_reasoning": "S.122: on the ECB MFI list as a credit institution (code AT0000016076505, Banco de Espana mirror, 22 Sep 2026). Control: the eight Austrian regional Raiffeisen banks, which are cooperatively owned and not government units, hold 61.17% acting in concert under a syndicate agreement; free float 38.83%. Control therefore rests with resident Austrian private units. Q7 convention used: control judged from the issuer's own country of residence, as ESA 2010 does. Result: soukromé národní, 2002212. A Czech-side reading gives 2002213. The CZK currency and the parent link to the user bank do not change residency: the legal address is Vienna, so the first digit is 2.",
+      "esa_alternatives": [
+        "2002213",
+        "2002602"
+      ],
+      "note": "Trap: RBI is the parent of the user bank (Raiffeisenbank a.s.) and the ISIN is CZK-denominated, which can push a classifier towards a resident code or towards 'foreign-controlled' because a shareholder group holds a majority; that group is domestic (Austrian) and private. The EUR 500m 4.625% 2029 note XS2765027193 would be an alternative ISIN, but the GLEIF ISIN filter does not know it (nor XS3227928911).",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.rbinternational.com/en/investors/rbi-share/shareholder-structure.html",
+        "https://www.bde.es/webbe/en/estadisticas/otras-clasificaciones/clasificacion-entidades/listas-instituciones-financieras/listas-instituciones-financieras-monetarias-pais/lista-mfi-at.html",
+        "https://api.gleif.org/api/v1/lei-records/9ZHRYM6F437SQJ6OUG95",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=AT0000A3RCP2&page[size]=1",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:AT0000A3RCP2&wt=json&rows=1",
+        "https://api.gleif.org/api/v1/lei-records/9ZHRYM6F437SQJ6OUG95/ultimate-parent-reporting-exception"
+      ]
+    },
+    {
+      "id": "bank-unicredit",
+      "issuer": "UniCredit S.p.A.",
+      "category": "bank",
+      "isin": "IT0005585051",
+      "instrument": "EUR 1.25bn 4.00% senior preferred notes due 5 Mar 2034 (FIRDS: 'UniCredit S.p.A. EO-Preferred MTN 2024(34)', seniority SNDB)",
+      "lei": "549300TRUWO2CD2G5692",
+      "country": "IT",
+      "description": "Milan-based commercial bank heading a pan-European banking group. Takes deposits and lends to households and businesses in Italy, Germany, Austria and Central and Eastern Europe, and offers payments, corporate and investment banking and wealth management. Credit institution supervised by the ECB; shares widely held by institutional investors, with no controlling shareholder or shareholder pact.",
+      "expected_nace": "64",
+      "expected_esa": "2002212",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": true,
+      "nace_reasoning": "Deposit-taking commercial bank: NACE 64.19 other monetary intermediation. NACE Rev. 2.1 keeps 64.19.",
+      "nace_alternatives": [],
+      "esa_reasoning": "S.122: on the ECB MFI list as a credit institution (code IT0000102484824, Banco de Espana mirror, 22 Sep 2026). Control: UniCredit states it has no controlling shareholder, group or shareholder pact; professional investors hold over 80% of the shares, mostly outside Italy, but dispersed portfolio holdings are not control by a non-resident unit in ESA 2010 terms. GLEIF reports NO_KNOWN_PERSON. Q7 convention used: control judged from the issuer's own country of residence, as ESA 2010 does. Result: soukromé národní, 2002212. A Czech-side reading gives 2002213.",
+      "esa_alternatives": [
+        "2002213"
+      ],
+      "note": "Trap: most shares are held by investors outside Italy, and a classifier may read that as foreign control, but dispersed foreign ownership is not foreign control. UniCredit's Czech and Slovak subsidiary bank is a separate (resident) case.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.unicreditgroup.eu/en/investors/equity-investors/shareholders-structure.html",
+        "https://www.bde.es/webbe/en/estadisticas/otras-clasificaciones/clasificacion-entidades/listas-instituciones-financieras/listas-instituciones-financieras-monetarias-pais/lista-mfi-it.html",
+        "https://api.gleif.org/api/v1/lei-records/549300TRUWO2CD2G5692",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=IT0005585051&page[size]=1",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:IT0005585051&wt=json&rows=1",
+        "https://api.gleif.org/api/v1/lei-records/549300TRUWO2CD2G5692/ultimate-parent-reporting-exception"
+      ]
+    },
+    {
+      "id": "bank-bnp-paribas",
+      "issuer": "BNP Paribas SA",
+      "category": "bank",
+      "isin": "FR001400KY44",
+      "instrument": "EUR 1.5bn fixed-to-floating (4.125%) senior preferred notes due 26 Sep 2032, callable 2031 (FIRDS: 'BNP Paribas S.A. EO-FLR Preferred MTN 23(31/32)', seniority SNDB)",
+      "lei": "R0MUWSFPU8MPRO8K5P83",
+      "country": "FR",
+      "description": "Paris-based universal bank. Takes deposits and provides retail banking in France, Belgium, Italy and Luxembourg, plus corporate and investment banking, securities services, consumer finance, insurance and asset management internationally. Credit institution supervised by the ECB. No controlling shareholder; the Belgian state holds about 5.7% through SFPI and Luxembourg about 1.2%.",
+      "expected_nace": "64",
+      "expected_esa": "2002212",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": true,
+      "nace_reasoning": "Deposit-taking universal bank. INSEE registers SIREN 662042449 under NAF 64.19Z (autres intermédiations monétaires), which maps to NACE 64.19. NACE Rev. 2.1 keeps 64.19.",
+      "nace_alternatives": [],
+      "esa_reasoning": "S.122: on the ECB MFI list as a credit institution (code FR30004, Banco de Espana mirror, 22 Sep 2026). Control on 30 Jun 2026: BlackRock 7.1%, the Belgian state via SFPI 5.7%, the Grand Duchy of Luxembourg 1.2%, the rest institutional and retail; no controlling shareholder, so the foreign-state stakes make it neither public (veřejné) nor foreign-controlled. GLEIF reports NO_KNOWN_PERSON. Q7 convention used: control judged from the issuer's own country of residence, as ESA 2010 does. Result: soukromé národní, 2002212. A Czech-side reading gives 2002213.",
+      "esa_alternatives": [
+        "2002213",
+        "2002211"
+      ],
+      "note": "Trap: two foreign states are shareholders (Belgium 5.7%, Luxembourg 1.2%), and a naive 'state shareholder -> veřejné' rule would give 2002211. FIRDS also returns 'BNP PARI.ISS.' structured notes (e.g. XS3106455085) under the parent LEI, so identity data can blur the bank and its captive issuance vehicle.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://invest.bnpparibas/en/bnp-paribas-share",
+        "https://www.bde.es/webbe/en/estadisticas/otras-clasificaciones/clasificacion-entidades/listas-instituciones-financieras/listas-instituciones-financieras-monetarias-pais/lista-mfi-fr.html",
+        "https://recherche-entreprises.api.gouv.fr/search?q=662042449",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=FR001400KY44&page[size]=1",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:FR001400KY44&wt=json&rows=1",
+        "https://api.gleif.org/api/v1/lei-records/R0MUWSFPU8MPRO8K5P83/ultimate-parent-reporting-exception"
+      ]
+    },
+    {
+      "id": "bank-nordea-kredit-mortgage",
+      "issuer": "Nordea Kredit Realkreditaktieselskab",
+      "category": "bank",
+      "isin": "DK0002059583",
+      "instrument": "DKK 1.00% bullet covered mortgage bonds (SDRO) due 1 Oct 2029, listed on Nasdaq Copenhagen (FIRDS: 'NORDEA KREDIT/1.00/ OKTRF 2029', seniority SNDB)",
+      "lei": "52990080NNXXLC14OC65",
+      "country": "DK",
+      "description": "Danish mortgage credit institution in Copenhagen, wholly owned by Nordea Bank Abp of Finland. Grants mortgage loans secured on homes, holiday homes and commercial and rental property in Denmark, funded by covered mortgage bonds listed on Nasdaq Copenhagen. Loans are sold through Nordea's Danish branch; lending reached about DKK 417bn at end-2025.",
+      "expected_nace": "64",
+      "expected_esa": "2002213",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "medium",
+      "depends_on_q7": false,
+      "nace_reasoning": "Mortgage credit falls in division 64 either way. The Danish register uses DB07 64.19.20 (realkreditinstitutter; CVR activity 'Realkreditinstitutters aktiviteter'), while plain NACE could put a non-deposit mortgage lender in 64.92 (house-purchase credit). Some web directories file it under real estate (68), which is a trap, not an alternative. Rev. 2.1 is unchanged at division level.",
+      "nace_alternatives": [],
+      "esa_reasoning": "S.122: ESA 2010 2.77 puts mortgage credit institutions funded by continuous bond issuance in S.122 (the BA0036 description of item 1220000 repeats this), and Nordea Kredit is on the ECB MFI list as a credit institution (code DK15134275, Banco de Espana mirror, 22 Sep 2026), like the other Danish realkreditinstitutter. Family banky, as the BA0036 analogue of a licensed credit institution. That is an inference: the resident banky/jiné instituce přijímající vklady split follows Czech legal form, so a non-bank credit institution could arguably get 2002243. Control: 100% Nordea Bank Abp of Finland (GLEIF direct and ultimate parent), so pod zahraniční kontrolou, 2002213, under both Q7 readings.",
+      "esa_alternatives": [
+        "2002243",
+        "2002533"
+      ],
+      "note": "Seed case. Trap: it is not called a bank and takes no deposits, so a classifier may choose S.125 lending (2002533) or real estate (NACE 68). Mortgage credit institutions funded by covered bonds are S.122 under ESA 2010 2.77 and appear on the MFI list. Foreign control is unambiguous (parent in Finland), so this is the one bank case whose code does not depend on Q7.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.nordea.com/en/doc/annual-report-nordea-kredit-realkreditaktieselskab-2025.pdf",
+        "https://api.gleif.org/api/v1/lei-records/52990080NNXXLC14OC65/direct-parent",
+        "https://www.bde.es/webbe/en/estadisticas/otras-clasificaciones/clasificacion-entidades/listas-instituciones-financieras/listas-instituciones-financieras-monetarias-pais/lista-mfi-dk.html",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=DK0002059583&page[size]=1",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:DK0002059583&wt=json&rows=1",
+        "https://api.gleif.org/api/v1/lei-records/52990080NNXXLC14OC65/ultimate-parent-relationship",
+        "https://www.proff.dk/firma/nordea-kredit-realkreditaktieselskab/k%C3%B8benhavn-s/ejendomshandel-og-udleje/GJW1P6I10MV"
+      ]
+    },
+    {
+      "id": "bank-kommuninvest",
+      "issuer": "Kommuninvest i Sverige AB",
+      "category": "bank",
+      "isin": "XS2897313263",
+      "instrument": "EUR 1.2bn 2.50% senior unsecured notes due 4 Oct 2028 under the EMTN programme (FIRDS: 'KOMEF 2.500 10/04/28 MTN', seniority SNDB)",
+      "lei": "EV2XZWMLLXF2QRX0CD47",
+      "country": "SE",
+      "description": "Swedish local government funding agency based in Örebro. Credit institution supervised by Finansinspektionen that lends to its member municipalities and regions and their companies, funded by bonds issued in the capital markets rather than by deposits. Wholly owned by Kommuninvest Cooperative Society, whose 298 member municipalities and regions are jointly and severally liable for its obligations.",
+      "expected_nace": "64",
+      "expected_esa": "2002211",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "medium",
+      "depends_on_q7": true,
+      "nace_reasoning": "Lending funded by bonds: Swedish company data (Syna, from the business register) gives SNI 64190 (other monetary intermediation); a reading as 64.92 (other credit granting) would stay in division 64. It is not public administration (84), even though municipalities own it. Rev. 2.1 is unchanged at division level.",
+      "nace_alternatives": [],
+      "esa_reasoning": "S.122: ESA 2010 2.77 puts municipal credit institutions funded by continuous bond issuance in S.122 (the BA0036 description of item 1220000 repeats this), and Kommuninvest is on the Swedish MFI list as a credit institution (code SE5562814409, Banco de Espana mirror, 22 Sep 2026); it is also a Riksbank monetary-policy counterparty. It borrows in its own name and lends to municipalities, regions and their companies on its own balance sheet, which is why statistics treat it as a financial intermediary rather than part of local government (S.1313), despite the ownership and the members' joint guarantee. Family banky; since it is not called a bank, 2002221 (jiné instituce přijímající vklady veřejné) is the alternative. Control: 100% owned by Kommuninvest ekonomisk förening, whose members are 298 Swedish municipalities and regions (local government), so veřejné. Q7 convention used: control judged from the issuer's own country of residence, as ESA 2010 does. Result: 2002211. A Czech-side reading gives 2002213, because ESA 2010 2.54 and the resident BA0036 texts count control by a foreign government as foreign control.",
+      "esa_alternatives": [
+        "2002221",
+        "2002213",
+        "2003130",
+        "2002531"
+      ],
+      "note": "Trap: OpenFIGI tags its bonds market sector 'Govt', municipalities own it and borrow from it, and the members guarantee it jointly and severally. All of this points a classifier to local government (2003130) or NACE 84, yet statistically it is an MFI credit institution under public control. The GLEIF ISIN filter does not know this ISIN (nor XS3385516060), so identity has to come from FIRDS or OpenFIGI.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://kommuninvest.se/eng/homepage/aboutus.4.35de2c7b1900fda7e6273e1.html",
+        "https://kommuninvest.se/eng/home-page/about-us.html",
+        "https://www.bde.es/webbe/en/estadisticas/otras-clasificaciones/clasificacion-entidades/listas-instituciones-financieras/listas-instituciones-financieras-monetarias-pais/lista-mfi-se.html",
+        "https://upplysningar.syna.se/foretag/5562814409/kommuninvest-i-sverige-aktiebolag",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=XS2897313263&page[size]=1",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:XS2897313263&wt=json&rows=1",
+        "https://api.gleif.org/api/v1/lei-records/EV2XZWMLLXF2QRX0CD47/direct-parent-reporting-exception"
+      ]
+    },
+    {
+      "id": "insurer-allianz",
+      "issuer": "Allianz SE",
+      "category": "insurer",
+      "isin": "DE0008404005",
+      "instrument": "Registered ordinary shares, no par value, with transfer restrictions (FIRDS: 'Allianz SE', CFI ESVTFR; OpenFIGI: ALV GR, Common Stock)",
+      "lei": "529900K9B0N5BT694847",
+      "country": "DE",
+      "description": "Munich-based listed parent company of the Allianz insurance and asset-management group. Besides holding and steering subsidiaries worldwide, it acts as the group's reinsurer, with about EUR 19bn of gross reinsurance premiums in 2025, mostly property-casualty. Supervised by BaFin as a reinsurance undertaking; widely held, with BlackRock the largest notified shareholder at about 7.7%.",
+      "expected_nace": "65",
+      "expected_esa": "2002802",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "medium",
+      "depends_on_q7": true,
+      "nace_reasoning": "Its only operating business is reinsurance (NACE 65.20): EUR 19.06bn gross premiums in 2025. The holding and steering role makes 70.10 (head office) or 64.20 (holding) the alternatives. Company-data sites disagree: Implisense lists WZ 65.11 as primary, plus 65.20 and 66.30. Rev. 2.1 keeps 65.20; holdings move to 64.21 (still 64) and head offices stay in 70.10.",
+      "nace_alternatives": [
+        "70",
+        "64"
+      ],
+      "esa_reasoning": "S.128: Allianz SE calls itself 'the holding and reinsurance company' of the group. It is a BaFin-registered reinsurance undertaking (reg. no. 6949) with EUR 19.06bn gross reinsurance premiums in 2025 (EUR 18.46bn property-casualty). ESA 2010 2.104 and the BA0036 S.128 text send only head offices that are not insurers themselves to S.126, and Allianz SE underwrites reinsurance itself, so S.128 beats S.126 or S.127. Medium confidence, because its income from participations (EUR 7.85bn) shows a large holding role too, and the ECB list of insurance corporations was not checked (bulk download only). Control: widely held (notified BlackRock 7.67%, Amundi 3.08%; GLEIF NO_KNOWN_PERSON), so soukromé národní. Q7 convention used: control judged from the issuer's own country of residence, as ESA 2010 does. Result: 2002802. A Czech-side reading gives 2002803.",
+      "esa_alternatives": [
+        "2002602",
+        "2002702",
+        "2002803"
+      ],
+      "note": "Seed case. Trap: an insurance holding that is also a large reinsurer, so holding (S.127/64), head office (S.126/70) and insurer (S.128/65) all look plausible, and web directories add 65.11 or 66.30 (fund management) labels. The share ISIN gives only equity and group-level signals. Most of the group's senior benchmark bonds are issued by Allianz Finance II B.V. (NL, LEI 529900C9NVPTCPDI1D65), a separate issuer, so a group bond ISIN usually resolves to that vehicle, not to Allianz SE.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.allianz.com/content/dam/onemarketing/azcom/Allianz_com/investor-relations/en/results-reports/annual-report/ar-2025/en-allianz-se-annual-report-2025.pdf",
+        "https://www.bafin.de/SharedDocs/Veroeffentlichungen/DE/Bekanntmachungen/15_Uebertragung_Versicherungsbestand/2024_02_27_allianz_se_va.html",
+        "https://api.gleif.org/api/v1/lei-records/529900K9B0N5BT694847",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=DE0008404005&page[size]=1",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:DE0008404005&wt=json&rows=1",
+        "https://app.implisense.com/en/companies/allianz-se-muenchen-DEOF5V5SVY64"
+      ]
+    },
+    {
+      "id": "insurer-generali",
+      "issuer": "Assicurazioni Generali S.p.A.",
+      "category": "insurer",
+      "isin": "XS2747590896",
+      "instrument": "EUR 500m 3.212% senior green notes due 15 Jan 2029, issued Jan 2024 (FIRDS: 'Generali S.p.A. EO-Medium-Term Notes 24(24/29)', CFI DTFUFB)",
+      "lei": "549300X5UKJVE386ZB61",
+      "country": "IT",
+      "description": "Trieste-based parent company of the Generali insurance group. Owns and manages insurance and asset-management subsidiaries, acts as the main reinsurer of group companies and writes direct life and non-life business through foreign branches such as the UK and Hong Kong; 2025 gross premiums were about EUR 7.2bn. IVASS-registered insurer; no shareholder controls it.",
+      "expected_nace": "65",
+      "expected_esa": "2002802",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "medium",
+      "depends_on_q7": true,
+      "nace_reasoning": "Direct life and non-life insurance plus reinsurance (65.11, 65.12, 65.20). Italian company-data sites show ATECO 65.12.00 (non-life insurance). Alternatives, if its group-parent role is weighted: 70 (head office) or 64 (holding). Rev. 2.1 is unchanged.",
+      "nace_alternatives": [
+        "70",
+        "64"
+      ],
+      "esa_reasoning": "S.128: entered in the IVASS register of insurance and reinsurance companies (no. 1.00003) and head of the registered insurance group (no. 026). It is the main reinsurer of group companies and writes direct business through foreign branches: 2025 gross written premiums EUR 7.22bn, next to EUR 4.48bn of dividends from subsidiaries. As an insurer itself it is not an S.126 head office. Control: the parent-company report states that no person, individually or jointly, holds a controlling interest and that it is not under any entity's direction; GLEIF shows a NON_CONSOLIDATING exception. So soukromé národní. Q7 convention used: control judged from the issuer's own country of residence, as ESA 2010 does. Result: 2002802. A Czech-side reading gives 2002803.",
+      "esa_alternatives": [
+        "2002602",
+        "2002803",
+        "2002702"
+      ],
+      "note": "Trap: group parent vs insurer, as for Allianz. Much of the group's operating business sits in subsidiaries such as Generali Italia S.p.A., so the parent looks like a holding, yet it is a registered insurer and the group's main reinsurer. The GLEIF ISIN filter does not know this ISIN, and 'Generali' appears in many group entity names (Generali Italia, Generali CEE Holding, Generali Česká pojišťovna), so the LEI has to come from FIRDS or OpenFIGI.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.generali.com/doc/jcr:cc3fdb11-76b2-4fa8-9717-e65f78b2f5b7/Management%20Report%20and%20Parent%20Company%20Financial%20Statements%202025.pdf/lang:en/Management_Report_and_Parent_Company_Financial_Statements_2025.pdf",
+        "https://www.generali.com/media/press-releases/all/2024/Generali-successfully-concludes-the-placement-of-its-sixth-and-seventh-green-bonds",
+        "https://api.gleif.org/api/v1/lei-records/549300X5UKJVE386ZB61",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=XS2747590896&page[size]=1",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:XS2747590896&wt=json&rows=1",
+        "https://www.reportaziende.it/assicurazioni_generali_societa_per_azioni_ts_00079760328"
+      ]
+    },
+    {
+      "id": "corp-volkswagen-ag",
+      "issuer": "Volkswagen AG",
+      "category": "corp",
+      "isin": "DE0007664039",
+      "instrument": "Preference shares (Vorzugsaktien, non-voting), CFI EPNXXB; FIRDS 'VOLKSWAGEN AG VORZUGSAKTIEN O.ST. O.N.'; OpenFIGI 'VOLKSWAGEN AG-PREF', ticker VOW3, Equity",
+      "lei": "529900NNUPAGGOMPXZ31",
+      "country": "DE",
+      "description": "Carmaker headquartered in Wolfsburg, Germany, and parent company of the Volkswagen Group, whose brands include Volkswagen, Škoda, SEAT/CUPRA, Audi and Porsche, with trucks through TRATON and a large financial-services arm. Volkswagen AG itself builds Volkswagen-brand cars at German plants. The group sold about 9 million vehicles and had sales revenue of EUR 321.9 billion in 2025.",
+      "expected_nace": "29",
+      "expected_esa": "2001002",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": true,
+      "nace_reasoning": "Both the legal unit and the group it heads make motor vehicles (NACE 29.10). Volkswagen AG is not a pure holding: its own German plants build Volkswagen-brand cars and components, so the head-office code 70.10 is only a weak alternative. Wikidata P452 'automotive industry' carries P4496 = 29. Division 29 is unchanged in NACE Rev. 2.1.",
+      "nace_alternatives": [
+        "70"
+      ],
+      "esa_reasoning": "Q7 convention used: control judged from the issuer's own country of residence (ESA 2010). S.11: market producer of vehicles and head of a group whose value added is overwhelmingly non-financial (BA0036 1100000 item e puts head offices of non-financial groups in S.11), despite the large Volkswagen Group Mobility/financial-services arm. Votes at 31 Dec 2025: Porsche SE (DE) 53.3%, State of Lower Saxony 20.0%, Qatar Holding 17.0%, free float 9.7%. VW's IAS 24 note says Porsche SE has significant influence but cannot elect all shareholder representatives because of Lower Saxony's appointment rights; GLEIF therefore reports no parent. Either way VW is controlled neither by a government unit nor by a non-resident: Lower Saxony's 20% plus the Volkswagen Act's supermajority is a blocking minority, which the ESA 2010 control indicators (2.38, 20.309, golden-share logic) do not count as control, and Qatar's 17% is not control. Own-country view -> soukromé národní 2001002. Under a Czech-point-of-view convention it would be 2001003.",
+      "esa_alternatives": [
+        "2001001",
+        "2001003"
+      ],
+      "note": "Trap: a state holds 20% of votes with a statutory blocking minority, which tempts 'veřejné' (2001001), but no government controls VW and the majority voter Porsche SE is private and German. Also: GLEIF shows no parent, a second LEI 549300PSVDV3P50KHS39 with the same legal name has status DUPLICATE (name matching can pick it), and the Wikidata item is the whole group. Provisional: verified_by empty, not checked against CTS.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.volkswagen-group.com/en/press-releases/volkswagen-group-strengthens-financial-resilience-in-2025-strong-fourth-quarter-in-a-challenging-environment-20202",
+        "https://annualreport2025.volkswagen-group.com/group-management-report/shares-and-bonds/shareholder-structure.html",
+        "https://www.wikidata.org/wiki/Q156578",
+        "https://en.wikipedia.org/wiki/Volkswagen_Group",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=DE0007664039&page[size]=1",
+        "https://api.gleif.org/api/v1/lei-records/529900NNUPAGGOMPXZ31",
+        "https://api.gleif.org/api/v1/lei-records/529900NNUPAGGOMPXZ31/direct-parent-reporting-exception",
+        "https://api.gleif.org/api/v1/lei-records/529900NNUPAGGOMPXZ31/ultimate-parent-reporting-exception",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:DE0007664039&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST idType=ID_ISIN, idValue=DE0007664039)",
+        "https://annualreport2023.volkswagen-group.com/notes/other-disclosures/related-party-disclosures-in-accordance-with-ias-24.html",
+        "https://en.wikipedia.org/wiki/Volkswagen_Act",
+        "https://ec.europa.eu/eurostat/esa2010/chapter/view/2/",
+        "https://ec.europa.eu/eurostat/esa2010/chapter/view/20/",
+        "https://api.gleif.org/api/v1/lei-records/549300PSVDV3P50KHS39"
+      ]
+    },
+    {
+      "id": "corp-unilever-plc",
+      "issuer": "Unilever PLC",
+      "category": "corp",
+      "isin": "GB00BVZK7T90",
+      "instrument": "Ordinary shares, CFI ESVUFR; FIRDS 'Unilever PLC' (GBP); OpenFIGI 'UNILEVER PLC', ticker ULVR, Common Stock, Equity",
+      "lei": "549300MKFYEKVRWML317",
+      "country": "GB",
+      "description": "UK-listed parent of the Unilever consumer-goods group, headquartered in London with its registered office at Port Sunlight. Its companies make and sell beauty and wellbeing products, personal care (soaps, deodorants, oral care), home care (laundry and cleaning products) and packaged foods worldwide. After demerging ice cream in December 2025, 2025 turnover was EUR 50.5 billion, about 74% non-food.",
+      "expected_nace": "20",
+      "expected_esa": "2001002",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "low",
+      "depends_on_q7": true,
+      "nace_reasoning": "Group activity: FY2025 turnover (re-presented after the ice-cream demerger completed on 6 Dec 2025) was Beauty & Wellbeing EUR 12.8bn, Personal Care 13.2bn, Home Care 11.6bn and Foods 12.9bn. The first three (74%) fall mainly in 20.4 (soap, detergents, cleaning preparations, perfumes and toilet preparations); foods (26%) in 10. SEC EDGAR files Unilever PLC under SIC 2840, the US twin of 20.4. Legal unit: Companies House lists Unilever PLC's own activity as SIC 70100 'Activities of head offices'; under a strict legal-unit rule (as ESA/NACE statistical units, FINREP and AnaCredit use) the answer is 70, so 70 is the first alternative and the bank's convention decides. Wikidata P452 lists four food codes (10, 10.4, 10.6, 10.7) and one 20.4, so a vote over Wikidata codes would wrongly return 10. Divisions 20, 10 and 70 are unchanged in Rev. 2.1. OPEN CONVENTION (roadmap Q15): the legal unit's own activity is 70 (activities of head offices - the national register, ESA 2010 2.14 and the Rev. 2.1 note to 70.10 all say so); the group's main activity gives 20. This case takes the group view, because MO is asked to research what the issuer does; if CTS records the legal unit, 70 is right.",
+      "nace_alternatives": [
+        "70",
+        "10"
+      ],
+      "esa_reasoning": "Q7 convention used: control judged from the issuer's own country of residence (ESA 2010). S.11: Unilever PLC heads a group of market producers of goods (BA0036 1100000 item e: head offices of non-financial groups stay in S.11, not S.126/S.127). No controlling shareholder (GLEIF NON_CONSOLIDATING, widely held), no government control, no controller outside the UK -> soukromé národní 2001002. Under a Czech-point-of-view convention it would be 2001003.",
+      "esa_alternatives": [
+        "2001003"
+      ],
+      "note": "Trap: three defensible NACE answers. Group product mix says 20, the official register says 70 (head office), and Wikidata's industry list, weighted by Unilever's food history, says 10. ESA 2001002 is solid; the NACE depends on whether CTS codes group parents by their own activity or by the group's. Provisional: verified_by empty, not checked against CTS.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.investegate.co.uk/announcement/rns/unilever--ulvr/2025-full-year-results/9426818",
+        "https://find-and-update.company-information.service.gov.uk/company/00041424",
+        "https://www.wikidata.org/wiki/Q157062",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=GB00BVZK7T90&page[size]=1",
+        "https://api.gleif.org/api/v1/lei-records/549300MKFYEKVRWML317",
+        "https://api.gleif.org/api/v1/lei-records/549300MKFYEKVRWML317/direct-parent-reporting-exception",
+        "https://api.gleif.org/api/v1/lei-records/549300MKFYEKVRWML317/ultimate-parent-reporting-exception",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:GB00BVZK7T90&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST idType=ID_ISIN, idValue=GB00BVZK7T90)",
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000217410"
+      ]
+    },
+    {
+      "id": "corp-siemens-ag",
+      "issuer": "Siemens AG",
+      "category": "corp",
+      "isin": "DE0007236101",
+      "instrument": "Registered shares (Namensaktien), CFI ESVUFR; FIRDS 'SIEMENS AG NAMENS-AKTIEN O.N.'; OpenFIGI 'SIEMENS AG-REG', ticker SIE, Common Stock, Equity",
+      "lei": "W38RGI023J3WT1HWRP32",
+      "country": "DE",
+      "description": "German technology group based in Munich. Siemens AG makes factory automation, drives and industrial software (Digital Industries) and power-distribution and building technology (Smart Infrastructure); subsidiaries build trains and rail signalling (Mobility). It owns about two thirds of listed Siemens Healthineers (medical imaging, diagnostics) and plans to spin off 30% to its shareholders. Fiscal 2025 revenue: EUR 78.9 billion.",
+      "expected_nace": "27",
+      "expected_esa": "2001002",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "medium",
+      "depends_on_q7": true,
+      "nace_reasoning": "Fiscal 2025 revenue (EUR bn): Siemens Healthineers 23.4 (30%), Smart Infrastructure 23.0 (29%), Digital Industries 17.8 (23%), Mobility 12.4 (16%). Switchgear, circuit breakers, motors, drives and PLC-type control gear (27) make up most of SI and DI hardware; medical imaging (26.60) is Healthineers; rail vehicles and signalling (30.20) are Mobility; DI software is 58/62. At group level 26 and 27 come out roughly even on a rough split. At the legal-unit level Siemens AG itself runs DI and SI, while Healthineers and Siemens Mobility are separate subsidiaries, so 27 wins. EDGAR SIC 3600 (electrical and electronic equipment) is consistent. The Healthineers spin-off (AGM vote planned for Feb 2027) would make 27 clearer. Division 27 is unchanged in Rev. 2.1.",
+      "nace_alternatives": [
+        "26",
+        "30",
+        "28"
+      ],
+      "esa_reasoning": "Q7 convention used: control judged from the issuer's own country of residence (ESA 2010). S.11: operating manufacturer and head of a non-financial group; Siemens Financial Services is a small arm (EUR 0.4bn of EUR 78.9bn revenue) that does not make the group financial. Widely held, no controlling shareholder (GLEIF NO_KNOWN_PERSON), no government control, not controlled from outside Germany -> soukromé národní 2001002. Under a Czech-point-of-view convention it would be 2001003.",
+      "esa_alternatives": [
+        "2001003"
+      ],
+      "note": "Trap: a conglomerate. Wikidata's only NACE-coded industry for Siemens is 'telecommunications industry' (61), a leftover of businesses sold long ago, and the same LEI is also attached to an unrelated Wikidata item 'Siemens Mexico' (Q16984598). The biggest segment by revenue is Healthineers (26) until the spin-off. Do not confuse with Siemens Financieringsmaatschappij N.V. (the group's Dutch financing vehicle, 64/S.127). Provisional: verified_by empty.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://assets.new.siemens.com/siemens/assets/api/uuid:7fdd21fb-c248-43a3-b475-f2e618fbae88/2025-q4-earnings-release-en.pdf",
+        "https://press.siemens.com/global/en/pressrelease/siemens-plans-deconsolidate-siemens-healthineers",
+        "https://press.siemens.com/global/en/pressrelease/siemens-clarifies-timeline-spin-siemens-healthineers-shares",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=DE0007236101&page[size]=1",
+        "https://api.gleif.org/api/v1/lei-records/W38RGI023J3WT1HWRP32",
+        "https://api.gleif.org/api/v1/lei-records/W38RGI023J3WT1HWRP32/direct-parent-reporting-exception",
+        "https://api.gleif.org/api/v1/lei-records/W38RGI023J3WT1HWRP32/ultimate-parent-reporting-exception",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:DE0007236101&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST idType=ID_ISIN, idValue=DE0007236101)",
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0001135644",
+        "https://www.wikidata.org/wiki/Q81230",
+        "https://www.wikidata.org/wiki/Q16984598"
+      ]
+    },
+    {
+      "id": "corp-totalenergies-se",
+      "issuer": "TotalEnergies SE",
+      "category": "corp",
+      "isin": "FR0000120271",
+      "instrument": "Ordinary shares, CFI ESVUFN; FIRDS 'TotalEnergies SE' (EUR); OpenFIGI 'TOTALENERGIES SE', ticker TTE, Common Stock, Equity",
+      "lei": "529900S21EQ1BO4ESM68",
+      "country": "FR",
+      "description": "French integrated energy company based at Paris-La Défense (Courbevoie). TotalEnergies SE heads a group that explores for and produces oil and gas, liquefies and trades LNG, refines crude and makes petrochemicals, sells fuels through service stations, and generates and sells electricity from renewables and gas. Upstream and LNG earned about two thirds of 2025 segment operating income.",
+      "expected_nace": "06",
+      "expected_esa": "2001002",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "low",
+      "depends_on_q7": true,
+      "nace_reasoning": "Group activity by value added (the NACE rule for vertically integrated units): in 2025 Exploration & Production earned USD 8.4bn and Integrated LNG 4.1bn of 18.5bn segment adjusted net operating income (~68%), Downstream (refining, chemicals, marketing) 3.8bn and Integrated Power about 2.2bn. So 06 (extraction of crude petroleum and natural gas), which SEC EDGAR (SIC 1311) and Wikidata P452 also give. A revenue yardstick would wrongly give 19 or 47, because refined-product sales dominate turnover; 35 fits only the small power segment. Legal unit: INSEE classifies TotalEnergies SE as APE 70.10Z (head office); under a strict legal-unit rule the answer is 70, so it is the first alternative. Divisions unchanged in Rev. 2.1. OPEN CONVENTION (roadmap Q15): the legal unit's own activity is 70 (activities of head offices - the national register, ESA 2010 2.14 and the Rev. 2.1 note to 70.10 all say so); the group's main activity gives 06. This case takes the group view, because MO is asked to research what the issuer does; if CTS records the legal unit, 70 is right.",
+      "nace_alternatives": [
+        "70",
+        "19",
+        "35"
+      ],
+      "esa_reasoning": "Q7 convention used: control judged from the issuer's own country of residence (ESA 2010). S.11: head of a group of non-financial market producers (BA0036 1100000 item e). The 70.10 head-office code does not move it to S.126, which is for head offices whose subsidiaries are mostly financial. Widely held, no state shareholding, no controlling shareholder (GLEIF NO_KNOWN_PERSON), not controlled from outside France -> soukromé národní 2001002. Under a Czech-point-of-view convention it would be 2001003.",
+      "esa_alternatives": [
+        "2001003"
+      ],
+      "note": "Trap: the official register (INSEE 70.10Z head office) disagrees with every business source (oil and gas extraction). Turnover is dominated by refined products (pulls to 19), and 'Energies' in the name pulls to 35. ESA 2001002 is solid; the NACE depends on the bank's convention for group parents. Provisional: verified_by empty.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://totalenergies.com/system/files/documents/totalenergies_pr-results-q4-2025_2026_en.pdf",
+        "https://recherche-entreprises.api.gouv.fr/search?q=542051180",
+        "https://www.wikidata.org/wiki/Q154037",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=FR0000120271&page[size]=1",
+        "https://api.gleif.org/api/v1/lei-records/529900S21EQ1BO4ESM68",
+        "https://api.gleif.org/api/v1/lei-records/529900S21EQ1BO4ESM68/direct-parent-reporting-exception",
+        "https://api.gleif.org/api/v1/lei-records/529900S21EQ1BO4ESM68/ultimate-parent-reporting-exception",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:FR0000120271&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST idType=ID_ISIN, idValue=FR0000120271)",
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000879764"
+      ]
+    },
+    {
+      "id": "vehicle-bmw-finance-nv",
+      "issuer": "BMW Finance N.V.",
+      "category": "vehicle",
+      "isin": "XS1948611840",
+      "instrument": "EUR 1.5bn 1.5% senior notes due 6 Feb 2029 under the EMTN programme, guaranteed by BMW AG; CFI DTFNFB; OpenFIGI 'BMW 1.5 02/06/29 EMTN' (EURO MTN, Corp)",
+      "lei": "5299006ZHG3IXU0PNJ56",
+      "country": "NL",
+      "description": "Financing company of the BMW Group, founded in 1983 and based in Rijswijk, the Netherlands. It funds itself with euro medium-term notes and commercial paper guaranteed by BMW AG, bank loans and short-term money from BMW Group companies, and lends at arm's length to group companies, also buying their receivables. 16 staff; total assets about EUR 41 billion at end-2025.",
+      "expected_nace": "64",
+      "expected_esa": "2002703",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": false,
+      "nace_reasoning": "The unit's own activity is intra-group financing (NACE Rev. 2: 64.92 other credit granting, or 64.99). NACE Rev. 2.1 adds class 64.22 'Activities of financing conduits', units that raise funds, often on the open market, and pass them to their parent or group, which describes this company exactly. The division stays 64. 29 would be a group look-through, which is wrong for a financing unit.",
+      "nace_alternatives": [
+        "29"
+      ],
+      "esa_reasoning": "Q7 convention used: control judged from the issuer's own country of residence (ESA 2010). S.127: raises funds on open markets under BMW AG's guarantee and lends only to BMW Group companies (plus factoring of group receivables), which is the 'SPE raising funds for its parent' case of ESA 2010 2.99 (third indent; 2.98 is the S.127 definition) and BA0036 1270000 item c. DNB places such financing companies of multinationals in S.127. It is not S.125 because it does not lend to third parties, and not S.11 because its output is financial. Being resident in another country than its parent, it is a separate institutional unit. Control: BMW AG (DE), through a Dutch intermediate holding, so the ultimate controller is non-resident in NL -> pod zahraniční kontrolou 2002703. The Czech-point-of-view convention gives the same code.",
+      "esa_alternatives": [
+        "2002702",
+        "2002533",
+        "2001003"
+      ],
+      "note": "Trap: the name carries a carmaker's brand (29 / S.11 temptation), but the unit is a financing conduit (64 / S.127). The immediate shareholder BMW Holding B.V. is Dutch; taking it as the controller would give 2002702. The GLEIF ISIN filter does not know the XS bond (GLEIF maps only 15 ISINs to this LEI, mostly French commercial paper and US-format notes); FIRDS resolves it to the right LEI. Provisional: verified_by empty.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.bmwgroup.com/content/dam/grpw/websites/bmwgroup_com/ir/downloads/en/2026/emtn/Annual-Report-2025-BMW-Finance-NV.pdf",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=XS1948611840&page[size]=1",
+        "https://api.gleif.org/api/v1/lei-records/5299006ZHG3IXU0PNJ56",
+        "https://api.gleif.org/api/v1/lei-records/5299006ZHG3IXU0PNJ56/direct-parent",
+        "https://api.gleif.org/api/v1/lei-records/5299006ZHG3IXU0PNJ56/ultimate-parent",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:XS1948611840&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST idType=ID_ISIN, idValue=XS1948611840)",
+        "https://api.gleif.org/api/v1/lei-records/5299006ZHG3IXU0PNJ56/isins",
+        "https://www.dnb.nl/en/statistics/pass-through-entities/",
+        "https://ec.europa.eu/eurostat/esa2010/chapter/view/2/"
+      ]
+    },
+    {
+      "id": "vehicle-volkswagen-international-finance-nv",
+      "issuer": "Volkswagen International Finance N.V.",
+      "category": "vehicle",
+      "isin": "XS1167667283",
+      "instrument": "EUR 1.0bn 1.625% notes due 16 Jan 2030 under the Debt Issuance Programme, guaranteed by Volkswagen AG; CFI DTFNFB; OpenFIGI 'VW 1.625 01/16/30 EMTn' (EURO MTN, Corp)",
+      "lei": "5299004PWNHKYTR23649",
+      "country": "NL",
+      "description": "Amsterdam-based funding vehicle of Volkswagen AG, founded in 1977 and held through Volkswagen Finance Luxemburg S.A. It issues bonds, perpetual hybrid notes and commercial paper, all guaranteed by Volkswagen AG, and on-lends the money to VW Group companies and joint ventures (about EUR 33.5 billion in mid-2025). It has eight employees.",
+      "expected_nace": "64",
+      "expected_esa": "2002703",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": false,
+      "nace_reasoning": "Group financing is its only activity: Rev. 2 64.92/64.99, Rev. 2.1 64.22 'Activities of financing conduits'. The division stays 64. 29 would be a group look-through.",
+      "nace_alternatives": [
+        "29"
+      ],
+      "esa_reasoning": "Q7 convention used: control judged from the issuer's own country of residence (ESA 2010). S.127: raises money on open markets (DIP EUR 30bn, CP EUR 15bn, Chinese onshore bonds, hybrids), guaranteed by VW AG, and lends it to VW Group companies and joint ventures, which are related parties, not a range of unrelated clients. That is ESA 2010 2.99 (third indent; 2.98 is the S.127 definition) and BA0036 1270000 item c. DNB puts such companies in S.127. Control: Volkswagen AG (DE) via Volkswagen Finance Luxemburg S.A. (LU), non-resident in NL -> pod zahraniční kontrolou 2002703. The parent itself is soukromé národní in Germany (see corp-volkswagen-ag); control is judged from the vehicle's own country. The Czech convention gives the same code.",
+      "esa_alternatives": [
+        "2002702",
+        "2002533"
+      ],
+      "note": "Trap: the parent is national-private at home but its Dutch vehicle is foreign-controlled. Perpetual hybrid notes look equity-like, and lending to joint ventures can look like intermediation; neither changes S.127. GLEIF maps no ISINs at all to this LEI, so only FIRDS (LEI present) and OpenFIGI (name only) resolve the bond. Some FIRDS venue records are 'Terminated', but 20 venues are live and it matures in 2030. Provisional: verified_by empty.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.vif.nl/content/dam/companies/nl_vif/2025%20HY%20Financial%20Report%20-%20VIF%20(PDF%20version).pdf",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=XS1167667283&page[size]=1",
+        "https://api.gleif.org/api/v1/lei-records/5299004PWNHKYTR23649",
+        "https://api.gleif.org/api/v1/lei-records/5299004PWNHKYTR23649/direct-parent",
+        "https://api.gleif.org/api/v1/lei-records/5299004PWNHKYTR23649/ultimate-parent",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:XS1167667283&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST idType=ID_ISIN, idValue=XS1167667283)",
+        "https://api.gleif.org/api/v1/lei-records/5299004PWNHKYTR23649/isins",
+        "https://www.dnb.nl/en/statistics/pass-through-entities/",
+        "https://ec.europa.eu/eurostat/esa2010/chapter/view/2/"
+      ]
+    },
+    {
+      "id": "vehicle-siemens-financieringsmaatschappij-nv",
+      "issuer": "Siemens Financieringsmaatschappij N.V.",
+      "category": "vehicle",
+      "isin": "XS2769894135",
+      "instrument": "EUR 1.25bn 3.125% notes due 22 May 2032 under Siemens' Debt Issuance Programme, guaranteed by Siemens AG; CFI DTFNFB; OpenFIGI 'SIEGR 3.125 05/22/32 EMTN' (EURO MTN, Corp)",
+      "lei": "TAFO772JB70PDRN5VS48",
+      "country": "NL",
+      "description": "Finance company of Siemens AG in The Hague, founded in 1977 and wholly owned by Siemens AG since 1992. It issues notes under Siemens' EUR 35 billion debt issuance programme and commercial paper, all guaranteed by Siemens AG, and on-lends the money to Siemens group companies. It has no employees of its own and holds no participations.",
+      "expected_nace": "64",
+      "expected_esa": "2002703",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": false,
+      "nace_reasoning": "Pure group financing, no staff, no participations: Rev. 2 64.92/64.99, Rev. 2.1 64.22 'Activities of financing conduits'. It is not 64.20/64.21 holding activity, because it holds no participations even though its articles allow it. The division stays 64. 27 would be a group look-through.",
+      "nace_alternatives": [
+        "27"
+      ],
+      "esa_reasoning": "Q7 convention used: control judged from the issuer's own country of residence (ESA 2010). S.127: textbook conduit, issuing under the Siemens DIP and CP programme with Siemens AG's guarantee and on-lending to affiliated companies. Credit losses above EUR 2m are covered by Siemens AG. It has no employees (it uses Siemens Finance B.V. staff). That is ESA 2010 2.99 (third indent; 2.98 is the S.127 definition) and BA0036 1270000 item c, and DNB places financing companies of multinationals in S.127. Control: Siemens AG (DE) -> pod zahraniční kontrolou 2002703. The Czech convention gives the same code.",
+      "esa_alternatives": [
+        "2002702",
+        "2001003"
+      ],
+      "note": "Trap: only the Dutch name says what it is ('financieringsmaatschappij' = financing company); an English-only classifier sees 'Siemens' and suggests 27 / S.11. GLEIF's entity creation date (2012-06-06) contradicts the 1977 founding in the annual report. The GLEIF ISIN filter does not know the XS note (GLEIF maps 18 ISINs, US/144A/Reg S and DE ones); FIRDS resolves it. Provisional: verified_by empty.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://assets.new.siemens.com/siemens/assets/api/uuid:dd54680e-988a-4dfa-8c26-b5e7c683a5bf/sfm-annual-report-2025.pdf",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=XS2769894135&page[size]=1",
+        "https://api.gleif.org/api/v1/lei-records/TAFO772JB70PDRN5VS48",
+        "https://api.gleif.org/api/v1/lei-records/TAFO772JB70PDRN5VS48/direct-parent",
+        "https://api.gleif.org/api/v1/lei-records/TAFO772JB70PDRN5VS48/ultimate-parent",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:XS2769894135&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST idType=ID_ISIN, idValue=XS2769894135)",
+        "https://api.gleif.org/api/v1/lei-records/TAFO772JB70PDRN5VS48/isins",
+        "https://www.dnb.nl/en/statistics/pass-through-entities/",
+        "https://ec.europa.eu/eurostat/esa2010/chapter/view/2/"
+      ]
+    },
+    {
+      "id": "vehicle-shell-international-finance-bv",
+      "issuer": "Shell International Finance B.V.",
+      "category": "vehicle",
+      "isin": "XS2154419118",
+      "instrument": "EUR 1bn 1.875% notes due 2032 (EMTN), guaranteed by Shell plc; replaces US822582CG52, whose 2.75% 2030 notes were mostly exchanged into Shell Finance US Inc. notes in October 2024",
+      "lei": "213800ITMMKU4Z7I4F78",
+      "country": "NL",
+      "description": "Dutch financing company of Shell plc in The Hague, with no staff. Its dollar shelf bonds and euro medium-term notes, guaranteed by Shell plc, fund loans to Shell group companies on the same terms. It has issued no bonds since 2022, and in 2024-25 much of its dollar debt moved to Shell Finance US Inc.",
+      "expected_nace": "64",
+      "expected_esa": "2002703",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": false,
+      "nace_reasoning": "Back-to-back group financing only: Rev. 2 64.92/64.99, Rev. 2.1 64.22 'Activities of financing conduits'. The division stays 64. 06 would be a look-through to the oil group.",
+      "nace_alternatives": [
+        "06"
+      ],
+      "esa_reasoning": "Q7 convention used: control judged from the issuer's own country of residence (ESA 2010). S.127: raises funds on open markets under Shell plc's guarantee and on-lends them to group companies on identical terms, with no staff of its own per its 2020 accounts (ESA 2010 2.99 (third indent; 2.98 is the S.127 definition); BA0036 1270000 item c; DNB puts financing companies of multinationals in S.127). Control: Shell plc, a UK company that moved its tax residence and head office to the UK at end-2021 -> pod zahraniční kontrolou 2002703. The Czech convention gives the same code. Before 2022 the parent, Royal Dutch Shell plc, was headquartered and tax-resident in The Hague, so older data could suggest soukromé národní (2002702).",
+      "esa_alternatives": [
+        "2002702",
+        "2001003"
+      ],
+      "note": "Trap: an oil major's name (06/19, S.11) on a financing conduit (64/S.127). The parent's residence changed in 2022 (Royal Dutch Shell, The Hague -> Shell plc, London), which flips the control digit if stale data is used; OpenFIGI still shows the legacy ticker RDSALN. Provisional: verified_by empty.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.shell.com/investors/debt-information/financial-reports-and-articles-of-association/_jcr_content/root/main/section/list/list_item_copy_770529644.multi.stream/1663923096448/def7d961131c50cb765df9369b49cee4da6ccdfb/annual-report-shell-international-finance-bv-audited-december-twenty-twenty.pdf",
+        "https://www.globenewswire.com/news-release/2026/05/01/3286189/0/en/Publication-of-Annual-Financial-Statements-2025-Shell-International-Finance-B-V.html",
+        "https://api.gleif.org/api/v1/lei-records/213800ITMMKU4Z7I4F78/direct-parent",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=US822582CG52&page[size]=1",
+        "https://api.gleif.org/api/v1/lei-records/213800ITMMKU4Z7I4F78",
+        "https://api.gleif.org/api/v1/lei-records/213800ITMMKU4Z7I4F78/ultimate-parent",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:US822582CG52&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST idType=ID_ISIN, idValue=US822582CG52)",
+        "https://shell.gcs-web.com/news-releases/news-release-details/shell-sets-out-expected-timetable-simplification",
+        "https://www.dnb.nl/en/statistics/pass-through-entities/",
+        "https://ec.europa.eu/eurostat/esa2010/chapter/view/2/"
+      ]
+    },
+    {
+      "id": "vehicle-toyota-motor-credit-corporation",
+      "issuer": "Toyota Motor Credit Corporation",
+      "category": "vehicle",
+      "isin": "US89236TLE37",
+      "instrument": "USD 1.1bn 5.55% medium-term notes due 20 Nov 2030 (SEC-registered MTN programme; no parent guarantee, credit support agreements TFSC/TMC); CFI DTFUFR; OpenFIGI 'TOYOTA 5.55 11/20/30' (GLOBAL, Corp). Also usable: EUR 1bn 3.625% EMTN XS2857918804 due 2031 (FIRDS and OpenFIGI yes, GLEIF filter no)",
+      "lei": "Z2VZBHUMB7PWWJ63I008",
+      "country": "US",
+      "description": "Toyota's US auto-finance company, incorporated in California and based in Plano, Texas. It provides retail instalment contracts and leases for buyers of Toyota and Lexus vehicles and wholesale, real-estate and working-capital loans to dealers, funded in the global capital markets. Retail contracts produced 64%, operating leases (net of depreciation) 25% and dealer lending 11% of fiscal-2026 financing revenue.",
+      "expected_nace": "64",
+      "expected_esa": "2002533",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "medium",
+      "depends_on_q7": false,
+      "nace_reasoning": "Credit granting to consumers and dealers (retail 64% plus dealer 11% of financing revenue) is the main activity -> 64.92 other credit granting; SEC EDGAR files TMCC under SIC 6141 'personal credit institutions'. Operating leases (25%) would be 77.11 and are secondary. 29 is a look-through to the carmaker and is wrong. 64.92 is kept in Rev. 2.1; the division is unchanged.",
+      "nace_alternatives": [
+        "77",
+        "29"
+      ],
+      "esa_reasoning": "Q7 convention used: control judged from the issuer's own country of residence (ESA 2010). S.125, 'financial corporations engaged in lending' (ESA 2010 S.125 covers hire purchase and personal or commercial finance; the ECB's FCL statistics are this S.125 subsector). TMCC borrows on open markets (MTNs, commercial paper, ABS) and lends to a large range of unaffiliated consumers and independent dealers at its own credit risk, which is financial intermediation. It is not S.127: it does not pass market funds on to its parent (the ESA 2.99 (third indent; 2.98 is the S.127 definition) SPE case), and it is not a money lender working only with own or sponsor funds. US statistics treat captive auto lenders as finance companies (Federal Reserve G.20). Control: Toyota Motor Corporation (JP) via TFSC (JP) and TFSIC (US), non-resident in the US -> pod zahraniční kontrolou 2002533. The Czech convention gives the same code.",
+      "esa_alternatives": [
+        "2002703",
+        "2001003"
+      ],
+      "note": "Trap: industry jargon calls TMCC a 'captive finance company', but ESA's 'captive' (S.127) means a unit that does not intermediate; TMCC lends to third parties, so S.125 lender 2002533. 'Motor' in the name pulls to 29. GLEIF reports no parent although TMCC is wholly owned by Toyota, so control must come from the 10-K. Grouped under 'vehicle' as an auto-finance arm, but it is not an SPV. Provisional: verified_by empty.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.sec.gov/Archives/edgar/data/834071/000119312526252796/ck0000834071-20260331.htm",
+        "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=0000834071",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=US89236TLE37&page[size]=1",
+        "https://api.gleif.org/api/v1/lei-records/Z2VZBHUMB7PWWJ63I008",
+        "https://api.gleif.org/api/v1/lei-records/Z2VZBHUMB7PWWJ63I008/direct-parent-reporting-exception",
+        "https://api.gleif.org/api/v1/lei-records/Z2VZBHUMB7PWWJ63I008/ultimate-parent-reporting-exception",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:US89236TLE37&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST idType=ID_ISIN, idValue=US89236TLE37)",
+        "https://www.federalreserve.gov/releases/g20/current/default.htm",
+        "https://www.ecb.europa.eu/stats/financial_corporations/fcl/html/index.en.html",
+        "https://ec.europa.eu/eurostat/esa2010/chapter/view/2/",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:XS2857918804&wt=json&rows=1"
+      ]
+    },
+    {
+      "id": "fund-amundi-funds-euroland-equity",
+      "issuer": "Amundi Funds - Euroland Equity (sub-fund of the Amundi Funds SICAV)",
+      "category": "fund",
+      "isin": "LU1883303635",
+      "instrument": "Amundi Funds Euroland Equity A EUR (C): accumulating share class of a UCITS sub-fund",
+      "lei": "549300I7SRMTTD1P6F20",
+      "country": "LU",
+      "description": "Luxembourg UCITS sub-fund of the Amundi Funds SICAV umbrella, managed by Amundi Luxembourg S.A. It is an open-ended equity fund that invests mainly in shares of companies based in eurozone countries, aiming at capital growth over the medium to long term. The A EUR (C) share class reinvests its income.",
+      "expected_nace": "64",
+      "expected_esa": "2002403",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "medium",
+      "depends_on_q7": false,
+      "nace_reasoning": "The issuer is the fund itself, a collective investment undertaking pooling investors' money in listed equities: NACE Rev. 2 class 64.30 (trusts, funds and similar financial entities); NACE Rev. 2.1 class 64.31 (money market and non-money market investment funds). Portfolio management is the management company's activity (66.30), a different unit.",
+      "nace_alternatives": [
+        "66"
+      ],
+      "esa_reasoning": "The ECB list of investment funds (July 2026) records AMUNDI FUNDS -- EUROLAND EQUITY (RIAD LUO000150C00234, same LEI) as a non-MMF open-ended UCITS equity fund flagged as a sub-fund; it is not on the ECB MFI list, so S.124, not S.123. Fund control convention (assumption, ESA 2010 has no fund-specific rule): an investment fund is taken to be controlled by the group of its management company/promoter. Control convention (open question Q7): control judged relative to the issuer's own country of residence, as ESA 2010 does. The manager Amundi Luxembourg S.A. belongs to the French Amundi/Credit Agricole group, i.e. the fund is controlled by units resident outside Luxembourg -> 'pod zahranicni kontrolou' -> 2002403 (verified CTS code). The Czech point of view gives the same code, so depends_on_q7=false. A rule driven by GLEIF parents would see NO_KNOWN_PERSON for Amundi Luxembourg and wrongly return 2002402. Umbrella caveat: the SICAV holds 128 sub-funds in GLEIF, including money market sub-funds (Cash EUR, Cash USD are on the ECB MFI list), so the code must be set per sub-fund. Since December 2025 the CNB classifies Czech umbrella funds that create sub-funds as pomocne financni instituce (revised ECB IF Regulation ECB/2024/17); if CTS keyed this issuer at umbrella level the analogue would be 2002603.",
+      "esa_alternatives": [
+        "2002402",
+        "2002603",
+        "2002303"
+      ],
+      "note": "Umbrella vs sub-fund trap: the GLEIF sub-fund name is only 'EUROLAND EQUITY' (no umbrella prefix), the umbrella LEI carries no ISINs, and the same umbrella also holds money market sub-funds, so an umbrella-level lookup returns the wrong entity or subsector. The management company (S.126, NACE 66.30) is not the issuer, and the missing GLEIF parent of Amundi Luxembourg hides the foreign control. Medium because the fund-control convention and the CTS keying level are unconfirmed.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.amundi.lu/professional/product/view/LU1883303635",
+        "https://www.ecb.europa.eu/stats/pdf/money/ecb.ifd_overview_2026.en.zip (IF_2026_07.xlsx)",
+        "https://api.gleif.org/api/v1/lei-records/549300I7SRMTTD1P6F20",
+        "https://api.gleif.org/api/v1/lei-records/549300I7SRMTTD1P6F20/umbrella-fund",
+        "https://api.gleif.org/api/v1/lei-records/213800MW2WUSU64RC957/sub-funds",
+        "https://api.gleif.org/api/v1/lei-records/213800VZW861M5FHMD50/direct-parent-reporting-exception",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=LU1883303635",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:LU1883303635&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST [{\"idType\":\"ID_ISIN\",\"idValue\":\"LU1883303635\"}])",
+        "https://www.ecb.europa.eu/stats/money/mfi/general/html/dla/mfi_MID/mfi_csv_260922.csv",
+        "https://www.cnb.cz/cs/statistika/menova_bankovni_stat/seznamy-instituci-pro-potreby-menove-a-financni-statistiky/seznam-investicnich-fondu/",
+        "https://en.wikipedia.org/wiki/Amundi"
+      ]
+    },
+    {
+      "id": "fund-ishares-core-msci-world",
+      "issuer": "iShares Core MSCI World UCITS ETF (sub-fund of iShares III plc)",
+      "category": "fund",
+      "isin": "IE00B4L5Y983",
+      "instrument": "iShares Core MSCI World UCITS ETF USD (Acc): accumulating ETF share class",
+      "lei": "549300QS4Q1IT6XCA514",
+      "country": "IE",
+      "description": "Irish exchange-traded UCITS sub-fund of iShares III plc, managed by BlackRock Asset Management Ireland. It holds shares of large and mid-sized companies in developed markets to track the MSCI World index, using physical optimised replication. The US-dollar accumulating share class, launched in 2009, trades on several European exchanges.",
+      "expected_nace": "64",
+      "expected_esa": "2002403",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "medium",
+      "depends_on_q7": false,
+      "nace_reasoning": "An ETF is an open-ended investment fund whose shares happen to be exchange-traded: NACE Rev. 2 class 64.30, Rev. 2.1 class 64.31. The exchange (66.11) and the manager (66.30) are other units.",
+      "nace_alternatives": [
+        "66"
+      ],
+      "esa_reasoning": "The ECB list of investment funds (July 2026) records iShares Core MSCI World UCITS ETF (RIAD IEFND-C53867, same LEI) as a non-MMF open-ended fund, type ETF, equities, UCITS, sub-fund, NAV above EUR 5 bn -> S.124. Fund control convention (assumption, ESA 2010 has no fund-specific rule): an investment fund is taken to be controlled by the group of its management company/promoter. Control convention (open question Q7): control judged relative to the issuer's own country of residence, as ESA 2010 does. Manager BlackRock Asset Management Ireland Ltd is ultimately owned by BlackRock, Inc. (US) per GLEIF, so the fund is controlled from outside Ireland -> 'pod zahranicni kontrolou' -> 2002403. The Czech point of view gives the same code, so depends_on_q7=false. 2002402 would only follow if investment funds were treated as having no controlling unit; 2002603 if CTS keyed the umbrella (CNB December 2025 practice).",
+      "esa_alternatives": [
+        "2002402",
+        "2002603"
+      ],
+      "note": "Coverage and naming traps: GLEIF has no mapping for this ISIN and instead maps ten Swiss iNAV index identifiers (e.g. CH1311344035, 'iSh MSCI WS INAV' in OpenFIGI) to the sub-fund LEI; the umbrella is iShares III plc, not iShares plc (549300YDM1GFZR5B4U80) as the seed said; 'ETF' and 'plc' can pull a classifier towards an exchange (66.11), a debt ETP vehicle or an ordinary company, and the BlackRock brand towards the US asset manager (S.126). Medium for the unconfirmed fund-control convention.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.ishares.com/uk/individual/en/products/251882/ishares-msci-world-ucits-etf-acc-fund",
+        "https://www.justetf.com/en/etf-profile.html?isin=IE00B4L5Y983",
+        "https://www.ecb.europa.eu/stats/pdf/money/ecb.ifd_overview_2026.en.zip (IF_2026_07.xlsx)",
+        "https://api.gleif.org/api/v1/lei-records/549300QS4Q1IT6XCA514",
+        "https://api.gleif.org/api/v1/lei-records/549300QS4Q1IT6XCA514/umbrella-fund",
+        "https://api.gleif.org/api/v1/lei-records/549300QS4Q1IT6XCA514/isins",
+        "https://api.gleif.org/api/v1/lei-records/5493004330BCAPB3GT42/ultimate-parent",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=IE00B4L5Y983",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:IE00B4L5Y983&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST [{\"idType\":\"ID_ISIN\",\"idValue\":\"IE00B4L5Y983\"}])"
+      ]
+    },
+    {
+      "id": "fund-amundi-funds-cash-eur",
+      "issuer": "Amundi Funds - Cash EUR (money market sub-fund of the Amundi Funds SICAV)",
+      "category": "fund",
+      "isin": "LU0568620560",
+      "instrument": "Amundi Funds Cash EUR A2 EUR (C): accumulating share class of a money market sub-fund",
+      "lei": "5299002SSK89DA5VPJ96",
+      "country": "LU",
+      "description": "Money market sub-fund of the Luxembourg Amundi Funds SICAV, managed by Amundi Luxembourg S.A. It invests mainly in euro-denominated money market instruments with a short weighted average maturity and aims to deliver returns in line with euro money market rates, with daily dealing.",
+      "expected_nace": "64",
+      "expected_esa": "2002303",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "medium",
+      "depends_on_q7": false,
+      "nace_reasoning": "Money market fund = collective investment undertaking: NACE Rev. 2 class 64.30, Rev. 2.1 class 64.31. The management company is 66.30.",
+      "nace_alternatives": [
+        "66"
+      ],
+      "esa_reasoning": "The ECB MFI list of 22 September 2026 records 'AMUNDI FUNDS -- CASH EUR' (RIAD LUO000150C00146, same LEI) with category Money Market Fund -> S.123. Fund control convention (assumption, ESA 2010 has no fund-specific rule): an investment fund is taken to be controlled by the group of its management company/promoter. Control convention (open question Q7): control judged relative to the issuer's own country of residence, as ESA 2010 does. Manager Amundi Luxembourg S.A. belongs to the French Amundi group, so the sub-fund is controlled from outside Luxembourg -> 'pod zahranicni kontrolou' -> 2002303 (verified CTS code). The Czech point of view gives the same code, so depends_on_q7=false. 2002302 would only follow if funds were treated as uncontrolled; 2002403 is the umbrella-level mistake (most Amundi Funds sub-funds are S.124).",
+      "esa_alternatives": [
+        "2002302",
+        "2002403",
+        "2002603"
+      ],
+      "note": "Pairs with fund-amundi-funds-euroland-equity: same umbrella and manager, but S.123 instead of S.124, so it tests classification per sub-fund. Pairs with fund-amundi-euro-liquidity-short-term-responsible: same group, Luxembourg instead of France, so own-country control flips to foreign-controlled. OpenFIGI still shows the legacy ticker SOGMEUR, and 'Cash' can suggest a bank deposit.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.amundi.lu/retail/product/view/LU0568620560",
+        "https://www.amundi.com/globaldistributor/dl/doc/weekly-factsheet/LU0568620560/ENG/GBR/INSTITUTIONNEL/AMUNDI",
+        "https://www.ecb.europa.eu/stats/money/mfi/general/html/dla/mfi_MID/mfi_csv_260922.csv",
+        "https://api.gleif.org/api/v1/lei-records/5299002SSK89DA5VPJ96",
+        "https://api.gleif.org/api/v1/lei-records/5299002SSK89DA5VPJ96/fund-manager",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=LU0568620560",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:LU0568620560&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST [{\"idType\":\"ID_ISIN\",\"idValue\":\"LU0568620560\"}])"
+      ]
+    },
+    {
+      "id": "fund-amundi-euro-liquidity-short-term-responsible",
+      "issuer": "Amundi Euro Liquidity Short Term Responsible (French money market FCP)",
+      "category": "fund",
+      "isin": "FR0007435920",
+      "instrument": "Class I EUR (C) units of a French money market fund",
+      "lei": "9695003J31VHMAGY0545",
+      "country": "FR",
+      "description": "French money market fund (FCP without legal personality) managed by Amundi Asset Management in Paris. It invests in short-dated euro money market instruments and debt securities with maturities of up to 397 days, aiming to beat the euro short-term rate while applying ESG criteria. It is a short-term money market fund with a variable NAV.",
+      "expected_nace": "64",
+      "expected_esa": "2002302",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "medium",
+      "depends_on_q7": true,
+      "nace_reasoning": "A money market fund is a collective investment undertaking: NACE Rev. 2 class 64.30, Rev. 2.1 class 64.31, which names money market funds explicitly. Although ECB statistics count MMFs as MFIs, they take no deposits, so not 64.19; the manager is 66.30.",
+      "nace_alternatives": [
+        "66"
+      ],
+      "esa_reasoning": "The ECB MFI list of 22 September 2026 records RIAD FR0007435920 / LEI 9695003J31VHMAGY0545 'AMUNDI EURO LIQUIDITY SHORT TERM RESPONSIBLE' with category Money Market Fund -> S.123 (the CNB likewise puts money market funds among MFIs). Fund control convention (assumption, ESA 2010 has no fund-specific rule): an investment fund is taken to be controlled by the group of its management company/promoter. Control convention (open question Q7): control judged relative to the issuer's own country of residence, as ESA 2010 does. Manager Amundi Asset Management (FR) -> Amundi (FR) -> Credit Agricole S.A. (FR), a French private group not controlled by government, so relative to France the fund is 'soukromy narodni' -> 2002302. If CTS judged control from the Czech point of view every non-resident unit would be foreign-controlled -> 2002303, hence depends_on_q7=true.",
+      "esa_alternatives": [
+        "2002303",
+        "2002402"
+      ],
+      "note": "Q7 test case: same Amundi group as the Luxembourg sub-funds but resident in France, so own-country control gives national private while a Czech point of view gives foreign-controlled. Also tests that an MMF does not fall into S.124 just because it is a UCITS fund, that an FCP without legal personality is still the issuer, and FIRDS has no record because the units are not traded on a venue.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.amundi.fr/fr_instit/dl/doc/weekly-factsheet/FR0007435920/FRA/FRA/INSTITUTIONNEL/AMUNDI",
+        "https://www.amundi.lu/professional/product/view/FR0007435920",
+        "https://www.ecb.europa.eu/stats/money/mfi/general/html/dla/mfi_MID/mfi_csv_260922.csv",
+        "https://api.gleif.org/api/v1/lei-records/9695003J31VHMAGY0545",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=FR0007435920",
+        "https://api.gleif.org/api/v1/lei-records/DQ2T0MMUTO0IPF9G9Z35/ultimate-parent",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:FR0007435920&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST [{\"idType\":\"ID_ISIN\",\"idValue\":\"FR0007435920\"}])",
+        "https://www.cnb.cz/cs/statistika/menova_bankovni_stat/seznamy-instituci-pro-potreby-menove-a-financni-statistiky/seznam-investicnich-fondu/",
+        "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1013-detail-verze-ciselniku.zul?id=22765&contextId=22321"
+      ]
+    },
+    {
+      "id": "fvc-bavarian-sky-german-auto-loans-14",
+      "issuer": "Bavarian Sky S.A., acting in respect of its Compartment German Auto Loans 14",
+      "category": "fvc",
+      "isin": "XS2967178943",
+      "instrument": "EUR 850 m Class A floating-rate asset-backed notes due February 2033 (German auto loan ABS)",
+      "lei": "529900CITCOV0AQI3K03",
+      "country": "LU",
+      "description": "Luxembourg securitisation company acting through a ring-fenced compartment. It bought a pool of German car loans from BMW Bank GmbH and funds it by issuing floating-rate Class A and fixed-rate Class B asset-backed notes listed in Luxembourg. Its shares are held by a Dutch foundation, and BMW Bank services the loans.",
+      "expected_nace": "64",
+      "expected_esa": "2002513",
+      "verified_by": null,
+      "verified_on": null,
+      "confidence": "high",
+      "depends_on_q7": false,
+      "nace_reasoning": "A vehicle that buys loans and issues asset-backed notes is a financial intermediary: NACE Rev. 2 division 64 (64.92 or 64.99); NACE Rev. 2.1 names 'loan securitisation' under 64.92. The car business of the originator (29, 45) is not the issuer's activity.",
+      "nace_alternatives": [
+        "66"
+      ],
+      "esa_reasoning": "The ECB list of FVCs (2026 Q2) contains Bavarian Sky S.A. (RIAD LURCSB0127982, same LEI, LU, traditional securitisation) -> S.125 financial vehicle corporation, BA0036 family sekuritizace; not S.127 kaptivni, which covers SPEs raising funds for their own parent. Control convention (open question Q7): control judged relative to the issuer's own country of residence, as ESA 2010 does. The shares belong to a Dutch stichting (orphan structure), GLEIF names BMW AG (DE) as accounting-consolidation parent, and the seller BMW Bank GmbH retains the risk; every candidate controller is resident outside Luxembourg -> 'pod zahranicni kontrolou' -> 2002513 (verified CTS code). The Czech point of view gives the same code, so depends_on_q7=false. 2002512 would only follow if the orphan SPV were treated as controlled by its Luxembourg board.",
+      "esa_alternatives": [
+        "2002512",
+        "2002703"
+      ],
+      "note": "Name and look-through traps: 'Bavarian Sky' sounds like an airline or travel firm, the compartment name says 'German Auto Loans' while the issuer is resident in Luxembourg, and the assets are car loans (not NACE 29/45). The compartment has no LEI of its own; the legal shareholder (Dutch foundation) differs from the GLEIF parent (BMW AG). Sister vehicles SC Germany S.A. and Driver Master S.A. are flagged FUND in GLEIF, which would wrongly point to S.124.",
+      "source": "public sources; researched and independently re-checked on 2026-09-22; codes provisional",
+      "evidence": [
+        "https://www.sts-verification-international.com/fileadmin/svi/Transaktionen/BavSky_German_Auto_Loans_14/Bavarian_Sky_Loans_14_-_Prospectus.pdf",
+        "https://www.sts-verification-international.com/transactions/bavarian-sky-sa-compartment-german-auto-loans-14",
+        "https://api.gleif.org/api/v1/lei-records/529900CITCOV0AQI3K03",
+        "https://api.gleif.org/api/v1/lei-records/529900CITCOV0AQI3K03/ultimate-parent",
+        "https://api.gleif.org/api/v1/lei-records?filter[isin]=XS2967178943",
+        "https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:XS2967178943&wt=json&rows=1",
+        "https://api.openfigi.com/v3/mapping (POST [{\"idType\":\"ID_ISIN\",\"idValue\":\"XS2967178943\"}])",
+        "https://www.ecb.europa.eu/stats/pdf/money/fvc/ecb.fvcd_overview_2026.en.zip (FVC_2026_Q2.xlsx)",
+        "https://api.gleif.org/api/v1/lei-records/549300I0DV9V1WKUO071"
+      ]
     }
   ]
 }

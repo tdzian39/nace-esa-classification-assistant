@@ -1,0 +1,2386 @@
+{
+ "_comment": [
+  "GLEIF and OpenFIGI answers for the ISINs of tests/golden/cases.json, trimmed to the",
+  "fields the parsers read. Replayed by core.classify.golden_fixtures so the golden run",
+  "needs no network. Re-record with: python -m core.classify --golden-capture"
+ ],
+ "captured_on": "2026-09-22",
+ "user_agent": "RBCZ-NACE-ESA-assistant/0.1 (+https://github.com/tdzian39/nace-esa-classification-assistant)",
+ "answers": {
+  "GET https://api.gleif.org/api/v1/lei-records/222100W4EEAQ77386N50/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/222100W4EEAQ77386N50/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "222100W4EEAQ77386N50|2|8dbcd46560ff144fb6cdfe146f403ea3c5e43b33ca91ac920f648d5eac6f1cd6|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "222100W4EEAQ77386N50",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/222100W4EEAQ77386N50/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/254900HROIFWPRGM1V77/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/254900HROIFWPRGM1V77/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "254900HROIFWPRGM1V77|0|3f9c20e7540a85f221e0f93a0fcc5e8d1e8ca2aff570c30748147a0b7629e724|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "254900HROIFWPRGM1V77",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/254900HROIFWPRGM1V77/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/52990080NNXXLC14OC65/direct-parent": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "529900ODI3047E2LIV03",
+     "attributes": {
+      "lei": "529900ODI3047E2LIV03",
+      "entity": {
+       "legalName": {
+        "name": "Nordea Bank Abp"
+       },
+       "otherNames": [
+        {
+         "name": "Nordea Bank Oyj"
+        }
+       ],
+       "legalAddress": {
+        "country": "FI"
+       },
+       "headquartersAddress": {
+        "country": "FI"
+       },
+       "jurisdiction": "FI",
+       "category": "GENERAL",
+       "legalForm": {
+        "id": "K6VE",
+        "other": null
+       },
+       "status": "ACTIVE",
+       "subCategory": null
+      },
+      "registration": {
+       "lastUpdateDate": "2026-09-21T08:16:39Z",
+       "status": "ISSUED"
+      }
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/52990080NNXXLC14OC65/ultimate-parent": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "529900ODI3047E2LIV03",
+     "attributes": {
+      "lei": "529900ODI3047E2LIV03",
+      "entity": {
+       "legalName": {
+        "name": "Nordea Bank Abp"
+       },
+       "otherNames": [
+        {
+         "name": "Nordea Bank Oyj"
+        }
+       ],
+       "legalAddress": {
+        "country": "FI"
+       },
+       "headquartersAddress": {
+        "country": "FI"
+       },
+       "jurisdiction": "FI",
+       "category": "GENERAL",
+       "legalForm": {
+        "id": "K6VE",
+        "other": null
+       },
+       "status": "ACTIVE",
+       "subCategory": null
+      },
+      "registration": {
+       "lastUpdateDate": "2026-09-21T08:16:39Z",
+       "status": "ISSUED"
+      }
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900AQBND3S6YJLY83/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900AQBND3S6YJLY83/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "529900AQBND3S6YJLY83|2|8fe2d7821c4f06dd91348fd8bd23fa76c682ca7e5c57fdc1a80377c8cccd514a|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "529900AQBND3S6YJLY83",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900AQBND3S6YJLY83/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900FZRK8FGMPEOM08/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900FZRK8FGMPEOM08/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "529900FZRK8FGMPEOM08|0|28d09d56862a9d0629726cc5396999c759e469d8d135466043b9a916af6caae7|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "529900FZRK8FGMPEOM08",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900FZRK8FGMPEOM08/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900K9B0N5BT694847/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900K9B0N5BT694847/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "529900K9B0N5BT694847|0|c1c8861fa5d69bcaab13ce524d9d7fc98fc4c59a34ebf65e7c82fd6ea5486bc1|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "529900K9B0N5BT694847",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900K9B0N5BT694847/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900NNUPAGGOMPXZ31/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900NNUPAGGOMPXZ31/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "529900NNUPAGGOMPXZ31|2|0207390d6d9582fb0ce1a885cfc67f348867b93dd3050010134a8f93bcdaa6e2|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "529900NNUPAGGOMPXZ31",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900NNUPAGGOMPXZ31/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900QWWUI4XRVR7I03/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900QWWUI4XRVR7I03/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "529900QWWUI4XRVR7I03|0|f25ee856d7a4f740f357585a413b8c404ffbc311c5954b6cb7841d62c74e3d66|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "529900QWWUI4XRVR7I03",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900QWWUI4XRVR7I03/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900S21EQ1BO4ESM68/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900S21EQ1BO4ESM68/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "529900S21EQ1BO4ESM68|0|d691b917ebf91ef2b980ec01a4684199f203f03b797145efdd42b6b5223d443f|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "529900S21EQ1BO4ESM68",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900S21EQ1BO4ESM68/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900Y6Q7R44JF7XX56/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900Y6Q7R44JF7XX56/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "529900Y6Q7R44JF7XX56|2|f250c44d01e8b9729dcc01c6e997f614b120ca34f38b3e0f074dd186f84ce047|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "529900Y6Q7R44JF7XX56",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/529900Y6Q7R44JF7XX56/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/5493006YXS1U5GIHE750/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/5493006YXS1U5GIHE750/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "5493006YXS1U5GIHE750|8|d0f3493c8d407b326e421a6d48b2f4edfffb1f553bed833033a25902b67674c3|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "5493006YXS1U5GIHE750",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/5493006YXS1U5GIHE750/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300GDPG70E3MBBU98/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300GDPG70E3MBBU98/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "549300GDPG70E3MBBU98|0|846ed6efcc6881e8bdf5b91bcdd6afbc34c78ebeb60c1a706385f3b25443ef85|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "549300GDPG70E3MBBU98",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300GDPG70E3MBBU98/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300HTGDOVDU6OGK19/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300HTGDOVDU6OGK19/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "549300HTGDOVDU6OGK19|3|9b756e75c0d6e19ba1f042d11dace02dc8e43a0d485f4be20438572fac5e1101|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "549300HTGDOVDU6OGK19",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300HTGDOVDU6OGK19/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300MKFYEKVRWML317/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300MKFYEKVRWML317/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "549300MKFYEKVRWML317|3|f792df2da588423a7226c7184b11c48eecead1d3b1ef9a6dac0f5fa33c5c165f|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "549300MKFYEKVRWML317",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NON_CONSOLIDATING"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300MKFYEKVRWML317/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300TRUWO2CD2G5692/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300TRUWO2CD2G5692/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "549300TRUWO2CD2G5692|4|edb87df4a2f7b1e524b77c31fec101972e254a200b1581c11b8dc07f02799fec|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "549300TRUWO2CD2G5692",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300TRUWO2CD2G5692/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300UYNXMI821WYG82/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300UYNXMI821WYG82/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "549300UYNXMI821WYG82|6|a93dd2d911443dd66039f6c61e3ab5e72f961b9f15b1592683b2c719d4ba456f|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "549300UYNXMI821WYG82",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/549300UYNXMI821WYG82/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/7LTWFZYICNSX8D621K86/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/7LTWFZYICNSX8D621K86/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "7LTWFZYICNSX8D621K86|0|9140e1b428a0e81e90e26a23d520a7502c046abfff7660464ba62fe65d7520f6|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "7LTWFZYICNSX8D621K86",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/7LTWFZYICNSX8D621K86/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/9695003J31VHMAGY0545/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/9695003J31VHMAGY0545/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "9695003J31VHMAGY0545|1|cd8d293cefa8ae1caec63fc4114e55afa164a0b7b7ed03a88fa35a521cd40ad5|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "9695003J31VHMAGY0545",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NON_CONSOLIDATING"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/9695003J31VHMAGY0545/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/969500Y6KLTVY0FYAX02/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/969500Y6KLTVY0FYAX02/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "969500Y6KLTVY0FYAX02|3|bae45c5ac41645431254c31ad07ce148e8f277787b4e6340dcbeaea4a294c030|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "969500Y6KLTVY0FYAX02",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/969500Y6KLTVY0FYAX02/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/9ZHRYM6F437SQJ6OUG95/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/9ZHRYM6F437SQJ6OUG95/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "9ZHRYM6F437SQJ6OUG95|1|4db8c0f904d2694065fd85021539b7bcbc665464accb7c920a41f919ca14753e|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "9ZHRYM6F437SQJ6OUG95",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/9ZHRYM6F437SQJ6OUG95/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/PQOH26KWDF7CG10L6792/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/PQOH26KWDF7CG10L6792/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "PQOH26KWDF7CG10L6792|4|62fae0ed9ec8388cd89b5dc2b171e467eba2d18b6268ec33cf1482de328a6600|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "PQOH26KWDF7CG10L6792",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NON_CONSOLIDATING"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/PQOH26KWDF7CG10L6792/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/R0MUWSFPU8MPRO8K5P83/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/R0MUWSFPU8MPRO8K5P83/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "R0MUWSFPU8MPRO8K5P83|1|e2dcdb8001a415ff9e87c1ffd83dab689e137672fa4fde68b05322bcadb5d0d3|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "R0MUWSFPU8MPRO8K5P83",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/R0MUWSFPU8MPRO8K5P83/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/W38RGI023J3WT1HWRP32/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/W38RGI023J3WT1HWRP32/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "W38RGI023J3WT1HWRP32|11|c078a7da3ffea3861658907d6631ec5668cd79eecdec14df3d5761afff6bb0f5|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "W38RGI023J3WT1HWRP32",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/W38RGI023J3WT1HWRP32/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/Z2VZBHUMB7PWWJ63I008/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/Z2VZBHUMB7PWWJ63I008/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "Z2VZBHUMB7PWWJ63I008|6|e7387c2c2518f2d23dd5cd35e090ab7f9223d94b4b57ee12a85e65659a17c2a0|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "Z2VZBHUMB7PWWJ63I008",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NON_CONSOLIDATING"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/Z2VZBHUMB7PWWJ63I008/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/ZTMSNXROF84AHWJNKQ93/direct-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/ZTMSNXROF84AHWJNKQ93/direct-parent-reporting-exception": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "ZTMSNXROF84AHWJNKQ93|5|aeb5497bf0ff8904ea02005e3886f6fb8803ce7a2f0474d62da2fe2b7e8744e9|DIRECT_ACCOUNTING_CONSOLIDATION_PARENT|",
+     "attributes": {
+      "lei": "ZTMSNXROF84AHWJNKQ93",
+      "category": "DIRECT_ACCOUNTING_CONSOLIDATION_PARENT",
+      "reason": "NO_KNOWN_PERSON"
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records/ZTMSNXROF84AHWJNKQ93/ultimate-parent": {
+   "status": 404,
+   "body": {}
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=AT0000A33SH3&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "529900QWWUI4XRVR7I03",
+      "attributes": {
+       "lei": "529900QWWUI4XRVR7I03",
+       "entity": {
+        "legalName": {
+         "name": "Republik Österreich"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "AT"
+        },
+        "headquartersAddress": {
+         "country": "AT"
+        },
+        "jurisdiction": "AT",
+        "category": "RESIDENT_GOVERNMENT_ENTITY",
+        "legalForm": {
+         "id": "JJYT",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": "CENTRAL_GOVERNMENT"
+       },
+       "registration": {
+        "lastUpdateDate": "2026-01-22T07:54:26Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=AT0000A3DGG2&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "PQOH26KWDF7CG10L6792",
+      "attributes": {
+       "lei": "PQOH26KWDF7CG10L6792",
+       "entity": {
+        "legalName": {
+         "name": "ERSTE GROUP BANK AG"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "AT"
+        },
+        "headquartersAddress": {
+         "country": "AT"
+        },
+        "jurisdiction": "AT",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "EQOV",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-09-15T16:30:31Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=AT0000A3RCP2&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "9ZHRYM6F437SQJ6OUG95",
+      "attributes": {
+       "lei": "9ZHRYM6F437SQJ6OUG95",
+       "entity": {
+        "legalName": {
+         "name": "Raiffeisen Bank International AG"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "AT"
+        },
+        "headquartersAddress": {
+         "country": "AT"
+        },
+        "jurisdiction": "AT",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "EQOV",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-01-30T15:01:17Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=DE0007236101&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "W38RGI023J3WT1HWRP32",
+      "attributes": {
+       "lei": "W38RGI023J3WT1HWRP32",
+       "entity": {
+        "legalName": {
+         "name": "Siemens Aktiengesellschaft"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "DE"
+        },
+        "headquartersAddress": {
+         "country": "DE"
+        },
+        "jurisdiction": "DE",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "6QQB",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-09-01T15:35:21Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=DE0007664039&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "529900NNUPAGGOMPXZ31",
+      "attributes": {
+       "lei": "529900NNUPAGGOMPXZ31",
+       "entity": {
+        "legalName": {
+         "name": "VOLKSWAGEN AKTIENGESELLSCHAFT"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "DE"
+        },
+        "headquartersAddress": {
+         "country": "DE"
+        },
+        "jurisdiction": "DE",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "6QQB",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2025-09-16T10:05:31Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=DE0008404005&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "529900K9B0N5BT694847",
+      "attributes": {
+       "lei": "529900K9B0N5BT694847",
+       "entity": {
+        "legalName": {
+         "name": "Allianz SE"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "DE"
+        },
+        "headquartersAddress": {
+         "country": "DE"
+        },
+        "jurisdiction": "DE",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "SGST",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2025-10-06T23:02:08Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=DE000A2YNZ16&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "549300GDPG70E3MBBU98",
+      "attributes": {
+       "lei": "549300GDPG70E3MBBU98",
+       "entity": {
+        "legalName": {
+         "name": "Kreditanstalt für Wiederaufbau"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "DE"
+        },
+        "headquartersAddress": {
+         "country": "DE"
+        },
+        "jurisdiction": "DE",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "XLWA",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-02-17T10:51:47Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=DE000A4DE9E5&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "529900Y6Q7R44JF7XX56",
+      "attributes": {
+       "lei": "529900Y6Q7R44JF7XX56",
+       "entity": {
+        "legalName": {
+         "name": "Land Berlin"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "DE"
+        },
+        "headquartersAddress": {
+         "country": "DE"
+        },
+        "jurisdiction": "DE",
+        "category": "RESIDENT_GOVERNMENT_ENTITY",
+        "legalForm": {
+         "id": "8888",
+         "other": "Legal Entity of Public Law"
+        },
+        "status": "ACTIVE",
+        "subCategory": "STATE_GOVERNMENT"
+       },
+       "registration": {
+        "lastUpdateDate": "2026-05-26T15:25:51Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=DE000A4DE9Y3&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "7LTWFZYICNSX8D621K86",
+      "attributes": {
+       "lei": "7LTWFZYICNSX8D621K86",
+       "entity": {
+        "legalName": {
+         "name": "DEUTSCHE BANK AKTIENGESELLSCHAFT"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "DE"
+        },
+        "headquartersAddress": {
+         "country": "DE"
+        },
+        "jurisdiction": "DE",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "6QQB",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-04-07T08:05:10Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=DE000BU2Z015&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "529900AQBND3S6YJLY83",
+      "attributes": {
+       "lei": "529900AQBND3S6YJLY83",
+       "entity": {
+        "legalName": {
+         "name": "Bundesrepublik Deutschland"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "DE"
+        },
+        "headquartersAddress": {
+         "country": "DE"
+        },
+        "jurisdiction": "DE",
+        "category": "RESIDENT_GOVERNMENT_ENTITY",
+        "legalForm": {
+         "id": "9999",
+         "other": "Legal Entity of Public Law"
+        },
+        "status": "ACTIVE",
+        "subCategory": "CENTRAL_GOVERNMENT"
+       },
+       "registration": {
+        "lastUpdateDate": "2026-08-12T09:28:20Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=DK0002059583&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "52990080NNXXLC14OC65",
+      "attributes": {
+       "lei": "52990080NNXXLC14OC65",
+       "entity": {
+        "legalName": {
+         "name": "NORDEA KREDIT REALKREDITAKTIESELSKAB"
+        },
+        "otherNames": [
+         {
+          "name": "UNIPURPOSE 3 A/S"
+         },
+         {
+          "name": "UNIKREDIT REALKREDITAKTIESELSKAB"
+         }
+        ],
+        "legalAddress": {
+         "country": "DK"
+        },
+        "headquartersAddress": {
+         "country": "DK"
+        },
+        "jurisdiction": "DK",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "ZRPO",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-02-10T11:53:14Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=EU000A1Z99S3&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "222100W4EEAQ77386N50",
+      "attributes": {
+       "lei": "222100W4EEAQ77386N50",
+       "entity": {
+        "legalName": {
+         "name": "EUROPEAN STABILITY MECHANISM"
+        },
+        "otherNames": [
+         {
+          "name": "ESM"
+         }
+        ],
+        "legalAddress": {
+         "country": "LU"
+        },
+        "headquartersAddress": {
+         "country": "LU"
+        },
+        "jurisdiction": "EU",
+        "category": "INTERNATIONAL_ORGANIZATION",
+        "legalForm": {
+         "id": "9999",
+         "other": "ISSUERS OF SECURITIES FOR WHICH LUXEMBOURG IS THE HOME MEMBER STATE PURSUANT TO THE TRANSPARENCY LAW"
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-01-21T14:08:22Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=EU000A3K4DY4&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "529900FZRK8FGMPEOM08",
+      "attributes": {
+       "lei": "529900FZRK8FGMPEOM08",
+       "entity": {
+        "legalName": {
+         "name": "European Union"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "BE"
+        },
+        "headquartersAddress": {
+         "country": "LU"
+        },
+        "jurisdiction": "BE",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "8888",
+         "other": "Legal Entity of Public Law"
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-01-07T11:01:17Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=FR0000120271&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "529900S21EQ1BO4ESM68",
+      "attributes": {
+       "lei": "529900S21EQ1BO4ESM68",
+       "entity": {
+        "legalName": {
+         "name": "TotalEnergies SE"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "FR"
+        },
+        "headquartersAddress": {
+         "country": "FR"
+        },
+        "jurisdiction": "FR",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "TPNT",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2025-10-28T12:31:31Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=FR0007435920&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "9695003J31VHMAGY0545",
+      "attributes": {
+       "lei": "9695003J31VHMAGY0545",
+       "entity": {
+        "legalName": {
+         "name": "AMUNDI EURO LIQUIDITY SHORT TERM RESPONSIBLE"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "FR"
+        },
+        "headquartersAddress": {
+         "country": "FR"
+        },
+        "jurisdiction": "FR",
+        "category": "FUND",
+        "legalForm": {
+         "id": "MQU9",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2025-10-28T20:58:14Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=FR001400KY44&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "R0MUWSFPU8MPRO8K5P83",
+      "attributes": {
+       "lei": "R0MUWSFPU8MPRO8K5P83",
+       "entity": {
+        "legalName": {
+         "name": "BNP PARIBAS"
+        },
+        "otherNames": [
+         {
+          "name": "HELLO BANK!"
+         }
+        ],
+        "legalAddress": {
+         "country": "FR"
+        },
+        "headquartersAddress": {
+         "country": "FR"
+        },
+        "jurisdiction": "FR",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "K65D",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-01-26T07:50:05Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=FR001400X656&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "969500Y6KLTVY0FYAX02",
+      "attributes": {
+       "lei": "969500Y6KLTVY0FYAX02",
+       "entity": {
+        "legalName": {
+         "name": "VILLE DE PARIS"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "FR"
+        },
+        "headquartersAddress": {
+         "country": "FR"
+        },
+        "jurisdiction": "FR",
+        "category": "RESIDENT_GOVERNMENT_ENTITY",
+        "legalForm": {
+         "id": "2N4L",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": "LOCAL_GOVERNMENT"
+       },
+       "registration": {
+        "lastUpdateDate": "2026-09-15T20:13:33Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=GB00BVZK7T90&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "549300MKFYEKVRWML317",
+      "attributes": {
+       "lei": "549300MKFYEKVRWML317",
+       "entity": {
+        "legalName": {
+         "name": "UNILEVER PLC"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "GB"
+        },
+        "headquartersAddress": {
+         "country": "GB"
+        },
+        "jurisdiction": "GB",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "B6ES",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-04-15T12:52:30Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=IE00B4L5Y983&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": []
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=IT0005585051&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "549300TRUWO2CD2G5692",
+      "attributes": {
+       "lei": "549300TRUWO2CD2G5692",
+       "entity": {
+        "legalName": {
+         "name": "UNICREDIT, SOCIETA' PER AZIONI"
+        },
+        "otherNames": [
+         {
+          "name": "UNICREDITO ITALIANO S.P.A."
+         }
+        ],
+        "legalAddress": {
+         "country": "IT"
+        },
+        "headquartersAddress": {
+         "country": "IT"
+        },
+        "jurisdiction": "IT",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "P418",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-08-31T14:52:21Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=LU0568620560&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": []
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=LU1883303635&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": []
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=US222213BJ84&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "549300UYNXMI821WYG82",
+      "attributes": {
+       "lei": "549300UYNXMI821WYG82",
+       "entity": {
+        "legalName": {
+         "name": "COUNCIL OF EUROPE DEVELOPMENT BANK"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "FR"
+        },
+        "headquartersAddress": {
+         "country": "FR"
+        },
+        "jurisdiction": "XX",
+        "category": "INTERNATIONAL_ORGANIZATION",
+        "legalForm": {
+         "id": "9999",
+         "other": "MULTILATERAL DEVELOPMENT BANK"
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-03-18T10:50:15Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=US29874QFA76&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "549300HTGDOVDU6OGK19",
+      "attributes": {
+       "lei": "549300HTGDOVDU6OGK19",
+       "entity": {
+        "legalName": {
+         "name": "EUROPEAN BANK FOR RECONSTRUCTION AND DEVELOPMENT"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "GB"
+        },
+        "headquartersAddress": {
+         "country": "GB"
+        },
+        "jurisdiction": "GB",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "8888",
+         "other": "BANK"
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-04-22T11:57:13Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=US298785JU14&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "5493006YXS1U5GIHE750",
+      "attributes": {
+       "lei": "5493006YXS1U5GIHE750",
+       "entity": {
+        "legalName": {
+         "name": "European Investment Bank"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "LU"
+        },
+        "headquartersAddress": {
+         "country": "LU"
+        },
+        "jurisdiction": "EU",
+        "category": "INTERNATIONAL_ORGANIZATION",
+        "legalForm": {
+         "id": "9999",
+         "other": "BANK - EIB Statute"
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-09-11T07:22:00Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=US459058LN17&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "ZTMSNXROF84AHWJNKQ93",
+      "attributes": {
+       "lei": "ZTMSNXROF84AHWJNKQ93",
+       "entity": {
+        "legalName": {
+         "name": "International Bank for Reconstruction and Development"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "US"
+        },
+        "headquartersAddress": {
+         "country": "US"
+        },
+        "jurisdiction": "XX",
+        "category": "INTERNATIONAL_ORGANIZATION",
+        "legalForm": {
+         "id": "9999",
+         "other": "CENTRAL GOVERNMENT"
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-03-19T10:56:06Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=US89236TLE37&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "Z2VZBHUMB7PWWJ63I008",
+      "attributes": {
+       "lei": "Z2VZBHUMB7PWWJ63I008",
+       "entity": {
+        "legalName": {
+         "name": "TOYOTA MOTOR CREDIT CORPORATION"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "US"
+        },
+        "headquartersAddress": {
+         "country": "US"
+        },
+        "jurisdiction": "US-CA",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "H1UM",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2025-12-08T17:06:48Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=US91282CNY39&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "254900HROIFWPRGM1V77",
+      "attributes": {
+       "lei": "254900HROIFWPRGM1V77",
+       "entity": {
+        "legalName": {
+         "name": "United States Department of the Treasury"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "US"
+        },
+        "headquartersAddress": {
+         "country": "US"
+        },
+        "jurisdiction": "US-DC",
+        "category": "RESIDENT_GOVERNMENT_ENTITY",
+        "legalForm": {
+         "id": "8888",
+         "other": "United States Government Agency"
+        },
+        "status": "ACTIVE",
+        "subCategory": "CENTRAL_GOVERNMENT"
+       },
+       "registration": {
+        "lastUpdateDate": "2026-02-03T14:43:39Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=XS1167667283&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": []
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=XS1948611840&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": []
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=XS2154419118&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": []
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=XS2746102479&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": []
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=XS2747590896&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": []
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=XS2769894135&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": []
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=XS2897313263&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": []
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=XS2967178943&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": []
+   }
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"AT0000A33SH3\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01G949SZ6",
+       "name": "REPUBLIC OF AUSTRIA",
+       "ticker": "RAGB 2.9 05/23/29",
+       "exchCode": "VIENNA",
+       "securityType": "EURO-ZONE",
+       "marketSector": "Govt",
+       "securityType2": "Govt"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"AT0000A3DGG2\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01PDFK119",
+       "name": "ERSTE GROUP BANK AG",
+       "ticker": "ERSTBK V3.25 08/27/32 EMTN",
+       "exchCode": "VIENNA",
+       "securityType": "EURO MTN",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"AT0000A3RCP2\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01ZD8KXH6",
+       "name": "RAIFFEISEN BANK INTL",
+       "ticker": "RBIAV 3.25 01/29/29 EMTN",
+       "exchCode": "STUTTGART",
+       "securityType": "EURO MTN",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"DE0007236101\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG000BCCRV3",
+       "name": "SIEMENS AG-REG",
+       "ticker": "SIE",
+       "exchCode": "GR",
+       "securityType": "Common Stock",
+       "marketSector": "Equity",
+       "securityType2": "Common Stock"
+      },
+      {
+       "figi": "BBG000BCCSC2",
+       "name": "SIEMENS AG-REG",
+       "ticker": "SIE",
+       "exchCode": "GF",
+       "securityType": "Common Stock",
+       "marketSector": "Equity",
+       "securityType2": "Common Stock"
+      },
+      {
+       "figi": "BBG000BCCSQ7",
+       "name": "SIEMENS AG-REG",
+       "ticker": "SIE",
+       "exchCode": "GD",
+       "securityType": "Common Stock",
+       "marketSector": "Equity",
+       "securityType2": "Common Stock"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"DE0007664039\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG000BFCPY7",
+       "name": "VOLKSWAGEN AG-PREF",
+       "ticker": "VOW3",
+       "exchCode": "GR",
+       "securityType": "Preference",
+       "marketSector": "Equity",
+       "securityType2": "Preference"
+      },
+      {
+       "figi": "BBG000BFCQ57",
+       "name": "VOLKSWAGEN AG-PREF",
+       "ticker": "VOW3",
+       "exchCode": "GF",
+       "securityType": "Preference",
+       "marketSector": "Equity",
+       "securityType2": "Preference"
+      },
+      {
+       "figi": "BBG000BFCR28",
+       "name": "VOLKSWAGEN AG-PREF",
+       "ticker": "VOW3",
+       "exchCode": "GD",
+       "securityType": "Preference",
+       "marketSector": "Equity",
+       "securityType2": "Preference"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"DE0008404005\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG000BBF8T7",
+       "name": "ALLIANZ SE-REG",
+       "ticker": "ALV",
+       "exchCode": "GR",
+       "securityType": "Common Stock",
+       "marketSector": "Equity",
+       "securityType2": "Common Stock"
+      },
+      {
+       "figi": "BBG000BBF979",
+       "name": "ALLIANZ SE-REG",
+       "ticker": "ALV",
+       "exchCode": "GF",
+       "securityType": "Common Stock",
+       "marketSector": "Equity",
+       "securityType2": "Common Stock"
+      },
+      {
+       "figi": "BBG000BBF9H8",
+       "name": "ALLIANZ SE-REG",
+       "ticker": "ALV",
+       "exchCode": "GD",
+       "securityType": "Common Stock",
+       "marketSector": "Equity",
+       "securityType2": "Common Stock"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"DE000A2YNZ16\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG00QKPFM54",
+       "name": "KFW",
+       "ticker": "KFW 0.05 09/29/34 EMTN",
+       "exchCode": "FRANKFURT",
+       "securityType": "EURO MTN",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"DE000A4DE9E5\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01V82K264",
+       "name": "LAND BERLIN",
+       "ticker": "BERGER 2.375 06/04/30",
+       "exchCode": "FRANKFURT",
+       "securityType": "EURO-ZONE",
+       "marketSector": "Govt",
+       "securityType2": "Govt"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"DE000A4DE9Y3\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01S637Z18",
+       "name": "DEUTSCHE BANK AG",
+       "ticker": "DB V3.375 02/13/31 EMTN",
+       "exchCode": "Gettex",
+       "securityType": "EURO MTN",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"DE000BU2Z015\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01HB5J1S4",
+       "name": "BUNDESREPUB. DEUTSCHLAND",
+       "ticker": "DBR 2.6 08/15/33",
+       "exchCode": "ALL GERMAN SE",
+       "securityType": "EURO-ZONE",
+       "marketSector": "Govt",
+       "securityType2": "Govt"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"DK0002059583\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01KDV4275",
+       "name": "NORDEA KREDIT REALKREDIT",
+       "ticker": "NDAFH 1 10/01/29 CC2",
+       "exchCode": "NOMX COPENHAGEN",
+       "securityType": "DOMESTIC",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"EU000A1Z99S3\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01GN66JG9",
+       "name": "EURO STABILITY MECHANISM",
+       "ticker": "ESM 3 08/23/33",
+       "exchCode": "SEND",
+       "securityType": "EURO NON-DOLLAR",
+       "marketSector": "Govt",
+       "securityType2": "Govt"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"EU000A3K4DY4\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01BHXGJD0",
+       "name": "EUROPEAN UNION",
+       "ticker": "EU 3 03/04/53 UFA",
+       "exchCode": "SEND",
+       "securityType": "EURO NON-DOLLAR",
+       "marketSector": "Govt",
+       "securityType2": "Govt"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"FR0000120271\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG000C1M4K8",
+       "name": "TOTALENERGIES SE",
+       "ticker": "TTE",
+       "exchCode": "FP",
+       "securityType": "Common Stock",
+       "marketSector": "Equity",
+       "securityType2": "Common Stock"
+      },
+      {
+       "figi": "BBG000F675N5",
+       "name": "TOTALENERGIES SE",
+       "ticker": "TOTB",
+       "exchCode": "GR",
+       "securityType": "Common Stock",
+       "marketSector": "Equity",
+       "securityType2": "Common Stock"
+      },
+      {
+       "figi": "BBG000F676H0",
+       "name": "TOTALENERGIES SE",
+       "ticker": "TOTB",
+       "exchCode": "GF",
+       "securityType": "Common Stock",
+       "marketSector": "Equity",
+       "securityType2": "Common Stock"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"FR0007435920\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG000BMWTB7",
+       "name": "AMUNDI EUR LQ SH TR RES-IEUR",
+       "ticker": "CLAMEON",
+       "exchCode": "FP",
+       "securityType": "Open-End Fund",
+       "marketSector": "Equity",
+       "securityType2": "Mutual Fund"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"FR001400KY44\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01JFT7PV0",
+       "name": "BNP PARIBAS",
+       "ticker": "BNP V4.125 09/26/32 EMTN",
+       "exchCode": "Gettex",
+       "securityType": "EURO MTN",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"FR001400X656\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01S1BFC08",
+       "name": "VILLE DE PARIS",
+       "ticker": "VDP 3.5 02/05/36 EMTN",
+       "exchCode": "EURONEXT-PARIS",
+       "securityType": "EURO MTN",
+       "marketSector": "Govt",
+       "securityType2": "Govt"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"GB00BVZK7T90\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG000C0M8X7",
+       "name": "UNILEVER PLC",
+       "ticker": "ULVR",
+       "exchCode": "LN",
+       "securityType": "Common Stock",
+       "marketSector": "Equity",
+       "securityType2": "Common Stock"
+      },
+      {
+       "figi": "BBG000GYBY82",
+       "name": "UNILEVER PLC",
+       "ticker": "UNV0",
+       "exchCode": "GR",
+       "securityType": "Common Stock",
+       "marketSector": "Equity",
+       "securityType2": "Common Stock"
+      },
+      {
+       "figi": "BBG000GYBZC4",
+       "name": "UNILEVER PLC",
+       "ticker": "UNV0",
+       "exchCode": "GF",
+       "securityType": "Common Stock",
+       "marketSector": "Equity",
+       "securityType2": "Common Stock"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"IE00B4L5Y983\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG000P71QK5",
+       "name": "ISHARES CORE MSCI WORLD",
+       "ticker": "IWDA",
+       "exchCode": "NA",
+       "securityType": "ETP",
+       "marketSector": "Equity",
+       "securityType2": "Mutual Fund"
+      },
+      {
+       "figi": "BBG000PH98P0",
+       "name": "ISHARES CORE MSCI WORLD",
+       "ticker": "SWDA",
+       "exchCode": "LN",
+       "securityType": "ETP",
+       "marketSector": "Equity",
+       "securityType2": "Mutual Fund"
+      },
+      {
+       "figi": "BBG000PH9DS6",
+       "name": "ISHARES CORE MSCI WORLD",
+       "ticker": "IWDA",
+       "exchCode": "LN",
+       "securityType": "ETP",
+       "marketSector": "Equity",
+       "securityType2": "Mutual Fund"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"IT0005585051\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01LQQXDJ1",
+       "name": "UNICREDIT SPA",
+       "ticker": "UCGIM 4 03/05/34 EMTN",
+       "exchCode": "MUNICH",
+       "securityType": "EURO MTN",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"LU0568620560\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG000C336G5",
+       "name": "AMUNDI-CASH EUR-A2 EUR C",
+       "ticker": "SOGMEUR",
+       "exchCode": "LX",
+       "securityType": "Open-End Fund",
+       "marketSector": "Equity",
+       "securityType2": "Mutual Fund"
+      },
+      {
+       "figi": "BBG003BLR6N6",
+       "name": "AMUNDI-CASH EUR-A2 EUR C",
+       "ticker": "SOGLU",
+       "exchCode": "LX",
+       "securityType": "Open-End Fund",
+       "marketSector": "Equity",
+       "securityType2": "Mutual Fund"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"LU1883303635\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG00NSMG235",
+       "name": "AMUNDI EUROLAND EQY-AEURC",
+       "ticker": "AEEAECF",
+       "exchCode": "LX",
+       "securityType": "Open-End Fund",
+       "marketSector": "Equity",
+       "securityType2": "Mutual Fund"
+      },
+      {
+       "figi": "BBG01PSXBW70",
+       "name": "AMUNDI EUROLAND EQY-AEURC",
+       "ticker": "AEEAEEUR",
+       "exchCode": "EO",
+       "securityType": "Open-End Fund",
+       "marketSector": "Equity",
+       "securityType2": "Mutual Fund"
+      },
+      {
+       "figi": "BBG01PSXBW89",
+       "name": "AMUNDI EUROLAND EQY-AEURC",
+       "ticker": "AEEAEEUR",
+       "exchCode": "EU",
+       "securityType": "Open-End Fund",
+       "marketSector": "Equity",
+       "securityType2": "Mutual Fund"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"US222213BJ84\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01ZFNPV62",
+       "name": "COUNCIL OF EUROPE",
+       "ticker": "COE 3.75 01/14/31",
+       "exchCode": "FRANKFURT",
+       "securityType": "GLOBAL",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"US29874QFA76\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01L0ZSZW1",
+       "name": "EUROPEAN BK RECON & DEV",
+       "ticker": "EBRD 4.125 01/25/29",
+       "exchCode": "LONDON",
+       "securityType": "GLOBAL",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"US298785JU14\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01C6VLZ51",
+       "name": "EUROPEAN INVESTMENT BANK",
+       "ticker": "EIB 3.875 03/15/28",
+       "exchCode": "Gettex",
+       "securityType": "GLOBAL",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"US459058LN17\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01Q6DTM79",
+       "name": "INTL BK RECON & DEVELOP",
+       "ticker": "IBRD 3.875 10/16/29",
+       "exchCode": "MUNICH",
+       "securityType": "GLOBAL",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"US89236TLE37\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01K55YG68",
+       "name": "TOYOTA MOTOR CREDIT CORP",
+       "ticker": "TOYOTA 5.55 11/20/30",
+       "exchCode": "NEW YORK",
+       "securityType": "GLOBAL",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"US91282CNY39\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01X05YWR7",
+       "name": "US TREASURY N/B",
+       "ticker": "T 3.375 09/15/28",
+       "exchCode": "FRANKFURT",
+       "securityType": "US GOVERNMENT",
+       "marketSector": "Govt",
+       "securityType2": "Note"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"XS1167667283\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG007VTLK53",
+       "name": "VOLKSWAGEN INTL FIN NV",
+       "ticker": "VW 1.625 01/16/30 EMTn",
+       "exchCode": "ALL GERMAN SE",
+       "securityType": "EURO MTN",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"XS1948611840\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG00N7TWMW9",
+       "name": "BMW FINANCE NV",
+       "ticker": "BMW 1.5 02/06/29 EMTN",
+       "exchCode": "ALL GERMAN SE",
+       "securityType": "EURO MTN",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"XS2154419118\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG00SZRQ8R5",
+       "name": "SHELL INTERNATIONAL FIN",
+       "ticker": "RDSALN 1.875 04/07/32 EMTN",
+       "exchCode": "LONDON",
+       "securityType": "EURO MTN",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"XS2746102479\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01KWKRDJ6",
+       "name": "REPUBLIC OF POLAND",
+       "ticker": "POLAND 3.625 01/11/34 10Y",
+       "exchCode": "Gettex",
+       "securityType": "EURO NON-DOLLAR",
+       "marketSector": "Govt",
+       "securityType2": "Govt"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"XS2747590896\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01KXMGF99",
+       "name": "GENERALI",
+       "ticker": "GIM 3.212 01/15/29 emTN",
+       "exchCode": "EURONEXT-MILAN",
+       "securityType": "EURO MTN",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"XS2769894135\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01LHM35X4",
+       "name": "SIEMENS FINANCIERINGSMAT",
+       "ticker": "SIEGR 3.125 05/22/32 EMTN",
+       "exchCode": "Gettex",
+       "securityType": "EURO MTN",
+       "marketSector": "Corp",
+       "securityType2": "Corp"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"XS2897313263\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01PKBNDJ2",
+       "name": "KOMMUNINVEST I SVERIGE",
+       "ticker": "KOMINS 2.5 10/04/28 EMTN",
+       "exchCode": "NOMX STOCKHOLM",
+       "securityType": "EURO MTN",
+       "marketSector": "Govt",
+       "securityType2": "Govt"
+      }
+     ]
+    }
+   ]
+  },
+  "POST https://api.openfigi.com/v3/mapping [{\"idType\":\"ID_ISIN\",\"idValue\":\"XS2967178943\"}]": {
+   "status": 200,
+   "body": [
+    {
+     "data": [
+      {
+       "figi": "BBG01R7118F4",
+       "name": "BSKY GE14 A",
+       "ticker": "BSKY GE14 A",
+       "exchCode": null,
+       "securityType": "ABS Auto",
+       "marketSector": "Mtge",
+       "securityType2": "ABS"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}
