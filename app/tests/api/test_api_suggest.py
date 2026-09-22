@@ -204,6 +204,60 @@ class TestAbstention:
             api._state.clear()
 
 
+class TestModelStates:
+    """What the page shows once a model is on: its pick, its abstention, a budget refusal."""
+
+    @staticmethod
+    def _page(provider, **form: str) -> str:
+        codebooks = build_codebooks()
+        api._state["settings"] = Settings(llm_api_key="sk-test", llm_cache_path=None)
+        api._state["service"] = make_service(codebooks, provider=provider)
+        try:
+            return TestClient(api.app).post("/suggest", data=form).text
+        finally:
+            api._state.clear()
+
+    def test_a_model_pick_is_the_proposal_with_its_confidence(self) -> None:
+        page = self._page(
+            StubLlmProvider({"NACE": answer("64"), "ESA": answer("2002703")}),
+            name="Nordkap Funding B.V.",
+        )
+        assert "navrhovaný kód" in page
+        assert "jistota vysoká" in page
+        assert "Financuje vlastní skupinu." in page  # the model's own justification
+        assert "podle pravidel" not in page
+        assert "Nástroj kód nevybral" not in page
+
+    def test_a_model_abstention_is_shown_with_its_reason(self) -> None:
+        declined = json.dumps({"sufficient_evidence": False, "picks": []})
+        page = self._page(StubLlmProvider(declined), description=UNRULED)
+        assert "Nástroj kód nevybral" in page
+        assert "the model judged the evidence insufficient" in page
+        assert "jistota" not in page
+        assert "zúžený číselník" in page
+
+    def test_a_model_abstention_still_leaves_a_rule_s_proposal(self) -> None:
+        declined = json.dumps({"sufficient_evidence": False, "picks": []})
+        page = self._page(StubLlmProvider(declined), name="Nordkap Funding B.V.")
+        assert "podle pravidel" in page
+        assert "the model judged the evidence insufficient" in page
+
+    def test_a_budget_refusal_says_why_and_never_calls_the_model(self) -> None:
+        """Vercel without LLM_DAILY_TOKEN_BUDGET=0: every call is refused before it is sent."""
+        from core.classify.budget import Budget, BudgetedProvider, NullLedger
+
+        stub = StubLlmProvider({"NACE": answer("64"), "ESA": answer("2002703")})
+        refusing = BudgetedProvider(
+            stub, budget=Budget(daily_token_budget=500_000), ledger=NullLedger()
+        )
+        page = self._page(refusing, name="Nordkap Funding B.V.")
+        assert stub.calls == []
+        assert "usage cannot be recorded" in page
+        assert "LLM_DAILY_TOKEN_BUDGET=0" in page
+        assert "podle pravidel" in page  # the rules still propose
+        assert "jistota" not in page
+
+
 class TestJson:
     def test_a_lookup_returns_the_row_and_both_classifications(self, client: TestClient) -> None:
         response = client.post("/api/suggest", json={"name": "Nordkap Funding B.V."})
