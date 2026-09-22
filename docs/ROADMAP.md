@@ -49,16 +49,53 @@ not an oracle: **a human confirms every code**.
 | Codebooks (xlsx) | **not in any repo**; tdzian39 has them locally; a pending GitHub invite for Jakub to `tdzian39/rb_files` (private, write) is probably where they are shared | Never commit them to a public repo. |
 | Users | MO treasury (a handful of people), Czech-speaking; UI is Czech | Confirmers must be identifiable (audit). |
 
-### Open PRs
+### PRs so far
 
 - **PR #1** `feat/isin-issuer-identity-gleif-openfigi` — ISIN → GLEIF → OpenFIGI identification;
-  2 commits (`4908511`, `89a5202`); 1052 tests pass. Open, mergeable, unreviewed on 22 Sept.
-- **PR #2** (this document + scope edits) is stacked on PR #1's branch; GitHub retargets it to
-  `main` when #1 merges.
+  commits `4908511`, `89a5202`; 1052 tests pass. **Merged to `main` 22 Sept 2026 19:03 UTC** with
+  the owner's agreement (communicated to Jakub directly, not on GitHub).
+- **PR #3** this document + the scope edits (`38fa467`). **Merged 22 Sept 2026 19:04 UTC.** (PR #2
+  was the same content stacked on #1's branch; GitHub *closed* it when that branch was deleted on
+  merge instead of retargeting it — lesson: merge a stacked PR's base without `--delete-branch`, or
+  open the follow-up against `main` from the start.)
+- `main` after both: `84010f7`. No open PRs, no other branches.
+
+### Where the next session starts: E0.3, the Tool 2 removal
+
+Measured on `main` (lines): his Tool 1 code that stays **7 750**, his tests that stay **5 889**;
+Tool 2 code to remove **2 088** (`core/sources/{dws,ares,resolver}.py`, `core/sources/__main__.py`,
+`core/batch/runner.py`, `core/batch/__main__.py`), Tool 2 tests to remove **1 669**
+(`tests/sources/test_sources_{ares,dws,resolver,cli}.py`, `tests/batch/test_batch_{cli,runner}.py`);
+PR #1 added 2 029. So roughly four fifths of the original work stays, and all of Tool 1 is his.
+
+Dependency notes gathered before the removal (verify with `grep` before deleting):
+
+- `core/batch/reader.py` imports the IČO normaliser → **keep `core/identifiers/ico.py` and
+  `tests/identifiers/test_ico.py`** until E6 generalises the reader to ISIN/name columns.
+- `core/sources/base.py` holds the Tool 2 record model (`ResRecord`, `OrRecord`, `SubjectRecord`,
+  `NaceAssignment`, `SubjectSource`, `SubjectCandidate`) next to what Tool 1 needs (`Source`,
+  `Provenance`, the `Source*Error` classes). Remove the model, keep the rest;
+  `tests/sources/test_sources_base.py` shrinks accordingly.
+- `core/export/columns.py`: drop `SUBJECT_COLUMNS`, `record_row` and the `RES_/OR_` labels; keep
+  `SUGGESTION_*`, `json_row`, `cell_value`, `header_label`; `core/export/xlsx.py::_write_cell` reads
+  `TEXT_COLUMNS` — fold what is still needed into `SUGGESTION_TEXT_COLUMNS`.
+- `tests/batch/conftest.py` builds `SubjectRecord` fixtures used by `tests/export/*` — rewrite those
+  export tests around `suggestion_row` (see `tests/test_suggest.py::TestRow`).
+- `tests/sources/conftest.py`: delete the ARES payloads and the fake DBAPI driver, keep the GLEIF /
+  OpenFIGI payloads, `make_client`, `payload` and the `settings` fixture (drop its `dws_*`/`ares_*`
+  arguments once those settings are gone).
+- `config/settings.py`: remove the `dws_*` and `ares_*` fields, the `dws_configured` property and their
+  entries in the `_blank_is_none` validator; `.env.example`, `tests/test_settings.py`, README
+  ("Step 2 variables", DWS/ARES/Tool 2 CLI/Tool 2 batch sections) and CLAUDE.md follow.
+- `core/sources/__init__.py`, `core/batch/__init__.py`, `core/identifiers/__init__.py`: prune exports.
+- `core/audit.py` keeps its optional `ico` field (harmless); `pyproject.toml` drops `pandas`
+  (imported nowhere).
+- Work in a fresh clone (the one used on 22 Sept lived in a session scratchpad and is gone); use a
+  venv with `pip install -e ".[dev]"` or `tests/api` will not collect (§3 gotchas).
 
 ---
 
-## 3. What exists today (state on the PR #1 branch)
+## 3. What exists today (state of `main` after PRs #1 and #3, 22 Sept 2026)
 
 ### Stack and layout
 
@@ -214,11 +251,11 @@ Sizes: **S** ≈ half a session, **M** ≈ one session, **L** ≈ two. Order and
 the way this repo has always worked: tests green, `CLAUDE.md` + this file updated, a PR with a description that
 explains *why*, then wait for a go-ahead.
 
-### E0 — Scope and housekeeping (S) — *started by PR #2*
+### E0 — Scope and housekeeping (S) — *docs part done in PR #3; E0.2 and E0.3 open*
 
 **Goal:** the repo says what it is: Tool 1, Vercel, LLM later; nothing bank-internal can leak.
 **Work:**
-1. `CLAUDE.md` / `README.md` scope, deployment rule, next step → this document (PR #2 does this).
+1. `CLAUDE.md` / `README.md` scope, deployment rule, next step → this document (done, PR #3).
 2. **Make the repository private** (owner action, D2) *before* any codebook, CSV, screenshot or preview URL
    with real data appears anywhere.
 3. Remove the parked Tool 2 in its own PR ("Remove the parked Tool 2"): `core/sources/{dws,ares,resolver}.py`,
