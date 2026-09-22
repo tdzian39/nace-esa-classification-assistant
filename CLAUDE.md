@@ -6,7 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Context
 
-Two internal tools sharing one codebase. Users are bank employees (Middle Office treasury, Reporting).
+**Scope since 22 Sept 2026: Tool 1 only.** Tool 2 (RES/OR lookup) is built elsewhere
+(`jaeksrampota/res-or-lookup`); its code here is parked and will be removed (roadmap E0).
+**Deployment target: Vercel** (not CodeNOW). **The LLM stays off** until an approved endpoint
+exists. The plan, every decision and every open question live in `docs/ROADMAP.md` - read it
+after this file and keep both in step.
+
+Originally two internal tools sharing one codebase. Users are bank employees (Middle Office
+treasury).
 
 Tool 1 – ESA/NACE suggester for foreign issuers. MO sets up foreign securities
 issuers in CTS and must pick a 2-digit NACE code and an elementary ESA 2010 sector
@@ -14,7 +21,7 @@ code from CTS codebooks. Input: ISIN and/or issuer name and/or activity descript
 Output: issuer name, activity description, suggested NACE + CTS ID, suggested ESA +
 CTS ID, top 3 candidates each, with evidence.
 
-Tool 2 – RES/OR lookup for client corrections. Reporting reviews monthly rows flagged
+Tool 2 (PARKED, out of scope here) – RES/OR lookup for client corrections. Reporting reviews monthly rows flagged
 by the OKEČ-vs-NACE check. For a list of Czech companies (name or IČO) return one
 row per company with RES fields (name, IČO, main NACE Rev.2, other NACE Rev.2, main
 NACE Rev.2.1 / "CZ NACE 2025", other NACE Rev.2.1, ESA 2010 sector, founding date)
@@ -91,7 +98,7 @@ Do not scrape apl.czso.cz or or.justice.cz.
 Stack: Python 3.12, FastAPI, pandas, openpyxl, pydantic. Keep the UI server-rendered
 (Jinja2 + htmx) unless told otherwise. No JS framework.
 
-## Build order
+## Build order (historical - superseded by `docs/ROADMAP.md` on 22 Sept 2026)
 
 1. Codebook loaders + tests. Startup check: every emitted CTS ID must exist in the
    loaded codebook.
@@ -122,8 +129,15 @@ Stop after each step, run tests, summarize what exists, wait for go-ahead.
   Model name and provider are configurable; default to the cheapest option and
   measure against /tests/golden before changing.
 - Czech entities with a RES record skip the LLM entirely.
-- No deployment config for Vercel, Railway, or any public PaaS. Provide a
-  Dockerfile only.
+- Deployment target is **Vercel** (decided 22 Sept 2026; the earlier "Dockerfile only, no PaaS"
+  rule is withdrawn - the Dockerfile may stay for local runs). Design for serverless: no
+  writable disk except /tmp, no long-lived process state, lazy startup, no reverse proxy in
+  front (a client-settable header is not an identity). See `docs/ROADMAP.md` section 4.
+- The repository is PUBLIC as of 22 Sept 2026: never commit the CTS codebooks, `.env`, audit
+  logs, real lookups or anything else bank-internal. It must go private before codebooks or
+  real data are bundled anywhere (roadmap D2).
+- The LLM stays off until an approved endpoint exists (roadmap E9). Keep its tests green; do
+  not extend the provider path before then.
 
 ## Development commands
 
@@ -170,8 +184,15 @@ deterministic top pick is right 90% of the time for NACE and 60% for ESA, so it 
 useful on its own - it just cannot justify its choice or resolve the distinctions that turn
 on a sentence ("holds no banking licence", "not a money market fund").
 
-**NEXT STEP: turn the OpenAI API on.** Everything for it is built and tested against a stub
-(`core/classify/{prompts,provider,llm,cache,budget}.py`). Switching it on means:
+**NEXT STEP: follow `docs/ROADMAP.md`** - E0 (scope, private repo, remove the parked Tool 2,
+drop the unused `pandas`), then E1 (deploy the deterministic mode on Vercel), E2 (access and
+audit), E3-E5 (name lookup, structured hints, more sources), E6-E7 (batch, confirm/history),
+E8 (real golden set) alongside. PR #1 (ISIN -> GLEIF/OpenFIGI identity) is the first step
+already taken.
+
+**Turning the OpenAI API on is DEFERRED (roadmap E9).** Everything for it is built and tested
+against a stub (`core/classify/{prompts,provider,llm,cache,budget}.py`). When an endpoint is
+approved, switching it on means:
 
 1. put `LLM_API_KEY` in `app/.env` (git-ignored);
 2. confirm `LLM_MODEL` - the default is a cheap placeholder marked TODO;
@@ -389,4 +410,5 @@ Spending limits are already enforced and fail closed (see `core/classify/budget.
   mapping for Czech subjects, and see the open S.12203 question above).
   `tests/fixtures` is empty. The OpenAI key is NOT needed to run or test any of the
   above; it is needed only to measure real accuracy against a verified golden set.
-- **Later steps**: `api`, `ui` await step 4.
+- **Later steps**: `docs/ROADMAP.md` - epics E0-E10 with design, definition of done and the
+  open decisions (Vercel account, repo visibility, codebook delivery, database, authentication).
