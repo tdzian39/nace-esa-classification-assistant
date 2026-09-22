@@ -21,6 +21,12 @@ Measured on the (still provisional) golden cases, the deterministic top pick is 
 of the time for NACE and **60%** for ESA - useful on its own, but unable to explain itself or
 to resolve distinctions that turn on a sentence.
 
+**An ISIN is now enough to start.** GLEIF resolves it to the issuer's LEI record (legal
+name, country, legal form, entity category, direct and ultimate parent) and OpenFIGI to the
+instrument (market name, security type, market sector); both are public and keyless. The
+legal name becomes the web query and the facts go into the shortlist and the prompt, so a
+bank is a bank because the register says so. See "Tool 1: issuer identification by ISIN".
+
 **Next step: enable the OpenAI API.** The classifier, prompts, cache and spending limits are
 built and tested against a stub; see "Enabling the model" below.
 
@@ -50,6 +56,7 @@ app/
     codebooks/      xlsx reader, loaders, models, versioning, consistency check, CLI       [step 1]
     sources/        base.py, dws.py, ares.py, resolver.py, CLI                              [step 2]
                     web.py (foreign-issuer evidence, blocklist enforced)                    [step 6]
+                    gleif.py, openfigi.py, identity.py (ISIN -> issuer, public registers)   [step 6]
     audit.py        lookup audit trail (identifier, timestamp, user)                       [step 2]
     classify/       candidates.py + hints.py + text.py (pre-filter), golden.py, CLI          [step 6]
                     prompts.py, provider.py, llm.py, cache.py (the model call)               [step 6]
@@ -134,6 +141,26 @@ working directory. Connection details are never hardcoded.
 | `ARES_MAX_ATTEMPTS` | `3` | Attempts per request, including the first |
 | `ARES_USER_AGENT` | internal tool string | Sent so the API operator can identify the caller |
 | `LOOKUP_USER` | OS login name | Requesting user written to the audit log |
+
+### Issuer identification variables (GLEIF, OpenFIGI)
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `GLEIF_ENABLED` | `true` | Resolve an ISIN to its issuer through the GLEIF LEI API |
+| `GLEIF_BASE_URL` | `https://api.gleif.org/api/v1` | Base URL of the LEI API |
+| `GLEIF_TIMEOUT_SECONDS` | `15` | HTTP timeout per request |
+| `GLEIF_MIN_INTERVAL_SECONDS` | `1.0` | Spacing between requests; the published limit is 60/min |
+| `GLEIF_MAX_ATTEMPTS` | `3` | Attempts per request; 429 and 5xx are retried |
+| `GLEIF_FETCH_PARENTS` | `true` | Also read the direct and ultimate parent (two more requests) |
+| `OPENFIGI_ENABLED` | `true` | Describe the instrument through OpenFIGI |
+| `OPENFIGI_BASE_URL` | `https://api.openfigi.com/v3` | Base URL of the mapping API |
+| `OPENFIGI_API_KEY` | empty | Optional free key; raises the limit from 25 to 250 requests/min |
+| `OPENFIGI_TIMEOUT_SECONDS` | `15` | HTTP timeout per request |
+| `OPENFIGI_MIN_INTERVAL_SECONDS` | `2.5` | Spacing between requests; keyless limit `25;w=60` read live |
+| `OPENFIGI_MAX_ATTEMPTS` | `3` | Attempts per request; 429 and 5xx are retried |
+
+Both registers use `WEB_USER_AGENT`. Hosts the runtime must be allowed to reach:
+`api.gleif.org` and `api.openfigi.com` (HTTPS, port 443).
 
 The LLM variables remain commented placeholders in `.env.example` for step 6.
 
@@ -413,6 +440,57 @@ it belongs to unoffered - 20% of ESA recall on the golden set.
 See `tests/golden/README.md` for how cases get verified and why provisional ones must never
 be quoted as accuracy.
 
+## Tool 1: issuer identification by ISIN (`core/sources/gleif.py`, `openfigi.py`, `identity.py`)
+
+The brief's first input is an ISIN, and until this step an ISIN on its own produced
+nothing: it was validated, then used as a search string, and with no search provider
+configured the page said "Emitent neurčen". Now it is resolved first:
+
+```
+ISIN -> GLEIF    lei-records?filter[isin]=   legal name, country, legal form (ELF), entity
+                                             category, sub-category, status; then
+                 /direct-parent, /ultimate-parent (404 = none reported; the
+                 /direct-parent-reporting-exception says why, e.g. NO_KNOWN_PERSON)
+     -> OpenFIGI POST /v3/mapping             market name, security type, market sector
+```
+
+Both are public registers (GLEIF data is CC0, OpenFIGI is Bloomberg's open symbology),
+keyless, and were verified live on 2026-09-22 with Deutsche Bank AG (`DE0005140008`), BMW
+Finance N.V. (parent BMW AG, DE), Land Berlin (`RESIDENT_GOVERNMENT_ENTITY` /
+`STATE_GOVERNMENT`) and the European Investment Bank (`INTERNATIONAL_ORGANIZATION`,
+jurisdiction `EU`).
+
+**What it changes in the pipeline.** The register's legal name becomes the web search
+query and the name on the page (what MO typed still wins). The identity's *fact sheet* -
+Czech one-liners such as `GLEIF (LEI 7LTW…): DEUTSCHE BANK AKTIENGESELLSCHAFT. Země sídla:
+DE. Právní forma: ELF 6QQB. Kategorie subjektu podle GLEIF: běžná právnická osoba
+[GENERAL]. …` - is appended to the description that the pre-filter scores and the model
+reads. The glosses in parentheses carry the English words the keyword table already reacts
+to (`investment fund`, `government`, `supranational`, `municipality`), so a GLEIF category
+reaches the ESA family shortlist without a new mechanism, and a legal name with `BANK` in
+it puts division 64 and the bank family on the list the same way.
+
+**Facts, not decisions.** "The ultimate parent sits in another country than the issuer" is
+stated as a fact; whether that makes the issuer *pod zahraniční kontrolou* in BA0036's
+sense is left to the classifier (and to the open S.12203 question in `CLAUDE.md`).
+
+**Fail-soft, like ARES.** A register that has nothing returns `None` and leaves a note
+(`GLEIF nemá k tomuto ISIN přiřazen LEI emitenta`); a register that cannot be asked raises
+`SourceUnavailableError`, which `IssuerIdentifier` turns into a note while keeping the other
+half. A malformed ISIN is never sent anywhere. Coverage is why both are asked: GLEIF has no
+ISIN mapping for the iShares Core MSCI World ETF (`IE00B4L5Y983`) while OpenFIGI names it.
+
+**Provenance.** Rows are stamped with every register that answered - `GLEIF+OPENFIGI+WEB`
+for an ISIN lookup, plain `WEB` for a name - the audit line carries the same, the xlsx gains
+`issuer_lei (GLEIF)` and `issuer_country (sídlo podle GLEIF)`, and the record pages
+(`search.gleif.org/#/record/<LEI>`, `openfigi.com/search`) lead the "Podklady" list.
+
+**Rate limits, measured.** GLEIF publishes 60 requests/minute (`GLEIF_MIN_INTERVAL_SECONDS`
+1.0); OpenFIGI answered with `ratelimit-policy: 25;w=60` without a key
+(`OPENFIGI_MIN_INTERVAL_SECONDS` 2.5; a free key gives 250/minute). 429 and 5xx retry with
+linear backoff, other 4xx do not. An ISIN costs up to four GLEIF requests (record, two
+parents, exception) and one OpenFIGI request; `GLEIF_FETCH_PARENTS=false` cuts it to one.
+
 ## Tool 1: web evidence (`core/sources/web.py`)
 
 Turns a name or an ISIN into a short activity description plus the sources behind it, so the
@@ -502,7 +580,11 @@ Then open <http://127.0.0.1:8000/>.
 | `POST /suggest` | the form result page (htmx) |
 | `POST /api/suggest` | the same lookup as JSON |
 | `GET /suggest.xlsx` | download one row as xlsx |
-| `GET /health` | status, codebook version, whether the model and search are configured |
+| `GET /health` | status, codebook version, whether the model, search and the registers are configured |
+
+`POST /api/suggest` also returns an `identity` object (LEI, legal name, country, category,
+legal form, ultimate parent, instrument, the registers that answered and the facts) for a
+script that wants the register data rather than the prose.
 
 **Codebooks load once at startup and an inconsistent set stops the service.** Emitting a CTS
 ID derived from a bad codebook is the one failure nobody catches downstream, so it fails at
@@ -561,13 +643,18 @@ Set a cap in the provider dashboard as well - that is the backstop.
 - Every lookup is audited; no retrieved content enters the audit log.
 - Rows answered by the public API are marked `ARES_LIVE` so live data is never mistaken
   for governed warehouse data.
+- A suggestion row names every register that answered (`GLEIF+OPENFIGI+WEB`), so an
+  ISIN-backed lookup is distinguishable from a name-only one (`WEB`). Register data about a
+  foreign issuer is public and may join the web description in a prompt; DWS data may not.
 
 ## Development notes
 
 - Lint and format with ruff: `ruff check .` and `ruff format .` from `app/`.
 - Test module basenames are unique across `tests/` (`test_ico.py`, `test_isin.py`,
-  `test_codebooks_*.py`, `test_sources_*.py`, `test_settings.py`, `test_audit.py`) because
+  `test_codebooks_*.py`, `test_sources_*.py`, `test_settings.py`, `test_audit.py`,
+  `test_suggest.py`) because
   pytest runs in the default import mode.
-- The source tests never touch the network or a database: ARES is driven through an
-  `httpx.MockTransport` and DWS through a fake DBAPI connection in `tests/sources/conftest.py`.
+- The source tests never touch the network or a database: ARES, GLEIF and OpenFIGI are
+  driven through `httpx.MockTransport` clients answering with trimmed live payloads, and DWS
+  through a fake DBAPI connection, all in `tests/sources/conftest.py`.
 - No deployment config for any public PaaS will be added; a Dockerfile comes with a later step.

@@ -30,7 +30,11 @@ a zápisu) side by side, exported as xlsx. Bonus: single-lookup UI.
    clearly named functions and TODO markers on table/column names.
 2. Public ARES REST API (ares.gov.cz) as fallback for IČOs missing in DWS. Mark
    such rows as source="ARES_LIVE".
-3. Web search for activity descriptions of foreign issuers only.
+3. GLEIF (api.gleif.org) and OpenFIGI (api.openfigi.com) for a foreign issuer given by
+   ISIN: the issuer's LEI record (legal name, country, legal form, entity category,
+   direct/ultimate parent) and the instrument (market name, security type, market sector).
+   Public, keyless, fail-soft; rows are stamped GLEIF / OPENFIGI. Added 2026-09-22.
+4. Web search for activity descriptions of foreign issuers only.
 Do not scrape apl.czso.cz or or.justice.cz.
 
 ## Codebooks (xlsx, bootstrap only; DWS tables are the runtime source)
@@ -70,7 +74,8 @@ Do not scrape apl.czso.cz or or.justice.cz.
 /app
   /core
     /identifiers      ico.py (normalize to 8 digits, mod-11 check), isin.py (format check)
-    /sources          base.py (common interface), dws.py, ares.py, web.py
+    /sources          base.py (common interface), dws.py, ares.py, web.py,
+                      gleif.py + openfigi.py + identity.py (ISIN -> issuer)
     /codebooks        loaders, versioning, startup consistency check
     /classify         rules.py (deterministic RES→CTS ID mapping), llm.py, candidates.py (pre-filter)
     /export           xlsx.py (one row per subject, columns prefixed RES_/OR_/CTS_)
@@ -109,7 +114,8 @@ Stop after each step, run tests, summarize what exists, wait for go-ahead.
 - Never write to CTS or DWS. Read-only credentials.
 - Log every lookup: identifier, timestamp, requesting user.
 - Nothing retrieved from DWS is ever sent to an LLM. Only public foreign-issuer
-  name, web-derived description, and codebook labels go into prompts.
+  name, web-derived description, public register facts about the issuer (GLEIF,
+  OpenFIGI) and codebook labels go into prompts.
 - LLM output is a structured selection from a supplied candidate list (10–15
   candidates after pre-filter), with code, one-sentence justification, confidence.
   Any code not in the list is rejected. Return top 3. Cache by normalized name.
@@ -281,6 +287,37 @@ Spending limits are already enforced and fail closed (see `core/classify/budget.
   be quoted from provisional cases**. All 10 shipped cases are provisional; each one traps a
   specific failure (see the README there). `python -m core.classify --golden` reports
   recall@k with no API key.
+- **Issuer identity** (`core/sources/gleif.py`, `openfigi.py`, `identity.py`; added
+  2026-09-22): an ISIN is resolved BEFORE the web is searched. GLEIF
+  `GET /lei-records?filter[isin]=` gives the LEI record (legal name, country, legal form
+  ELF code, entity category GENERAL / FUND / BRANCH / RESIDENT_GOVERNMENT_ENTITY /
+  INTERNATIONAL_ORGANIZATION / SOLE_PROPRIETOR, sub-category, entity and registration
+  status); `/direct-parent` and `/ultimate-parent` give the parents' records (404 = none
+  reported, then `/direct-parent-reporting-exception` says why, e.g. NO_KNOWN_PERSON).
+  OpenFIGI `POST /v3/mapping` gives the instrument (name, securityType, marketSector).
+  All verified live 2026-09-22 (Deutsche Bank AG, BMW Finance N.V. -> BMW AG, Land Berlin,
+  EIB). `IssuerIdentifier.identify()` never raises for a source failure: a register that
+  could not be asked is a note, one that has nothing is a note, and the other half is kept.
+  * The identity's `fact_sheet()` is Czech prose whose parentheses carry the English
+    words the hint table reacts to ("investment fund", "government", "supranational",
+    "municipality"), so a GLEIF category reaches the ESA family shortlist with no new
+    mechanism; a legal name containing BANK puts 64 and the bank family on the same way.
+    The sheet is appended to the description the pre-filter scores and the model reads.
+  * The legal name is also the web search query - a twelve-character ISIN never was one.
+    What MO typed still wins as the displayed name.
+  * Facts are stated, never decided: "the ultimate parent sits in another country" is a
+    fact; whether that is "pod zahraniční kontrolou" in BA0036's sense is the classifier's
+    call (and part of the open S.12203 question above).
+  * Rate limits: GLEIF publishes 60/min (throttle 1.0 s); OpenFIGI answered keyless with
+    `ratelimit-policy: 25;w=60` (throttle 2.5 s; a free key gives 250/min). 429 and 5xx
+    retry with linear backoff, other 4xx do not. Up to 4 GLEIF requests per ISIN
+    (`GLEIF_FETCH_PARENTS=false` makes it 1) and 1 OpenFIGI request.
+  * Coverage gap worth knowing: GLEIF has no ISIN mapping for the iShares Core MSCI World
+    ETF (IE00B4L5Y983) while OpenFIGI names it - hence both registers, in that order.
+  * `Source` grew to DWS / ARES_LIVE / WEB / GLEIF / OPENFIGI. A suggestion row's `source`
+    is `GLEIF+OPENFIGI+WEB` for an ISIN lookup and plain `WEB` for a name-only one; the
+    audit line, `/health` (`gleif_enabled`, `openfigi_enabled`) and the JSON `identity`
+    object follow. Egress the runtime needs: api.gleif.org, api.openfigi.com (443).
 - **Web evidence** (`core/sources/web.py`): name or ISIN -> activity description + citable
   sources, stamped `WEB`. The ban on scraping `apl.czso.cz` / `or.justice.cz` is
   ENFORCED by `BLOCKED_HOSTS` / `is_blocked()`, checked both when filtering hits and

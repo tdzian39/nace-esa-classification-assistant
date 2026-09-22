@@ -158,6 +158,71 @@ class Settings(BaseSettings):
         description="User-Agent sent on web requests.",
     )
 
+    # --- Issuer identification by ISIN: GLEIF and OpenFIGI (Tool 1) ---------------------
+    # Public registers, keyless, no client data involved. GLEIF maps an ISIN to the issuer's
+    # LEI record (legal name, country, legal form, entity category, parents); OpenFIGI
+    # describes the instrument (market name, security type, market sector). Hosts the
+    # runtime must reach: api.gleif.org, api.openfigi.com.
+    gleif_enabled: bool = Field(
+        default=True, description="Resolve an ISIN to its issuer through the GLEIF LEI API."
+    )
+    gleif_base_url: str = Field(
+        default="https://api.gleif.org/api/v1", description="Base URL of the GLEIF LEI API."
+    )
+    gleif_timeout_seconds: float = Field(
+        default=15.0, gt=0, description="HTTP timeout for a single GLEIF request."
+    )
+    gleif_min_interval_seconds: float = Field(
+        default=1.0,
+        ge=0,
+        description=(
+            "Minimum delay between two GLEIF requests. The published limit is 60 requests "
+            "per minute, so one per second keeps a batch inside it. 0 disables the throttle."
+        ),
+    )
+    gleif_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        description="Attempts per GLEIF request, including the first; 429 and 5xx are retried.",
+    )
+    gleif_fetch_parents: bool = Field(
+        default=True,
+        description=(
+            "Also read the direct and ultimate parent (two more requests per issuer). Worth "
+            "it: who owns the issuer is the ESA control axis."
+        ),
+    )
+    openfigi_enabled: bool = Field(
+        default=True, description="Describe the instrument behind an ISIN through OpenFIGI."
+    )
+    openfigi_base_url: str = Field(
+        default="https://api.openfigi.com/v3", description="Base URL of the OpenFIGI API."
+    )
+    openfigi_api_key: SecretStr | None = Field(
+        default=None,
+        description=(
+            "Optional free OpenFIGI key (header X-OPENFIGI-APIKEY): raises the limit from 25 "
+            "to 250 requests per minute. Never logged."
+        ),
+    )
+    openfigi_timeout_seconds: float = Field(
+        default=15.0, gt=0, description="HTTP timeout for a single OpenFIGI request."
+    )
+    openfigi_min_interval_seconds: float = Field(
+        default=2.5,
+        ge=0,
+        description=(
+            "Minimum delay between two OpenFIGI requests. Keyless limit read from the live "
+            "response headers on 2026-09-22: ratelimit-policy 25;w=60, i.e. one request per "
+            "2.4 s. With a key the limit is 250/min, so 0.25 is enough. 0 disables the throttle."
+        ),
+    )
+    openfigi_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        description="Attempts per OpenFIGI request, including the first; 429 and 5xx are retried.",
+    )
+
     # --- LLM classifier for foreign issuers (build step 6) -------------------------------
     # Only the public issuer name, the web-derived description and codebook labels are ever
     # put in a prompt. Nothing retrieved from DWS may reach a model (hard rule in CLAUDE.md).
@@ -264,7 +329,9 @@ class Settings(BaseSettings):
             return None
         return value
 
-    @field_validator("dws_dsn", "dws_user", "dws_schema", "lookup_user", mode="before")
+    @field_validator(
+        "dws_dsn", "dws_user", "dws_schema", "lookup_user", "openfigi_api_key", mode="before"
+    )
     @classmethod
     def _blank_is_none(cls, value: object) -> object:
         """An empty or whitespace-only variable means "not set", not an empty DSN."""

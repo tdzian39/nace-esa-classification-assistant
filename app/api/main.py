@@ -5,6 +5,10 @@ Design notes worth keeping:
 * **The codebooks are loaded once, at startup**, and the consistency check runs there. An
   inconsistent codebook should stop the service coming up, not surface as a wrong CTS ID in
   a report three weeks later. ``CODEBOOK_STRICT=false`` relaxes it for local work.
+* **An ISIN is resolved before anything is searched.** GLEIF gives the issuer's legal
+  name, country, legal form, entity category and parents, OpenFIGI the instrument. Both
+  are public registers; they land in the evidence list, the row and the audit trail as
+  ``GLEIF`` / ``OPENFIGI``.
 * **No server-side session.** The result page carries its inputs, and the download re-runs
   the same request. That is cheap because the classifier caches, and it means a bookmarked
   or shared URL behaves the same for everybody.
@@ -118,7 +122,7 @@ def _run(
         identifier,
         outcome="found" if suggestion.answered else "not_found",
         user=request_user(http_request, settings),
-        sources=("WEB",),
+        sources=suggestion.sources,
         detail=None if suggestion.answered else "abstained",
     )
     return suggestion
@@ -139,6 +143,8 @@ def health(settings: SettingsDep) -> JSONResponse:
             "model": settings.llm_model if settings.llm_api_key else None,
             "llm_configured": settings.llm_api_key is not None and settings.llm_enabled,
             "search_configured": bool(settings.web_search_url),
+            "gleif_enabled": settings.gleif_enabled,
+            "openfigi_enabled": settings.openfigi_enabled,
         }
     )
 
@@ -208,6 +214,7 @@ def suggest_json(
             "answered": suggestion.answered,
             "issuer_name": suggestion.issuer_name,
             "description": suggestion.description,
+            "identity": _identity_json(suggestion.identity),
             "row": json_row(suggestion_row(suggestion)),
             "nace": _classification_json(suggestion.nace),
             "esa": _classification_json(suggestion.esa),
@@ -294,6 +301,41 @@ def _classification_json(classification: object) -> dict[str, object]:
     }
 
 
+def _identity_json(identity: object) -> dict[str, object]:
+    """What the registers said about the ISIN, for a script that wants the facts, not prose."""
+    record = identity.lei_record  # type: ignore[attr-defined]
+    instrument = identity.instrument  # type: ignore[attr-defined]
+    return {
+        "isin": identity.isin,  # type: ignore[attr-defined]
+        "lei": identity.lei,  # type: ignore[attr-defined]
+        "legal_name": identity.legal_name,  # type: ignore[attr-defined]
+        "country": identity.country,  # type: ignore[attr-defined]
+        "category": record.category if record else None,
+        "sub_category": record.sub_category if record else None,
+        "legal_form": record.legal_form_id if record else None,
+        "ultimate_parent": (
+            {
+                "lei": record.ultimate_parent.lei,
+                "name": record.ultimate_parent.legal_name,
+                "country": record.ultimate_parent.country,
+            }
+            if record and record.ultimate_parent
+            else None
+        ),
+        "instrument": (
+            {
+                "name": instrument.name,
+                "security_type": instrument.security_type,
+                "market_sector": instrument.market_sector,
+            }
+            if instrument
+            else None
+        ),
+        "sources": list(identity.sources),  # type: ignore[attr-defined]
+        "facts": list(identity.facts()),  # type: ignore[attr-defined]
+    }
+
+
 def _warnings(settings: Settings) -> list[str]:
     """What is not configured, said once at the top of the page rather than per result."""
     warnings: list[str] = []
@@ -308,5 +350,10 @@ def _warnings(settings: Settings) -> list[str]:
     if not settings.web_search_url:
         warnings.append(
             "Vyhledávání na webu není nastaveno (WEB_SEARCH_URL); zadejte popis činnosti ručně."
+        )
+    if not (settings.gleif_enabled or settings.openfigi_enabled):
+        warnings.append(
+            "Dohledání emitenta podle ISIN je vypnuto (GLEIF_ENABLED, OPENFIGI_ENABLED); "
+            "zadejte název emitenta nebo popis činnosti."
         )
     return warnings
