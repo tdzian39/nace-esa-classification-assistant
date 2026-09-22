@@ -1,6 +1,10 @@
 # NACE/ESA classification assistant (Raiffeisenbank CZ Finance/MIS)
 
-Two internal tools sharing one codebase, for Middle Office treasury and Reporting:
+**Since 22 September 2026 this repository is Tool 1 only, deploys to Vercel and keeps the
+LLM off until an endpoint is approved** - the plan is in [`../docs/ROADMAP.md`](../docs/ROADMAP.md).
+Tool 2 is built elsewhere; its code here is parked until the roadmap's E0 removes it.
+
+Originally two internal tools sharing one codebase, for Middle Office treasury and Reporting:
 
 - **Tool 1 – ESA/NACE suggester for foreign issuers.** From an ISIN, issuer name and/or
   activity description, suggest a 2-digit NACE code and an elementary ESA 2010 sector
