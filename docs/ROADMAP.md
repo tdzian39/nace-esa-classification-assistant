@@ -589,18 +589,41 @@ cases only — the real ones are measured, not gated.
 (20; Q15). Top-1 misses: EBRD 64 and the EU 84 before 99 (GLEIF files both `GENERAL`), Allianz 64 before 65, Siemens
 62 before 27, Toyota Motor Credit 46 before 64 (by 0.01). The ESA top-1 misses are mostly the control digit (Q7).
 
-### E9 — LLM second opinion (M) — *deferred until an approved endpoint exists*
+### E9 — LLM second opinion (M) — *ready to switch on (PR #9, 23 Sept 2026); the endpoint arrives 24 Sept*
 
 What exists: `prompts.py` (versioned, register facts already flow into the prompt via `classifier_text`),
 `provider.py` (OpenAI Chat Completions over httpx, structured output, 429/5xx retry), `llm.py` (abstain, not
 guess), `cache.py`, `budget.py` (fail-closed limits), `--estimate`/`--usage` CLI. Never made a live call.
-**When approved:** (1) the gateway: if OpenAI-compatible, `LLM_BASE_URL` + key; if Azure OpenAI, a small adapter
-(`api-key` header, `api-version` query, deployment name in the path); (2) cache and usage ledger → Postgres or
-KV (SQLite is impossible on Vercel; the daily budget cannot be enforced without a ledger and then **refuses to
-spend**); (3) run the golden set, compare with deterministic top-1, keep the cheaper model that passes;
-(4) governance note: what is sent (public issuer data, register facts, codebook labels — never DWS, never
-client data), which endpoint, what is logged. Show the model as a labelled second opinion with its one-sentence
-justification; keep the shortlist visible.
+**PR #9 adds** the `gpt-5.6-luna` default with `LLM_REASONING_EFFORT=none` (OpenAI docs, 23 Sept), the steps per
+endpoint (`app/README.md` → "Enabling the model"), `LLM_DAILY_TOKEN_BUDGET=0` on Vercel (§1), the lookup deadline
+(`LOOKUP_DEADLINE_SECONDS`, no call that could outlive Vercel's 60 s), the page states tested with the stub, and
+`python -m core.classify --golden --model`. Switching on is env vars plus a redeploy; the runbook has the list.
+
+**Governance note (what the model sees, where it goes, what stays behind).**
+- *Sent*, per lookup, two requests (NACE, ESA): the issuer name (typed, or GLEIF's legal name), the activity
+  description (MO's typed text, or a web page's text once a search provider exists), the register fact sheet
+  (GLEIF: legal name, country, legal form, entity category, status, parents; OpenFIGI: instrument name, type,
+  market sector), and the shortlist as codes with their codebook labels and definitions (Czech NACE_STAT texts,
+  BA0036 names and `Popis`). All of it public issuer data or codebook text.
+- *Never sent*: client data, anything from DWS (the tool has no DWS connection since PR #5), user identities, CTS
+  IDs (the prompt carries codes and labels; the IDs are attached afterwards from the codebook), and the audit log.
+  MO's typed description is the one free-text input: it should describe the issuer from public sources, nothing
+  about the bank's clients or positions — the Czech user guide (E10) says so.
+- *Where*: the endpoint in `LLM_BASE_URL` (the README table lists OpenAI, Azure OpenAI and the Claude API);
+  requests leave from Vercel's `fra1` function over HTTPS with the key from `LLM_API_KEY` (a Sensitive Vercel
+  env var, added by the owner; never in the repository, never logged — it is a `SecretStr`). That provider's own
+  retention and training terms for API data apply; check them for the chosen endpoint before real use.
+- *Logged by the tool*: one audit line per lookup (identifier, time, user, sources, outcome — never content);
+  on a failure, a warning with the reason (the provider's error text, at most 300 characters; no prompt). On
+  Vercel the cache and the usage ledger are off, so no answers or token counts are stored beyond the function's
+  runtime logs (1 hour on Hobby); locally both are SQLite files under `app/data/cache/`.
+**When approved:** (1) the gateway: if OpenAI-compatible (OpenAI, Azure OpenAI's v1 API), `LLM_BASE_URL` + key;
+if Azure OpenAI's classic endpoints, a small adapter (`api-key` header, `api-version` query, deployment name in the
+path); if the Claude API, a Messages API adapter built from the `claude-api` skill (README table); (2) cache and
+usage ledger → Postgres or KV (D4) — until then the daily budget is 0 on Vercel (§1) and the provider dashboard's
+cap is the backstop; (3) run `python -m core.classify --golden --model`, compare with the rules' top-1, keep the
+cheaper model that passes; (4) the governance note above. Show the model as a labelled second opinion with its
+one-sentence justification; keep the shortlist visible (it is: the navrhovaný kód card carries the confidence).
 
 ### E10 — Hardening and handover (S–M)
 
