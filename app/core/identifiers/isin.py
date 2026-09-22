@@ -15,7 +15,7 @@ untouched digits; the ISIN is valid iff the total is divisible by 10.
 Messy-input policy
 ------------------
 * ``None``, empty and whitespace-only strings are ``"empty"``.
-* Any other non-string is ``"unsupported_type"``; a pandas NaN standing for a blank cell
+* Any other non-string is ``"unsupported_type"``; a dataframe NaN standing for a blank cell
   must be converted to ``None`` by the caller before it reaches this module.
 * Strings lose every whitespace character anywhere in the string (spaces, tabs, CR/LF,
   NBSP U+00A0, narrow NBSP U+202F, ...) plus zero-width and BOM characters, and are
@@ -100,7 +100,7 @@ def normalize_isin(value: object, *, check: bool = True) -> str:
     """Return the canonical upper-case 12-character ISIN for a messy cell value.
 
     Args:
-        value: Anything an xlsx/pandas column may contain; see the module docstring.
+        value: Anything an xlsx or dataframe column may contain; see the module docstring.
         check: Validate the Luhn check digit (default). With ``check=False`` a string
             that merely matches :data:`ISIN_PATTERN` is returned.
 

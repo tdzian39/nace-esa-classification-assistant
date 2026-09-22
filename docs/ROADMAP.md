@@ -58,44 +58,37 @@ not an oracle: **a human confirms every code**.
   was the same content stacked on #1's branch; GitHub *closed* it when that branch was deleted on
   merge instead of retargeting it — lesson: merge a stacked PR's base without `--delete-branch`, or
   open the follow-up against `main` from the start.)
-- `main` after both: `84010f7`. No open PRs, no other branches.
+- **PR #4** `docs/roadmap-status-2026-09-22` — this section once #1 and #3 had merged, plus the E0.3
+  removal map (`5d5302d`). **Merged 22 Sept 2026 19:06 UTC.**
+- `main` after all three: `7f75af3`.
+- **PR #5** `chore/remove-parked-tool2` — "Remove the parked Tool 2" (E0.3, below; 22 Sept 2026). When
+  it merges, add the merge time here and the new `main` hash to the line above, as for #1, #3 and #4.
 
-### Where the next session starts: E0.3, the Tool 2 removal
+### Where the next session starts: E1
 
-Measured on `main` (lines): his Tool 1 code that stays **7 750**, his tests that stay **5 889**;
-Tool 2 code to remove **2 088** (`core/sources/{dws,ares,resolver}.py`, `core/sources/__main__.py`,
-`core/batch/runner.py`, `core/batch/__main__.py`), Tool 2 tests to remove **1 669**
-(`tests/sources/test_sources_{ares,dws,resolver,cli}.py`, `tests/batch/test_batch_{cli,runner}.py`);
-PR #1 added 2 029. So roughly four fifths of the original work stays, and all of Tool 1 is his.
+E0.3 is done in PR #5. It deleted the twelve Tool 2 files — `core/sources/{dws,ares,resolver,__main__}.py`
+and `core/batch/{runner,__main__}.py` (1 829 lines) and their six test modules (1 270 lines) — cut
+`core/sources/base.py` down to `Source` (now `WEB`/`GLEIF`/`OPENFIGI`), `Provenance` and the `Source*Error`
+classes and `core/export/columns.py` down to the suggestion row, and dropped the `DWS_*`/`ARES_*` settings
+and `pandas` (numpy, which only pandas pulled in, is now a dev extra: the identifier and codebook tests
+feed it to the normalisers). Measured with `git diff --stat` over everything but the three docs (this file,
+`CLAUDE.md`, `app/README.md`) and counting the new `tests/export/conftest.py`: 52 files, +848 / −4 467
+lines; the suite went from 1 052 to 963 passed (16 skipped before and after). The earlier estimate of
+2 088 + 1 669 lines also counted `core/identifiers/ico.py` and its tests, which stay for the batch reader
+until E6 (D7). Measured on `main` before the removal, the owner's (`tdzian39`) Tool 1 code that stays is
+7 750 lines and his tests that stay 5 889 (PR #1 added 2 029): roughly four fifths of the original work
+stays, and all of Tool 1 is his.
 
-Dependency notes gathered before the removal (verify with `grep` before deleting):
-
-- `core/batch/reader.py` imports the IČO normaliser → **keep `core/identifiers/ico.py` and
-  `tests/identifiers/test_ico.py`** until E6 generalises the reader to ISIN/name columns.
-- `core/sources/base.py` holds the Tool 2 record model (`ResRecord`, `OrRecord`, `SubjectRecord`,
-  `NaceAssignment`, `SubjectSource`, `SubjectCandidate`) next to what Tool 1 needs (`Source`,
-  `Provenance`, the `Source*Error` classes). Remove the model, keep the rest;
-  `tests/sources/test_sources_base.py` shrinks accordingly.
-- `core/export/columns.py`: drop `SUBJECT_COLUMNS`, `record_row` and the `RES_/OR_` labels; keep
-  `SUGGESTION_*`, `json_row`, `cell_value`, `header_label`; `core/export/xlsx.py::_write_cell` reads
-  `TEXT_COLUMNS` — fold what is still needed into `SUGGESTION_TEXT_COLUMNS`.
-- `tests/batch/conftest.py` builds `SubjectRecord` fixtures used by `tests/export/*` — rewrite those
-  export tests around `suggestion_row` (see `tests/test_suggest.py::TestRow`).
-- `tests/sources/conftest.py`: delete the ARES payloads and the fake DBAPI driver, keep the GLEIF /
-  OpenFIGI payloads, `make_client`, `payload` and the `settings` fixture (drop its `dws_*`/`ares_*`
-  arguments once those settings are gone).
-- `config/settings.py`: remove the `dws_*` and `ares_*` fields, the `dws_configured` property and their
-  entries in the `_blank_is_none` validator; `.env.example`, `tests/test_settings.py`, README
-  ("Step 2 variables", DWS/ARES/Tool 2 CLI/Tool 2 batch sections) and CLAUDE.md follow.
-- `core/sources/__init__.py`, `core/batch/__init__.py`, `core/identifiers/__init__.py`: prune exports.
-- `core/audit.py` keeps its optional `ico` field (harmless); `pyproject.toml` drops `pandas`
-  (imported nowhere).
-- Work in a fresh clone (the one used on 22 Sept lived in a session scratchpad and is gone); use a
-  venv with `pip install -e ".[dev]"` or `tests/api` will not collect (§3 gotchas).
+**E1** (§5) puts the deterministic mode on a Vercel preview. It needs D1 (account, plan, region) and D3
+(codebook delivery) answered, and E0.2 — the private repository, an owner action — done before any real
+codebook is uploaded; §10 lists what to verify about the Python runtime. Start from a fresh clone and a
+fresh venv (`pip install -e ".[dev]"`, or `tests/api` will not collect — §3 gotchas). Write E1's
+`requirements.txt` from the runtime list in E1 item 1, not from `pip freeze`: a venv from before PR #5
+still carries `pandas`, and every dev venv carries `numpy`, `pytest` and `ruff`.
 
 ---
 
-## 3. What exists today (state of `main` after PRs #1 and #3, 22 Sept 2026)
+## 3. What exists today (Tool 1 only, as of PR #5, 22 Sept 2026)
 
 ### Stack and layout
 
@@ -109,16 +102,15 @@ app/
   config/settings.py     pydantic-settings; relative paths resolve against app/
   core/
     suggest.py           the pipeline: request → identity → evidence → shortlist → classifier → IssuerSuggestion
-    identifiers/         isin.py (ISO 6166 + Luhn) · ico.py (Tool 2 only)
+    identifiers/         isin.py (ISO 6166 + Luhn) · ico.py (IČO, only for batch/reader.py until E6)
     codebooks/           xlsx reader, loaders, models (CodebookSet), normalize, consistency check, versioning
-    sources/             base.py (Provenance, Source literal) · gleif.py · openfigi.py · identity.py · web.py
-                         dws.py, ares.py, resolver.py (Tool 2 — parked)
+    sources/             base.py (Source literal, Provenance, Source*Error) · gleif.py · openfigi.py · identity.py · web.py
     classify/            candidates.py (pre-filter) · hints.py (keyword table + ESA family grid) · text.py (IDF)
                          prompts.py · provider.py · llm.py · cache.py · budget.py · golden.py (LLM path, off)
-    export/              columns.py (row contracts) · xlsx.py (Subjects + Run sheets)
-    batch/               reader.py (messy xlsx in — reusable) · runner.py (Tool 2 only)
+    export/              columns.py (the suggestion row contract) · xlsx.py (Subjects + Run sheets)
+    batch/               reader.py (messy xlsx in — E6 reuses it; nothing calls it yet)
     audit.py             one log line per lookup: identifier, time, user, sources, outcome — never content
-  tests/                 1052 passed / 16 skipped (skips = tests needing the real xlsx); fixtures are trimmed live payloads
+  tests/                 963 passed / 16 skipped (skips = tests needing the real xlsx); fixtures are trimmed live payloads
 ```
 
 ### The pipeline, concretely
@@ -141,7 +133,8 @@ app/
    suggestions are built from candidates (CTS ID cannot be invented), cache keyed on everything that changes the
    answer, spending limits fail closed.
 6. Page / JSON (`identity` object included) / xlsx (`SUGGESTION_COLUMNS` incl. `issuer_lei`, `issuer_country`,
-   `source` = `GLEIF+OPENFIGI+WEB` or `WEB`) / audit line.
+   `source` = the registers that answered + `WEB`, e.g. `GLEIF+OPENFIGI+WEB`, `OPENFIGI+WEB`, or `WEB` for a
+   name) / audit line.
 
 ### Data facts you would otherwise have to rediscover
 
@@ -196,8 +189,8 @@ Sample ISINs for tests and demos: `DE0005140008` Deutsche Bank AG (GENERAL, no p
   that is the intended deterministic pilot mode.
 - The web search provider is **not configured** and is a procurement question; Wikipedia summaries (E5) give a
   free description for well-known issuers and may make a paid provider unnecessary for the pilot.
-- `pandas` is declared in `pyproject.toml` but **imported nowhere** — drop it (E0/E1); it is the biggest weight in
-  a serverless bundle.
+- `pandas` is gone (PR #5). `numpy` stays a **dev** extra only: the identifier and codebook tests feed numpy scalars
+  (`np.int64`, a NaN `np.float64`) to the normalisers. Keep both out of the runtime dependencies.
 - `py -m pytest` from `app/` **without** `pip install -e .` fails to collect `tests/api` (the `tests/api` package
   shadows the `api` package under pytest's prepend import mode). The documented editable install works.
 - `SqliteCache` defines `__len__`, so an empty cache is falsy — use `is None` checks (already fixed once).
@@ -230,7 +223,7 @@ Sample ISINs for tests and demos: `DE0005140008` Deutsche Bank AG (GENERAL, no p
 | FastAPI `lifespan` may not run under Vercel's ASGI handler | load codebooks **lazily** (`functools.lru_cache`-ed `get_service()`), keep `/health` dependency-free |
 | Function duration is capped (default ~10–15 s; up to 60 s on Hobby, 300 s on Pro; set `maxDuration` explicitly) | one ISIN = up to 4 GLEIF + 1 OpenFIGI requests, spaced 1.0 s / 2.5 s → ~3–6 s live; cap per-request timeouts so the worst case fits (8 s, 2 attempts); **batch must be chunked** (E6) |
 | Request body limit ~4.5 MB | fine for a sheet of ISINs; large sheets are chunked client-side anyway |
-| Cold starts scale with bundle size | drop `pandas`; keep `openpyxl`; `.vercelignore` tests, prototype, data |
+| Cold starts scale with bundle size | no `pandas` (dropped in PR #5); keep `openpyxl`; `.vercelignore` tests, prototype, data |
 | No reverse proxy, no bank SSO in front | the app must authenticate users itself (E2); `X-Remote-User` is untrusted |
 | Runtime logs are kept briefly; Log Drains are a paid feature | audit events go to Postgres (E2) |
 | Outbound internet is open | **no egress/whitelist request** (the biggest simplification vs CodeNOW); still document the third-party data flows for a security review (§6) |
@@ -251,7 +244,7 @@ Sizes: **S** ≈ half a session, **M** ≈ one session, **L** ≈ two. Order and
 the way this repo has always worked: tests green, `CLAUDE.md` + this file updated, a PR with a description that
 explains *why*, then wait for a go-ahead.
 
-### E0 — Scope and housekeeping (S) — *docs part done in PR #3; E0.2 and E0.3 open*
+### E0 — Scope and housekeeping (S) — *docs part done in PR #3; E0.3 done in PR #5; E0.2 (private repo) still open*
 
 **Goal:** the repo says what it is: Tool 1, Vercel, LLM later; nothing bank-internal can leak.
 **Work:**
@@ -263,7 +256,8 @@ explains *why*, then wait for a go-ahead.
    `SUBJECT_COLUMNS`/`record_row` in `core/export/columns.py`, `DWS_*`/`ARES_*` settings and `.env.example`
    lines, their tests and README/CLAUDE sections. **Keep** `core/batch/reader.py` (E6 reuses it),
    `core/export/xlsx.py`, `core/audit.py`, `core/identifiers/isin.py`. Drop `pandas` from `pyproject.toml`.
-   Expect roughly −4 000 lines; the suite must stay green.
+   Expect roughly −4 000 lines; the suite must stay green. *Done in PR #5 (−4 467 / +848 lines, 963 passed);
+   `core/identifiers/ico.py` stayed, because the reader needs it until E6 (D7).*
 4. Port `docs/questions.md` from the design source as the answer slots in §7 here (done in this file).
 **DoD:** private repo; `python -m pytest` green with Tool 2 gone; no `pandas`; README/CLAUDE describe one tool.
 
@@ -501,6 +495,7 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
   CTS codebook IDs and labels, user identities and lookup history (§4 lists the flows). Who signs? *E1 go-live.*
   **Answer:**
 - **D7. When to delete the Tool 2 code** — now (E0.3, recommended) or after E6 reuses the reader. **Answer:**
+  2026-09-22 - now, as E0.3 (PR #5); the IČO normaliser stays for the batch reader until E6 (Jakub).
 - **Q-A1.** Entra ID app registration: client id, tenant, redirect URI (`https://<project>.vercel.app/auth/callback`),
   group for MO. **Answer:**
 - **Q-A2.** Audit retention (months) and who may read the history. **Answer:**
@@ -541,7 +536,7 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 ```bash
 cd app
 python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]"   # Windows paths; the repo path may contain spaces — quote it
-../.venv/Scripts/python.exe -m pytest -q          # 1052 passed, 16 skipped without the real xlsx (skips are expected)
+../.venv/Scripts/python.exe -m pytest -q          # 963 passed, 16 skipped without the real xlsx (skips are expected)
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .
 ../.venv/Scripts/python.exe -m core.codebooks     # startup consistency check against data/codebooks (needs the xlsx)
 ../.venv/Scripts/python.exe -m core.classify "popis cinnosti" --verbose   # shortlist for a description
@@ -581,8 +576,10 @@ python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]
   → "government", LOCAL_GOVERNMENT → "municipality", INTERNATIONAL_ORGANIZATION → "supranational", OpenFIGI `Govt`
   → "government, sovereign", `Mtge` → "mortgage-backed, asset-backed". E4 makes this structural; until then the
   words are the mechanism — do not "clean them up".
-- **`Source` literal**: `DWS`, `ARES_LIVE` (Tool 2), `WEB`, `GLEIF`, `OPENFIGI`; row `source` = registers that
-  answered + `WEB`.
+- **Settings removed by PR #5**: `DWS_DSN`, `DWS_USER`, `DWS_PASSWORD`, `DWS_SCHEMA`, `DWS_TIMEOUT_SECONDS` and the
+  six `ARES_*`; an old `app/.env` that still sets them loads fine (unknown variables are ignored).
+- **`Source` literal**: `WEB`, `GLEIF`, `OPENFIGI` (`DWS` and `ARES_LIVE` left with Tool 2 in PR #5); row `source` =
+  registers that answered + `WEB`.
 - **Glossary**: *MO* Middle Office treasury back office · *CTS* the securities master system where the issuer
   record and both codes live · *BA0036* ČNB codelist of ESA 2010 sectors as 7-digit codes · *ESA control axis*
   veřejné / soukromé národní / pod zahraniční kontrolou · *NACE division* the two-digit level CTS stores ·

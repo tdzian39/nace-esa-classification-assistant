@@ -25,9 +25,9 @@ Field paths read: ``attributes.lei``, ``attributes.entity.{legalName.name, other
 legalAddress.country, headquartersAddress.country, jurisdiction, category, subCategory,
 legalForm.id, legalForm.other, status}`` and ``attributes.registration.status``.
 
-Fail-soft contract, the same as ARES: ``None`` means the register does not hold the subject;
-:class:`~core.sources.base.SourceUnavailableError` means it could not be asked. Never
-collapse the two.
+Fail-soft contract, as described in :mod:`core.sources.base`: ``None`` means the register
+does not hold the ISIN or LEI; :class:`~core.sources.base.SourceUnavailableError` means it
+could not be asked. Never collapse the two.
 """
 
 from __future__ import annotations

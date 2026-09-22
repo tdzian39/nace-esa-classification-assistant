@@ -1,41 +1,26 @@
-"""Data source adapters. Priority: DWS -> ARES live -> web (foreign issuers only).
+"""Data source adapters for foreign issuers: public registers first, then the web.
 
-* :mod:`core.sources.base` - the record model (RES half + OR half + provenance) and the
-  :class:`~core.sources.base.SubjectSource` interface.
-* :mod:`core.sources.dws` - the read-only warehouse adapter; the only module with SQL.
-  UNUSED: no DWS access is being granted for this project. Kept ready; it activates by
-  itself if ``DWS_DSN`` is ever set.
-* :mod:`core.sources.ares` - the public ares.gov.cz fallback, stamped ``ARES_LIVE``.
-* :mod:`core.sources.resolver` - the DWS-then-ARES policy and the audit trail.
-* :mod:`core.sources.web` - foreign-issuer descriptions from the public web, with
-  citable sources. Never touches the Czech registers' web front ends.
+* :mod:`core.sources.base` - the ``Source`` stamp, :class:`~core.sources.base.Provenance`
+  and the error classes behind the fail-soft contract.
 * :mod:`core.sources.gleif`, :mod:`core.sources.openfigi`, :mod:`core.sources.identity` -
   ISIN -> issuer: the LEI record (legal name, country, legal form, entity category, parents)
   and the instrument (market name, security type, market sector). Public registers, stamped
   ``GLEIF`` / ``OPENFIGI``; what they return may be shown and put in a prompt.
+* :mod:`core.sources.web` - foreign-issuer descriptions from the public web, with
+  citable sources, stamped ``WEB``. Never touches the Czech registers' web front ends.
 
-Nothing obtained through :mod:`core.sources.dws` may ever be sent to an LLM.
+Nothing obtained from DWS (the bank's data warehouse) may ever be sent to an LLM; no
+module here reads it.
 """
 
-from core.sources.ares import AresSource
 from core.sources.base import (
-    NACE_REV_2,
-    NACE_REV_21,
-    NaceAssignment,
-    NaceRevision,
-    OrRecord,
     Provenance,
-    ResRecord,
     Source,
     SourceError,
     SourceQueryError,
     SourceResponseError,
     SourceUnavailableError,
-    SubjectCandidate,
-    SubjectRecord,
-    SubjectSource,
 )
-from core.sources.dws import DwsSource
 from core.sources.gleif import GleifSource, LeiRecord, ParentEntity
 from core.sources.identity import (
     NO_IDENTITY,
@@ -44,12 +29,6 @@ from core.sources.identity import (
     build_identifier,
 )
 from core.sources.openfigi import FigiInstrument, OpenFigiSource
-from core.sources.resolver import (
-    LookupResult,
-    LookupStatus,
-    SubjectResolver,
-    build_default_resolver,
-)
 from core.sources.web import (
     BLOCKED_HOSTS,
     EvidenceSource,
@@ -65,29 +44,19 @@ from core.sources.web import (
 
 __all__ = [
     "BLOCKED_HOSTS",
-    "NACE_REV_2",
-    "NACE_REV_21",
-    "AresSource",
-    "DwsSource",
     "EvidenceSource",
     "FigiInstrument",
     "GleifSource",
+    "HttpSearchProvider",
+    "IssuerEvidence",
     "IssuerIdentifier",
     "IssuerIdentity",
     "LeiRecord",
     "NO_IDENTITY",
+    "NullSearchProvider",
     "OpenFigiSource",
     "ParentEntity",
-    "HttpSearchProvider",
-    "IssuerEvidence",
-    "LookupResult",
-    "LookupStatus",
-    "NaceAssignment",
-    "NullSearchProvider",
-    "NaceRevision",
-    "OrRecord",
     "Provenance",
-    "ResRecord",
     "SearchHit",
     "SearchProvider",
     "Source",
@@ -95,13 +64,8 @@ __all__ = [
     "SourceQueryError",
     "SourceResponseError",
     "SourceUnavailableError",
-    "SubjectCandidate",
-    "SubjectRecord",
     "StaticSearchProvider",
-    "SubjectResolver",
-    "SubjectSource",
     "WebEvidenceGatherer",
-    "build_default_resolver",
     "build_identifier",
     "is_blocked",
 ]

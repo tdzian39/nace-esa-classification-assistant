@@ -1,16 +1,18 @@
-"""Write the result sheet: one row per subject, plus a Run sheet recording how it was made.
+"""Write the result sheet: one row per issuer, plus a Run sheet recording how it was made.
 
 The workbook has two sheets:
 
-* **Subjects** - the rows, with the column contract from :mod:`core.export.columns`.
-* **Run** - when the batch ran, which user asked, which sources answered, the codebook
-  version and the per-status counts. It exists so a sheet that has been emailed on still
-  answers "where did this come from?" without the original console output.
+* **Subjects** - the rows, with the column contract from :mod:`core.export.columns`. The
+  name is historical and kept: it is what the Tool 1 download has always contained.
+* **Run** - when the result was made, which user asked, the codebook version and the
+  model. It exists so a sheet that has been emailed on still answers "where did this
+  come from?" without the page that produced it.
 
 Excel-specific care taken here:
 
-* identifier-shaped columns get the ``@`` (text) number format, so ``00177041`` does not
-  come back as ``177041`` - the very corruption Tool 2 exists to find;
+* code-shaped columns get the ``@`` (text) number format, so a NACE division ``01`` or a
+  CTS ID with leading zeros does not come back as ``1`` - a code copied into CTS must be
+  exactly what the codebook says;
 * dates are written as real dates with an ISO number format, so they sort correctly whatever
   the reader's locale;
 * control characters that openpyxl refuses are stripped, and over-long texts are truncated
@@ -33,7 +35,6 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 from core.export.columns import (
     SUGGESTION_TEXT_COLUMNS,
-    TEXT_COLUMNS,
     WRAPPED_COLUMNS,
     cell_value,
     header_label,
@@ -55,9 +56,8 @@ _TEXT_FORMAT: Final[str] = "@"
 _HEADER_FILL: Final[PatternFill] = PatternFill("solid", fgColor="DDEBF7")
 _HEADER_FONT: Final[Font] = Font(bold=True)
 
-#: Column widths in characters: wrapped prose is wide, codes are narrow, the rest is default.
+#: Column widths in characters: wrapped prose is wide, everything else is measured.
 _WIDE: Final[int] = 60
-_DEFAULT_WIDTH: Final[int] = 18
 _MIN_WIDTH: Final[int] = 10
 _MAX_MEASURED_WIDTH: Final[int] = 40
 
@@ -92,7 +92,7 @@ def _write_cell(
         rendered = _naive_utc(rendered)
     cell = sheet.cell(row=row_index, column=column_index, value=rendered)
 
-    if column in TEXT_COLUMNS or column in SUGGESTION_TEXT_COLUMNS:
+    if column in SUGGESTION_TEXT_COLUMNS:
         cell.number_format = _TEXT_FORMAT
     elif isinstance(rendered, datetime):
         cell.number_format = _DATETIME_FORMAT
@@ -175,9 +175,9 @@ def write_workbook(
 
     Args:
         path: Destination ``.xlsx``. Parent directories are created.
-        columns: Column keys in sheet order (``IN_*`` first, then
-            :data:`~core.export.columns.SUBJECT_COLUMNS`).
-        rows: One mapping per subject, keyed by column. Missing keys become empty cells.
+        columns: Column keys in sheet order, normally
+            :data:`~core.export.columns.SUGGESTION_COLUMNS`.
+        rows: One mapping per issuer, keyed by column. Missing keys become empty cells.
         run_metadata: Key/value pairs for the Run sheet; omitted when ``None``.
     """
     materialized = list(rows)

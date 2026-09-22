@@ -1,8 +1,10 @@
-"""Identifier normalization and validation (IČO, ISIN).
+"""Identifier normalization and validation (ISIN, IČO).
 
 Pure functions only: no I/O, no logging. The algorithms and the policy for messy
-Excel-derived input are documented in :mod:`core.identifiers.ico` and
-:mod:`core.identifiers.isin`; this package re-exports their public names.
+Excel-derived input are documented in :mod:`core.identifiers.isin` and
+:mod:`core.identifiers.ico`; this package re-exports their public names. The ISIN is what
+the suggester looks up; the IČO functions serve :mod:`core.batch.reader`, which keeps
+recognising IČO columns until roadmap E6 generalises it to ISIN and name columns.
 """
 
 from core.identifiers.ico import (

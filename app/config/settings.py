@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     # --- Codebooks (build step 1) -------------------------------------------------------
     codebook_dir: Path = Field(
         default=APP_ROOT / "data" / "codebooks",
-        description="Directory containing the four bootstrap xlsx codebooks.",
+        description="Directory containing the four xlsx codebooks.",
     )
     codebook_cts_ba0036_file: str = Field(
         default="CTS_BA0036_NEW.xlsx",
@@ -54,59 +54,9 @@ class Settings(BaseSettings):
         description="Optional human-readable label appended to the computed codebook version.",
     )
 
-    # --- DWS, read-only (build step 2) --------------------------------------------------
-    # Connection details never appear in code or in the repository; an empty DSN simply
-    # means "DWS is not configured here", and the resolver falls back to ARES.
-    dws_dsn: str | None = Field(
-        default=None,
-        description="ODBC DSN or connection string of the read-only DWS account. Empty disables DWS.",
-    )
-    dws_user: str | None = Field(default=None, description="DWS user (read-only account).")
-    dws_password: SecretStr | None = Field(
-        default=None, description="DWS password. Never logged, never echoed by the CLI."
-    )
-    dws_schema: str | None = Field(
-        default=None,
-        description="Schema qualifying the DWS objects. TODO: confirm the real schema name.",
-    )
-    dws_timeout_seconds: float = Field(
-        default=30.0, gt=0, description="Per-query timeout for DWS reads."
-    )
-
-    # --- ARES fallback (build step 2) ---------------------------------------------------
-    ares_enabled: bool = Field(
-        default=True,
-        description="Query the public ARES API for IČOs that DWS does not have.",
-    )
-    ares_base_url: str = Field(
-        default="https://ares.gov.cz",
-        description="Base URL of the public ARES REST API (ares.gov.cz).",
-    )
-    ares_timeout_seconds: float = Field(
-        default=15.0, gt=0, description="HTTP timeout for a single ARES request."
-    )
-    ares_user_agent: str = Field(
-        default="RBCZ-NACE-ESA-assistant/0.1 (internal Finance/MIS tool)",
-        description="User-Agent sent to ARES so the operator can identify the caller.",
-    )
-    ares_min_interval_seconds: float = Field(
-        default=0.25,
-        ge=0,
-        description=(
-            "Minimum delay between two ARES requests. Observed on 2026-09-22: back-to-back "
-            "requests start timing out, so a batch must pace itself. 0 disables the throttle."
-        ),
-    )
-    ares_max_attempts: int = Field(
-        default=3,
-        ge=1,
-        description="Attempts per ARES request, including the first; retries use linear backoff.",
-    )
-
     # --- Web evidence for foreign issuers (build step 6) ---------------------------------
-    # Used ONLY to describe foreign issuers. Czech subjects are answered from DWS/ARES and
-    # never reach the web, and apl.czso.cz / or.justice.cz are never scraped (see
-    # core.sources.web.BLOCKED_HOSTS, which enforces it).
+    # Used ONLY to describe foreign issuers, and apl.czso.cz / or.justice.cz are never
+    # scraped (see core.sources.web.BLOCKED_HOSTS, which enforces it).
     web_enabled: bool = Field(
         default=True, description="Allow web lookups for foreign-issuer descriptions."
     )
@@ -329,12 +279,10 @@ class Settings(BaseSettings):
             return None
         return value
 
-    @field_validator(
-        "dws_dsn", "dws_user", "dws_schema", "lookup_user", "openfigi_api_key", mode="before"
-    )
+    @field_validator("lookup_user", "openfigi_api_key", mode="before")
     @classmethod
     def _blank_is_none(cls, value: object) -> object:
-        """An empty or whitespace-only variable means "not set", not an empty DSN."""
+        """An empty or whitespace-only variable means "not set", not an empty value."""
         if isinstance(value, str) and not value.strip():
             return None
         return value
@@ -342,11 +290,6 @@ class Settings(BaseSettings):
     def codebook_path(self, file_name: str) -> Path:
         """Absolute path of a codebook file inside ``codebook_dir``."""
         return self.codebook_dir / file_name
-
-    @property
-    def dws_configured(self) -> bool:
-        """True when a DSN is set; otherwise DWS is skipped and ARES answers alone."""
-        return bool(self.dws_dsn)
 
 
 @lru_cache(maxsize=1)

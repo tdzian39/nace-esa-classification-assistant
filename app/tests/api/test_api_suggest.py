@@ -296,7 +296,7 @@ class TestAuditedUser:
     def test_without_the_header_it_falls_back_rather_than_failing(
         self, client: TestClient, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """Local runs and the CLI have no proxy; the OS account really is the person there."""
+        """A local run has no proxy; the OS account really is the person there."""
         with caplog.at_level("INFO", logger="core.audit"):
             response = client.post("/suggest", data={"name": "Nordkap"})
         assert response.status_code == 200

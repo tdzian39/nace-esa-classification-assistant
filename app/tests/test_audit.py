@@ -7,7 +7,11 @@ import logging
 import pytest
 
 from config.settings import Settings
-from core.audit import current_user, log_lookup
+from core.audit import Outcome, current_user, log_lookup
+
+ISIN = "DE0005140008"
+SOURCES = ("GLEIF", "OPENFIGI", "WEB")
+ICO = "49240901"
 
 
 class TestCurrentUser:
@@ -41,31 +45,57 @@ class TestCurrentUser:
 class TestLogLookup:
     def test_records_identifier_timestamp_and_user(self, caplog: pytest.LogCaptureFixture) -> None:
         with caplog.at_level(logging.INFO, logger="core.audit"):
-            event = log_lookup("49240901", outcome="found", user="tester", ico="49240901")
+            event = log_lookup(ISIN, outcome="found", user="tester")
 
-        assert event.identifier == "49240901"
+        assert event.identifier == ISIN
         assert event.user == "tester"
         assert event.at.tzinfo is not None
-        assert "identifier='49240901'" in caplog.records[0].message
+        assert f"identifier='{ISIN}'" in caplog.records[0].message
         assert "user=tester" in caplog.records[0].message
+
+    @pytest.mark.parametrize("outcome", ["found", "not_found", "error"])
+    def test_the_log_line_states_the_outcome(
+        self, caplog: pytest.LogCaptureFixture, outcome: Outcome
+    ) -> None:
+        """A plain-text handler writes only the message, so the outcome must be in the line."""
+        with caplog.at_level(logging.INFO, logger="core.audit"):
+            log_lookup(ISIN, outcome=outcome, user="tester")
+        assert f"outcome={outcome}" in caplog.records[0].message
+
+    def test_a_given_ico_is_recorded_in_the_event_and_the_line(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The IČO field was kept in E0.3; while it exists it must carry what it is given."""
+        with caplog.at_level(logging.INFO, logger="core.audit"):
+            event = log_lookup(ICO, outcome="found", user="tester", ico=ICO)
+        assert event.ico == ICO
+        assert event.as_dict()["ico"] == ICO
+        assert f"ico={ICO}" in caplog.records[0].message
+
+    def test_without_an_ico_the_line_shows_a_dash(self, caplog: pytest.LogCaptureFixture) -> None:
+        with caplog.at_level(logging.INFO, logger="core.audit"):
+            event = log_lookup(ISIN, outcome="found", user="tester")
+        assert event.ico is None
+        assert "ico=-" in caplog.records[0].message
 
     def test_structured_fields_are_attached_for_a_json_handler(
         self, caplog: pytest.LogCaptureFixture
     ) -> None:
         with caplog.at_level(logging.INFO, logger="core.audit"):
-            log_lookup("49240901", outcome="found", user="tester", sources=("DWS",))
+            log_lookup(ISIN, outcome="found", user="tester", sources=SOURCES)
 
-        assert caplog.records[0].audit["sources"] == ["DWS"]
+        assert caplog.records[0].audit["sources"] == ["GLEIF", "OPENFIGI", "WEB"]
+        assert "sources=GLEIF+OPENFIGI+WEB" in caplog.records[0].message
         assert caplog.records[0].audit["outcome"] == "found"
 
     def test_a_source_failure_is_a_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         with caplog.at_level(logging.INFO, logger="core.audit"):
-            log_lookup("49240901", outcome="error", user="tester")
+            log_lookup(ISIN, outcome="error", user="tester")
         assert caplog.records[0].levelno == logging.WARNING
 
     def test_a_miss_is_only_informational(self, caplog: pytest.LogCaptureFixture) -> None:
         with caplog.at_level(logging.INFO, logger="core.audit"):
-            log_lookup("49240901", outcome="not_found", user="tester")
+            log_lookup(ISIN, outcome="not_found", user="tester", detail="abstained")
         assert caplog.records[0].levelno == logging.INFO
 
     def test_retrieved_content_never_reaches_the_log(
@@ -73,9 +103,7 @@ class TestLogLookup:
     ) -> None:
         """The audit trail holds the question and the outcome, never the answer."""
         with caplog.at_level(logging.INFO, logger="core.audit"):
-            event = log_lookup(
-                "49240901", outcome="found", user="tester", ico="49240901", sources=("DWS",)
-            )
+            event = log_lookup(ISIN, outcome="found", user="tester", sources=SOURCES)
 
         assert set(event.as_dict()) == {
             "identifier",
@@ -90,5 +118,5 @@ class TestLogLookup:
     def test_event_is_json_serializable(self) -> None:
         import json
 
-        event = log_lookup("49240901", outcome="found", user="tester", sources=("DWS",))
-        assert json.loads(json.dumps(event.as_dict()))["identifier"] == "49240901"
+        event = log_lookup(ISIN, outcome="found", user="tester", sources=SOURCES)
+        assert json.loads(json.dumps(event.as_dict()))["identifier"] == ISIN

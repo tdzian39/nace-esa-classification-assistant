@@ -5,14 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "nace-esa-assistant"
 version = "0.1.0"
-description = "NACE/ESA classification assistant for Raiffeisenbank CZ Finance/MIS: ESA/NACE suggester for foreign issuers and RES/OR lookup for client corrections"
+description = "NACE/ESA classification assistant for Raiffeisenbank CZ Finance/MIS: ESA/NACE suggester for foreign issuers, with CTS codebook IDs"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Proprietary - Raiffeisenbank a.s. internal use" }
 dependencies = [
   "fastapi>=0.115",
   "uvicorn[standard]>=0.30",
-  "pandas>=2.2",
   "openpyxl>=3.1",
   "pydantic>=2.7",
   "pydantic-settings>=2.3",
@@ -26,6 +25,9 @@ dev = [
   "pytest>=8",
   "pytest-cov>=5",
   "ruff>=0.5",
+  # The identifier and codebook tests feed numpy scalars (np.int64, np.float64 NaN) to the
+  # normalisers. Test-only: numpy is not a runtime dependency.
+  "numpy>=1.26",
 ]
 
 [tool.setuptools.packages.find]

@@ -207,10 +207,16 @@ def test_nace_to_division_rejects_temporal_values(value: object) -> None:
         normalize_nace_division(value)
 
 
-def test_nace_to_division_rejects_pandas_timestamp() -> None:
-    pandas = pytest.importorskip("pandas")
+def test_nace_to_division_rejects_a_datetime_subclass() -> None:
+    """``pandas.Timestamp`` is such a subclass; a spreadsheet library may hand one over."""
+
+    class Timestamp(datetime):
+        pass
+
     with pytest.raises(MalformedCodeError):
-        nace_to_division(pandas.Timestamp("2024-12-10"))
+        nace_to_division(Timestamp(2024, 12, 10))
+    with pytest.raises(MalformedCodeError):
+        normalize_nace_division(Timestamp(2024, 12, 10))
 
 
 def test_temporal_guard_is_documented() -> None:

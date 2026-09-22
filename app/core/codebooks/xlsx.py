@@ -1,9 +1,9 @@
-"""Minimal, tolerant xlsx table reader built on openpyxl only (no pandas).
+"""Minimal, tolerant xlsx table reader built on openpyxl only.
 
 Bank exports are messy: title rows above the header, headers spelled ``Kód`` / ``Kod`` /
 ``KÓD``, numbers stored as floats, trailing blank rows, non-breaking spaces. This module
 turns such a sheet into plain ``dict[str, str]`` rows keyed by *logical* column names so the
-loaders never touch openpyxl themselves and can later be swapped for a DWS-backed source.
+loaders never touch openpyxl themselves and can later be swapped for another source.
 """
 
 from __future__ import annotations

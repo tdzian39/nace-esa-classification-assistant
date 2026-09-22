@@ -18,7 +18,7 @@ venv/
 app/.env
 .env
 
-# Codebook xlsx files are bank-internal; bootstrap copies live locally only
+# Codebook xlsx files are bank-internal; they live locally only
 app/data/codebooks/*.xlsx
 app/data/codebooks/*.xlsm
 

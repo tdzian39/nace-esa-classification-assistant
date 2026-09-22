@@ -1,7 +1,7 @@
 """Pure normalization functions for Excel-derived cells, ESA sector codes and NACE codes.
 
 All functions are side-effect free and accept ``object`` because values coming out of
-openpyxl (or later out of DWS) may be ``str``, ``int``, ``float``, ``bool``, ``Decimal``,
+openpyxl (or later another source) may be ``str``, ``int``, ``float``, ``bool``, ``Decimal``,
 ``datetime`` or ``None`` depending on how the exporting tool typed the cell.
 
 Terminology:
@@ -29,8 +29,8 @@ _NON_BREAKING_SPACES = ("\N{NO-BREAK SPACE}", "\N{NARROW NO-BREAK SPACE}")
 _INVISIBLE_CHARS = ("\N{ZERO WIDTH NO-BREAK SPACE}", "\N{ZERO WIDTH SPACE}")
 
 # The real CTS BA0036 codebook uses a 7-digit CNB code (``1221300``), not the 5-digit ESA
-# form (``S.12213``); RES/ARES report the ESA form. Both must normalize, so the key holds
-# 1-7 digits. See the ESA-code note in the module docstring.
+# form (``S.12213``); the Czech statistical register (RES) reports the ESA form. Both must
+# normalize, so the key holds 1-7 digits. See the ESA-code note in the module docstring.
 _ESA_KEY_MAX_DIGITS = 7
 
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -204,8 +204,8 @@ def nace_to_division(value: object) -> str:
     Ambiguity warning: an *integer* such as ``111`` cannot be interpreted safely - it may
     be ``01.11`` whose leading zero was lost by Excel, or ``11.1``. This function does not
     guess: it applies the text rule and returns ``"11"``. It therefore assumes that string
-    input from RES/DWS keeps its leading zeros; callers that receive NACE codes as numbers
-    must restore the leading zero before calling.
+    input keeps its leading zeros; callers that receive NACE codes as numbers must restore
+    the leading zero before calling.
 
     Date/time guard: a ``date``/``datetime``/``time`` instance (``pandas.Timestamp`` is a
     ``datetime`` subclass, so it is covered too) or text that looks like an ISO date or a clock

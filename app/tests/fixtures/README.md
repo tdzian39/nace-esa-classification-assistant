@@ -1,4 +1,5 @@
-# Verified IČO fixtures
+# Recorded fixtures
 
-Build step 2+: verified Czech subjects, `IČO -> expected RES/OR output`.
-The file format is decided when the DWS adapter lands. Nothing here yet.
+Reserved; nothing here yet. The register payloads the tests use (GLEIF, OpenFIGI) are trimmed
+copies of live responses kept in `tests/sources/conftest.py`; larger recorded payloads for
+new sources (roadmap E3, E5) can live here.

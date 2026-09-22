@@ -1,4 +1,5 @@
-"""FastAPI application (build step 4). Not implemented yet.
+"""FastAPI application of the ESA/NACE suggester, in :mod:`api.main`.
 
-Planned endpoints: POST /batch (xlsx in -> xlsx out), GET /lookup?ico=..., POST /suggest.
+Endpoints: GET / (form), POST /suggest (page), POST /api/suggest (JSON),
+GET /suggest.xlsx (download), GET /health.
 """

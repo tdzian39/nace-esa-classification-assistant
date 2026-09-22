@@ -1,7 +1,8 @@
 """Read a batch input sheet that nobody cleaned up first.
 
-What arrives in practice is an export from the monthly OKEČ-vs-NACE check, or a list someone
-assembled by hand. The reader therefore assumes almost nothing:
+It was written for sheets of Czech companies (an export from the monthly OKEČ-vs-NACE check,
+or a list someone assembled by hand) and stays because roadmap E6 generalises it to the
+ISIN and name columns of the Tool 1 batch. The reader therefore assumes almost nothing:
 
 * the header may sit below a title row, or be missing entirely;
 * the IČO and the name may be in separate columns, or mixed in one;
@@ -10,10 +11,11 @@ assembled by hand. The reader therefore assumes almost nothing:
 * rows are blank, duplicated, or carry a stray note in a trailing column.
 
 What it deliberately does **not** do is repair an IČO that fails its check digit. When an
-IČO column holds a value, that value is what gets looked up even if it is malformed - the
-row then comes back ``invalid_input`` with the reason. Silently falling back to the name
-column would return data for a *different* company than the one the sheet names, which is
-the one failure mode a reviewer would not catch.
+IČO column holds a value, that value stays the row's identifier even if it is malformed,
+with a note saying so, so whatever looks the rows up (nothing does until E6) reports it as
+invalid. Silently falling back to the name column would return data for a *different*
+company than the one the sheet names, which is the one failure mode a reviewer would not
+catch.
 """
 
 from __future__ import annotations
@@ -92,7 +94,7 @@ class InputRow:
     Attributes:
         row_number: 1-based Excel row number, so a problem can be reported by the number the
             user sees on screen.
-        identifier: The text handed to the resolver - an IČO or a name.
+        identifier: The text handed to the lookup - an IČO or a name.
         columns: Every non-empty input cell, keyed by column name, for echoing back.
         note: Why this row's identifier was chosen, when that was not obvious.
     """
@@ -121,7 +123,7 @@ class BatchInput:
         return len(self.rows)
 
     def describe(self) -> str:
-        """One line for the log and the CLI."""
+        """One line for the log."""
         detected = ", ".join(
             part
             for part in (
@@ -273,8 +275,8 @@ def read_batch_input(path: Path, *, sheet: str | None = None) -> BatchInput:
         header_row: int | None = None
         data = raw_rows
         # No header is recognised, so row 1 cannot be assumed to be one. It is kept as data:
-        # a stray junk row comes back as invalid_input and is visible, whereas discarding a
-        # row that turned out to hold a real company would be silent data loss.
+        # a stray junk row stays in view as an invalid identifier, whereas discarding a row
+        # that turned out to hold a real company would be silent data loss.
         notes.append(
             "no header row recognised; every row is treated as data and the first non-empty "
             "cell is used as the identifier"

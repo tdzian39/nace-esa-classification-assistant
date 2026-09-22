@@ -4,7 +4,7 @@ Design notes worth keeping:
 
 * **The codebooks are loaded once, at startup**, and the consistency check runs there. An
   inconsistent codebook should stop the service coming up, not surface as a wrong CTS ID in
-  a report three weeks later. ``CODEBOOK_STRICT=false`` relaxes it for local work.
+  a report three weeks later. ``python -m core.codebooks --no-strict`` prints the full report.
 * **An ISIN is resolved before anything is searched.** GLEIF gives the issuer's legal
   name, country, legal form, entity category and parents, OpenFIGI the instrument. Both
   are public registers; they land in the evidence list, the row and the audit trail as
@@ -14,8 +14,6 @@ Design notes worth keeping:
   or shared URL behaves the same for everybody.
 * **Every lookup is audited** through :mod:`core.audit`, which records the identifier, the
   time and the user - never the retrieved content.
-* Tool 2's endpoints (``/batch``, ``/lookup``) are not mounted: that tool is parked, and its
-  CLI (``python -m core.batch``) still works.
 """
 
 from __future__ import annotations
@@ -98,8 +96,8 @@ def request_user(http_request: Request | None, settings: Settings) -> str:
     (``WEB_USER_HEADER``); that proxy must strip any client-supplied copy of it, since
     anything a browser can set is not an identity.
 
-    Falls back to :func:`~core.audit.current_user` for the CLI and for local runs, where the
-    OS account really is the person.
+    Falls back to :func:`~core.audit.current_user` for local runs, where the OS account
+    really is the person.
     """
     header = settings.web_user_header.strip()
     if http_request is not None and header:

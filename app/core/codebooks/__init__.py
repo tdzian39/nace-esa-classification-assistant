@@ -1,4 +1,4 @@
-"""Codebooks: load the four bootstrap xlsx codebooks, version them and check them at startup.
+"""Codebooks: load the four xlsx codebooks, version them and check them at startup.
 
 Only :meth:`CodebookSet.cts_id_for_esa` and :meth:`CodebookSet.cts_id_for_nace` may ever emit
 a CTS ID. :func:`load_and_check` is the startup entry point; it guarantees that every ID those

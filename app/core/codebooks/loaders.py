@@ -1,9 +1,9 @@
-"""Loaders for the four bootstrap xlsx codebooks and the startup entry point.
+"""Loaders for the four xlsx codebooks and the startup entry point.
 
-The xlsx files are bootstrap material only; DWS tables become the runtime source later. The
-loaders are therefore split in two layers: ``_read_rows`` fetches ``(row_number, row)``
-pairs from xlsx, and the ``_build_*`` functions turn such pairs into models. A DWS-backed
-loader only has to replace the first layer.
+The xlsx files are the source today; another source can replace them later. The loaders
+are therefore split in two layers: ``_read_rows`` fetches ``(row_number, row)`` pairs
+from xlsx, and the ``_build_*`` functions turn such pairs into models. A loader for
+another source only has to replace the first layer.
 
 Rows with an empty ID / code cell are skipped (counted in ``skipped_rows`` and logged at
 WARNING); rows whose code cannot be normalized are recorded as ``MalformedRow`` instead of

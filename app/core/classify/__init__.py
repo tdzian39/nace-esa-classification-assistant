@@ -11,8 +11,8 @@
   change them.
 * :mod:`core.classify.golden` - verified cases and recall scoring.
 
-``rules.py`` (the deterministic RES -> CTS mapping for Czech subjects) is build step 5 and
-is not implemented; Czech entities with a RES record never reach this package.
+A rule table over the register facts (``rules.py``, roadmap E4) is not built yet; until
+then the GLEIF/OpenFIGI facts reach the pre-filter as words in the identity fact sheet.
 """
 
 from core.classify.budget import (

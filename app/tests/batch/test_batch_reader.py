@@ -111,7 +111,7 @@ class TestIdentifierChoice:
         assert row.note is not None and "not a valid IČO" in row.note
 
     def test_mixed_single_column_passes_each_cell_through(self, tmp_path: Path) -> None:
-        """One column holding both kinds: classification is the resolver's job, not the reader's."""
+        """One column holding both kinds: classification is the lookup's job, not the reader's."""
         path = write_sheet(
             tmp_path / "mixed.xlsx",
             [("Identifikátor",), (RAIFFEISENBANK,), ("Škoda Auto a.s.",), (177041,)],
