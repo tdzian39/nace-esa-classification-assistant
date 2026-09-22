@@ -78,17 +78,19 @@ Do not scrape apl.czso.cz or or.justice.cz.
     /identifiers      ico.py (8 digits, mod-11 check; for the batch reader), isin.py (format check)
     /sources          base.py (Source, Provenance, the Source*Error classes), web.py,
                       gleif.py + openfigi.py + identity.py (ISIN -> issuer)
-    /codebooks        loaders, versioning, startup consistency check
+    /codebooks        loaders, versioning, startup consistency check; blob.py (private Vercel Blob, E1)
+    probe.py          the /probe register checks (E1)
     /classify         llm.py, candidates.py (pre-filter); rules.py (the E4 rule table) comes later
     /export           columns.py (the suggestion row), xlsx.py (Subjects + Run sheets)
     /batch            reader.py (messy xlsx in; roadmap E6 reuses it)
-  /api                FastAPI: GET /, POST /suggest, POST /api/suggest, GET /suggest.xlsx, /health
+  /api                FastAPI: GET /, POST /suggest, POST /api/suggest, GET /suggest.xlsx, /health, /probe
   /ui                 minimal: the single lookup page (a batch page comes with E6)
   /tests
     /fixtures         reserved for recorded register payloads (only a README so far)
     /golden           verified issuer name/description → expected NACE/ESA
   /config             settings via pydantic-settings
   .env.example        the settings with their defaults; copy to app/.env (git-ignored)
+  vercel.json, .vercelignore, .python-version   the Vercel config (E1; with [tool.vercel] in pyproject)
   README.md
   pyproject.toml
 
@@ -181,8 +183,9 @@ an indication for developers, not an accuracy figure to quote - so it is genuine
 its own; it just cannot justify its choice or resolve the distinctions that turn on a
 sentence ("holds no banking licence", "not a money market fund").
 
-**NEXT STEP: follow `docs/ROADMAP.md`** - E1 (deploy the deterministic mode on Vercel), then
-E2 (access and audit), E3-E5 (name lookup, structured hints, more sources), E6-E7 (batch,
+**NEXT STEP: follow `docs/ROADMAP.md`** - E1's deployment (its code is done in PR #6; creating
+the Vercel project waits for Jakub's go-ahead, D1, and a preview with real data for the four
+codebook files), then E2 (access and audit), E3-E5 (name lookup, structured hints, more sources), E6-E7 (batch,
 confirm/history), E8 (real golden set) alongside. Taken so far: PR #1 (ISIN -> GLEIF/OpenFIGI
 identity) and E0.3, the removal of the parked Tool 2 and the unused `pandas` (PR #5). E0 is
 complete: E0.2 (a private repository) was dropped on 22 Sept 2026 - the repository stays
@@ -374,16 +377,31 @@ Spending limits are already enforced and fail closed (see `core/classify/budget.
   raises for ordinary failures: a malformed ISIN is a note, a missing description or an
   exhausted budget is an abstention. A reviewer always gets a row with the reason.
 - **API/UI** (`api/main.py`, `ui/templates/suggest.html`): `GET /` form, `POST /suggest`
-  page, `POST /api/suggest` JSON, `GET /suggest.xlsx` download, `GET /health`.
-  * Codebooks load ONCE at startup and an inconsistent set stops the service - emitting
-    a CTS ID from a bad codebook is the failure nobody catches downstream.
+  page, `POST /api/suggest` JSON, `GET /suggest.xlsx` download, `GET /health`, `GET /probe`.
+  * Codebooks load ONCE per process - in the lifespan or on the first lookup, under a lock -
+    and an inconsistent or missing set NEVER serves a suggestion: those requests answer 503
+    with the reason (the page keeps the input), `/health` turns 503, the failure is retried
+    after 30 s. It must not raise instead: on Vercel a raising lifespan kills the instance,
+    `/health` included (roadmap E1). `/health` never loads anything itself.
+  * With `CODEBOOK_SOURCE=blob` (the Vercel setting) `load_and_check` first downloads the four
+    files from the private Blob store (`core/codebooks/blob.py`: plain GET with the read-write
+    token, no list/head calls, atomic writes to /tmp); nothing downstream changes.
+  * `/probe` (`core/probe.py`): one fixed, harmless request per register, a status per
+    failure mode, secrets shown only as present/absent; never called by `/health`. It found
+    that Wikimedia refuses httpx requests whose User-Agent has no contact - keep one in
+    `WEB_USER_AGENT`.
+  * Vercel config lives in `app/vercel.json`, `[tool.vercel]` + `[tool.uv]` in pyproject,
+    `.python-version` and `.vercelignore`; `tests/test_vercel_config.py` keeps them
+    consistent. No `api/index.py`, no rewrites (the FastAPI preset would break routing), no
+    `requirements.txt` (ignored next to pyproject), uvicorn only in extras.
   * NO server-side session: the download re-runs the request, which is free because the
     classifier caches, and keeps a shared link meaningful.
   * The page states plainly when the model or the search provider is not configured, so
     MO knows it is being shortlisted for rather than answered.
   * The template is generated from `ui/prototype/suggest.html` - keep the prototype in
     step when changing the design, it is the approved reference.
-- **Docker** (`app/Dockerfile`): codebooks and `.env` are MOUNTED, never baked in. Mount
+- **Docker** (`app/Dockerfile`, installs the `server` extra for uvicorn): codebooks and
+  `.env` are MOUNTED, never baked in. Mount
   a volume at `/app/data/cache` or the answer cache and usage ledger are lost on every
   restart - which also means the daily budget cannot be enforced and fails closed.
 - **Not yet built**: `core/classify/rules.py` - roadmap E4's rule table over the register

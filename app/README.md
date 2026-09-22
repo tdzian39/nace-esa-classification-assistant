@@ -32,9 +32,12 @@ instrument (market name, security type, market sector); both are public and keyl
 legal name becomes the web query and the facts go into the shortlist and the prompt, so a
 bank is a bank because the register says so. See "Tool 1: issuer identification by ISIN".
 
-**Next step: roadmap E1 - deploy this deterministic mode on Vercel.** Enabling the OpenAI
-API is deferred (E9): the classifier, prompts, cache and spending limits are built and tested
-against a stub; see "Enabling the model" below.
+**Ready for Vercel (roadmap E1).** The app loads its codebooks lazily from a private Blob
+store, reports a codebook problem as HTTP 503 instead of dying, and has a `/probe` page for
+the registers; see "Deploying on Vercel". The first deployment waits for the Vercel project
+(roadmap D1) and the four codebook files. Enabling the OpenAI API is deferred (E9): the
+classifier, prompts, cache and spending limits are built and tested against a stub; see
+"Enabling the model" below.
 
 
 The original build steps are history now; the plan from here is the roadmap's epics.
@@ -60,6 +63,8 @@ app/
   core/
     identifiers/    ico.py (8 digits, mod-11; for batch/reader.py), isin.py (format + Luhn) [step 1]
     codebooks/      xlsx reader, loaders, models, versioning, consistency check, CLI       [step 1]
+                    blob.py (the four files from a private Vercel Blob store)              [E1]
+    probe.py        the /probe checks: one fixed request per register, runtime facts       [E1]
     sources/        base.py (Source, Provenance, the Source*Error classes)                  [step 2]
                     web.py (foreign-issuer evidence, blocklist enforced)                    [step 6]
                     gleif.py, openfigi.py, identity.py (ISIN -> issuer, public registers)   [step 6]
@@ -69,9 +74,14 @@ app/
     export/         columns.py (the suggestion row), xlsx.py (Subjects + Run sheets)        [step 3]
     batch/          reader.py (messy xlsx in; roadmap E6 reuses it)                         [step 3]
   api/              FastAPI: GET /, POST /suggest, POST /api/suggest, /suggest.xlsx         [step 4]
+                    /health, /probe; lazy codebook loading, 503 when unavailable             [E1]
   ui/               templates/suggest.html (generated from prototype/suggest.html)          [step 4]
+                    templates/probe.html                                                    [E1]
   config/           settings.py (pydantic-settings)
   .env.example      the settings with their defaults; copy to .env (git-ignored)
+  vercel.json       FastAPI preset, region fra1, maxDuration 60 s, bundle excludes          [E1]
+  .vercelignore     what a CLI deploy must never upload (.env, data/, *.xlsx, tests/)       [E1]
+  .python-version   3.12, the Python Vercel builds with                                     [E1]
   data/codebooks/   the four xlsx codebooks (git-ignored, bank-internal)
   tests/
     identifiers/    unit tests for IČO and ISIN
@@ -112,7 +122,7 @@ python -m pytest -q
 ```
 
 Without the real codebooks (a fresh clone: they are bank-internal and git-ignored) the
-suite reports **963 passed, 16 skipped**. The skips are the tests that need the four real
+suite reports **1050 passed, 16 skipped**. The skips are the tests that need the four real
 xlsx files - the real-file smoke test (`tests/codebooks/test_codebooks_real_files.py`),
 the real-recall and most of the cost tests in `tests/classify/` - and they run on a machine
 that has them, where all four load with 0 errors (version `cb-3b12e64837840ca0`). Every
@@ -133,8 +143,16 @@ working directory. Connection details are never hardcoded.
 | `CODEBOOK_CTS_OKEC_NACE2_FILE` | `CTS_OKEC_NACE2.xlsx` | CTS codebook for 2-digit NACE |
 | `CODEBOOK_NACE_STAT_FILE` | `NACE_STAT.xlsx` | NACE labels, several rows per code |
 | `CODEBOOK_VERSION_LABEL` | empty | Optional label appended to the computed version |
+| `CODEBOOK_SOURCE` | `dir` | `dir` reads `CODEBOOK_DIR`; `blob` downloads the four files from a private Vercel Blob store once per instance (the Vercel setting) |
+| `BLOB_READ_WRITE_TOKEN` | empty | Token of that store. It can also delete the store: a Sensitive variable, and locally only in `app/.env.local` |
+| `BLOB_STORE_ID` | from the token | Store id (`store_` prefix optional) |
+| `CODEBOOK_BLOB_PREFIX` | `codebooks/` | Pathname prefix of the four files in the store |
+| `CODEBOOK_BLOB_TIMEOUT_SECONDS` / `CODEBOOK_BLOB_MAX_ATTEMPTS` | `10` / `2` | Per-file download timeout and attempts (timeouts and 5xx only) |
+| `CODEBOOK_DOWNLOAD_DIR` | system temp dir | Where downloaded codebooks go (`/tmp` on Vercel) |
 | `LOG_LEVEL` | `INFO` | Logging level |
 | `LOOKUP_USER` | OS login name | Requesting user written to the audit log |
+| `PROBE_ENABLED` | `true` | Serve the `/probe` diagnostics page |
+| `WEB_USER_AGENT` | `RBCZ-NACE-ESA-assistant/0.1 (+<repo URL>)` | Sent to every register; Wikimedia refuses httpx requests whose User-Agent has no contact, so keep a URL or mailbox in it |
 
 The `DWS_*` and `ARES_*` variables went with Tool 2 (PR #5); an old `app/.env` that still
 sets them loads fine, because unknown variables are ignored.
@@ -209,9 +227,12 @@ Both raise `MalformedCodeError` for input that is not a code at all.
 
 `load_and_check()` loads the four files, fingerprints them, runs `check_consistency()` and
 raises `CodebookConsistencyError` (carrying the report) when any error is present, or returns
-the report when called with `strict=False`. The FastAPI startup (`lifespan` in `api/main.py`)
-calls it that way and refuses to start on any error; `python -m core.codebooks` runs the same
-check on demand.
+the report when called with `strict=False`. The web app calls it that way once per process
+(at startup, or on the first lookup) and on any error serves **no suggestion**: those
+requests answer 503 with the report summary and `/health` turns 503, while the form, `/health`
+and `/probe` keep answering so the reason can be seen. `python -m core.codebooks` runs the
+same check on demand. With `CODEBOOK_SOURCE=blob` the files are downloaded from the private
+Blob store first (`core/codebooks/blob.py`); the check is identical.
 
 | Code | Severity | Meaning |
 |---|---|---|
@@ -517,15 +538,21 @@ Then open <http://127.0.0.1:8000/>.
 | `POST /suggest` | the form result page (htmx) |
 | `POST /api/suggest` | the same lookup as JSON |
 | `GET /suggest.xlsx` | download one row as xlsx |
-| `GET /health` | status, codebook version, whether the model, search and the registers are configured |
+| `GET /health` | status, codebook state (`loaded` / `not_loaded` / `error` with the reason), version, whether the model, search and the registers are configured, Python, region, commit; 503 after a failed codebook load; never loads anything itself |
+| `GET /probe` | diagnostics: one fixed, harmless request per register with a status per failure mode (`ok`, `timeout`, `dns`, `tls`, `blocked`, `http_error`, `unexpected_body`, ...), the codebook state, the settings (secrets as present/absent only) and the runtime; `?set=all` adds the E5 hosts (FIRDS, Wikidata, Wikipedia), `?format=json` for scripts; `PROBE_ENABLED=false` turns it off |
 
 `POST /api/suggest` also returns an `identity` object (LEI, legal name, country, category,
 legal form, ultimate parent, instrument, the registers that answered and the facts) for a
 script that wants the register data rather than the prose.
 
-**Codebooks load once at startup and an inconsistent set stops the service.** Emitting a CTS
-ID derived from a bad codebook is the one failure nobody catches downstream, so it fails at
-boot rather than in a report.
+**Codebooks load once per process, and a bad set never serves a suggestion.** They load at
+startup (uvicorn, and Vercel, run the lifespan before the first request) or on the first
+lookup, once even when several requests arrive together. If they cannot be fetched, read or
+checked, suggestion requests answer **503 with the reason** - the page keeps what was typed -
+and `/health` turns 503; the failure is retried at most every 30 seconds. Emitting a CTS ID
+derived from a bad codebook is the one failure nobody catches downstream, so it is refused;
+but it no longer stops the process, because on Vercel a failed startup takes the whole
+instance down, `/health` included.
 
 **There is no server-side session.** The download re-runs the request; that is free because
 the classifier caches, and it means a shared or bookmarked link behaves the same for
@@ -545,7 +572,77 @@ docker build -f app/Dockerfile -t naceesa:0.1 app
 ```
 
 Codebooks and `.env` are mounted, never baked into the image. Mount a volume at
-`/app/data/cache` too, or the answer cache and usage ledger are lost on every restart.
+`/app/data/cache` too, or the answer cache and usage ledger are lost on every restart. The
+image installs the `server` extra (uvicorn); its health check fails while `/health` answers
+503, i.e. after a failed codebook load.
+
+## Deploying on Vercel (roadmap E1)
+
+The app runs on Vercel as **one Python function under the FastAPI preset**. What the platform
+needs is in `app/`: `vercel.json` (preset, region `fra1`, `maxDuration` 60 s, bundle
+excludes), `[tool.vercel] entrypoint = "api.main:app"` and `[tool.uv] package = false` in
+`pyproject.toml`, `.python-version` (3.12) and `.vercelignore`. There is no `api/index.py`
+and no rewrite: under the FastAPI preset a catch-all rewrite would show the app every request
+as that one path. `pyproject.toml` is the only dependency file Vercel reads (a
+`requirements.txt` next to it would be ignored), and uvicorn is not a runtime dependency -
+Vercel's Python runtime brings its own. Each of these facts was checked against the Vercel
+docs and the builder source on 22 Sept 2026 (roadmap section 10); `tests/test_vercel_config.py`
+keeps the files consistent with each other and with the code.
+
+**One-time setup.** The Vercel project is created only after roadmap D1 is confirmed.
+
+1. Project: Root Directory `app`; the framework is detected as FastAPI. Only the repository
+   owner can connect the GitHub integration, so deploys run from a checkout with the Vercel CLI.
+2. A private Blob store for the codebooks, in the function's region (a store's region cannot
+   be changed later); Vercel CLI 50.20 or newer:
+   ```bash
+   vercel blob create-store nace-esa-codebooks --access private --region fra1 --yes
+   ```
+3. Upload the four files once; keep their master copies outside Vercel, because the store's
+   token can also overwrite and delete them:
+   ```bash
+   vercel blob put CTS_BA0036_NEW.xlsx --pathname codebooks/CTS_BA0036_NEW.xlsx --access private
+   ```
+   and the same for `BA0036_2024_jen_validni.xlsx`, `CTS_OKEC_NACE2.xlsx` and `NACE_STAT.xlsx`.
+4. Environment variables for Production and Preview:
+
+   | Variable | Value | Why |
+   |---|---|---|
+   | `CODEBOOK_SOURCE` | `blob` | download the codebooks from the store |
+   | `BLOB_READ_WRITE_TOKEN` | the store's token, Sensitive | check it exists after connecting the store; add it by hand if not |
+   | `LLM_ENABLED` | `false` | deterministic mode until E9 |
+   | `LLM_CACHE_PATH`, `LLM_USAGE_PATH` | empty | only `/tmp` is writable; empty switches both SQLite files off |
+   | `WEB_USER_HEADER` | empty | Vercel passes client headers through; a browser could name itself (E2) |
+   | `GLEIF_TIMEOUT_SECONDS`, `OPENFIGI_TIMEOUT_SECONDS` | `5` | with the next row, the worst case (4 GLEIF + 1 OpenFIGI requests) stays under the 60 s cap |
+   | `GLEIF_MAX_ATTEMPTS`, `OPENFIGI_MAX_ATTEMPTS` | `2` | |
+
+5. Deployment Protection: previews are protected by Vercel Authentication by default, the
+   production URL is not. Until the E2 login exists, protect "All Deployments" (free on every
+   plan since 9 Sept 2026), so nobody without access sees CTS IDs.
+
+**Deploy** from the repository root of a checkout. The CLI reads `.vercelignore`, never
+`.gitignore` - that is why the codebooks and `.env` are listed there. The first deploy of a new
+project goes to production; later ones are previews unless `--prod` is given:
+
+```bash
+vercel link
+vercel deploy
+vercel deploy --prod
+```
+
+Never `vercel build` or `vercel deploy --prebuilt` from a checkout that holds `app/.env` or the
+xlsx files: the builder bundles whatever is on disk.
+
+**Check it:** `/health` shows `codebooks.state` `loaded`, the version and `region: fra1`;
+`/probe` shows every register `ok`. A codebook problem - a missing token, a file not uploaded -
+is a 503 on `/health` with the reason.
+
+**Update the codebooks:** upload with `--allow-overwrite` (or to a new prefix and set
+`CODEBOOK_BLOB_PREFIX`), wait a minute - the store's CDN can serve the old file for up to 60 s -
+and redeploy; the new version id appears on `/health`.
+
+**Plan:** Vercel's Hobby plan is for personal, non-commercial use only; Pro is $20 per month per
+deploying seat (roadmap D1).
 
 ## Enabling the model (deferred, roadmap E9)
 
@@ -586,7 +683,8 @@ Set a cap in the provider dashboard as well - that is the backstop.
 
 - Lint and format with ruff: `ruff check .` and `ruff format .` from `app/`.
 - Test module basenames are unique across `tests/` (`test_ico.py`, `test_isin.py`,
-  `test_codebooks_*.py`, `test_sources_*.py`, `test_settings.py`, `test_audit.py`,
+  `test_codebooks_*.py`, `test_sources_*.py`, `test_api_*.py`, `test_settings.py`,
+  `test_audit.py`, `test_probe.py`, `test_vercel_config.py`,
   `test_suggest.py`) because
   pytest runs in the default import mode.
 - The source tests never touch the network: GLEIF and OpenFIGI are driven through
@@ -595,4 +693,6 @@ Set a cap in the provider dashboard as well - that is the backstop.
   search provider.
 - `numpy` is a dev extra only: the identifier and codebook tests feed numpy scalars to the
   normalisers. `pandas` is not a dependency (dropped in PR #5; it was imported nowhere).
-- Deployment target is Vercel (roadmap E1); `app/Dockerfile` stays for local runs.
+- Deployment target is Vercel (roadmap E1, "Deploying on Vercel" above); `app/Dockerfile`
+  stays for local runs. `uvicorn` comes with the `dev` and `server` extras, not the runtime
+  dependencies.
