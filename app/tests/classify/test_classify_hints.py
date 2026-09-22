@@ -6,10 +6,12 @@ import pytest
 
 from core.classify.hints import (
     HINTS,
+    REGISTER_RULES,
     build_families,
     hinted_esa_families,
     hinted_nace,
     matching_hints,
+    register_nace,
     split_control,
 )
 from tests.classify.conftest import ESA_ROWS
@@ -74,6 +76,18 @@ class TestFamilies:
     def test_display_name_is_kept_for_prompts(self) -> None:
         families = build_families((code, name) for code, name, _ in ESA_ROWS)
         assert families["banky"].display.startswith("Banky")
+
+    def test_the_display_name_names_the_family_not_one_variant(self) -> None:
+        """ "family: Banky veřejné" under a proposed foreign-controlled bank would mislead."""
+        rest = [(c, n) for c, n, _ in ESA_ROWS if c.startswith("2")]
+        families = build_families(rest)
+        assert families["banky"].display == "Banky"
+        assert families["nefinancni podniky"].display == "Nefinanční podniky"
+        assert (
+            families["kaptivni financni instituce a pujcovatele penez"].display
+            == "Kaptivní finanční instituce a půjčovatelé peněz"
+        )
+        assert families["mezinarodni rozvojove banky"].display == "Mezinárodní rozvojové banky"
 
 
 class TestHintTable:
@@ -142,3 +156,89 @@ class TestHintTable:
     def test_matching_hints_can_return_several(self) -> None:
         hits = matching_hints("bank and insurance group")
         assert len(hits) >= 2
+
+    @pytest.mark.parametrize(
+        ("text", "division"),
+        [
+            # The golden run of 22 Sept 2026 never offered 84 or 99: the government and
+            # supranational hints named ESA families and no NACE division.
+            ("vládní instituce (government) [RESIDENT_GOVERNMENT_ENTITY]", "84"),
+            ("vládní dluhopis (government, sovereign) [Govt]", "84"),
+            ("místní samospráva (local government, municipality)", "84"),
+            ("mezinárodní organizace (supranational international organisation)", "99"),
+            ("a multilateral development bank owned by member states", "99"),
+            ("an intergovernmental financial institution of the euro area", "99"),
+            ("Carmaker headquartered in Wolfsburg", "29"),
+        ],
+    )
+    def test_the_public_sector_and_the_carmaker_reach_their_division(
+        self, text: str, division: str
+    ) -> None:
+        assert division in hinted_nace(text)
+
+    @pytest.mark.parametrize(
+        ("text", "family"),
+        [
+            # The four families whose Popis is empty in the CTS file (and at the CNB) can be
+            # reached through their names and these triggers only.
+            (
+                "provides factoring and hire purchase to small firms",
+                "financni instituce poskytujici uvery",
+            ),
+            ("společnost poskytující faktoring", "financni instituce poskytujici uvery"),
+            (
+                "a venture capital company investing its own funds",
+                "specializovane financni instituce",
+            ),
+            ("the state export credit company", "specializovane financni instituce"),
+            ("společnost rizikového kapitálu", "specializovane financni instituce"),
+            (
+                "issues rated asset-backed notes",
+                "ucelove financni instituce pro sekuritizaci aktiv",
+            ),
+            (
+                "obchodník s cennými papíry na vlastní účet",
+                "obchodnici s cennymi papiry a derivaty",
+            ),
+            ("Money market sub-fund of the Luxembourg SICAV", "fondy penezniho trhu"),
+            (
+                "Dutch financing company of Shell plc, with no staff",
+                "kaptivni financni instituce a pujcovatele penez",
+            ),
+            (
+                "SIEMENS FINANCIERINGSMAATSCHAPPIJ N.V.",
+                "kaptivni financni instituce a pujcovatele penez",
+            ),
+        ],
+    )
+    def test_families_without_a_popis_are_reachable_by_keyword(
+        self, text: str, family: str
+    ) -> None:
+        assert family in hinted_esa_families(text)
+
+
+class TestRegisterRules:
+    def test_a_gleif_category_settles_the_division(self) -> None:
+        sheet = (
+            "GLEIF (LEI X): European Investment Bank. Kategorie subjektu podle GLEIF: "
+            "mezinárodní organizace (supranational international organisation) "
+            "[INTERNATIONAL_ORGANIZATION]."
+        )
+        assert register_nace(sheet) == {"99": "register: GLEIF: international organisation"}
+
+    def test_a_government_entity_settles_84(self) -> None:
+        sheet = "Kategorie subjektu podle GLEIF: vládní instituce (government) [RESIDENT_GOVERNMENT_ENTITY]."
+        assert list(register_nace(sheet)) == ["84"]
+
+    def test_prose_cannot_fire_a_register_rule(self) -> None:
+        """Only the register may settle a code; a description saying so is only a keyword."""
+        assert register_nace("an international organization and a resident government entity") == {}
+
+    def test_openfigi_govt_is_not_a_register_rule(self) -> None:
+        """Kommuninvest, a Swedish bank, issues bonds that OpenFIGI files as Govt."""
+        assert register_nace("Tržní sektor: vládní dluhopis (government, sovereign) [Govt].") == {}
+
+    def test_every_rule_names_a_division(self) -> None:
+        for rule in REGISTER_RULES:
+            assert len(rule.nace) == 2 and rule.nace.isdigit()
+            assert rule.note

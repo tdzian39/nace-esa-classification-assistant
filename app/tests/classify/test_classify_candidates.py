@@ -12,7 +12,13 @@ from core.classify.candidates import (
 )
 from core.classify.models import ESA, NACE
 from core.codebooks.models import CodebookSet
-from tests.classify.conftest import CAPTIVE_CS, CAPTIVE_EN, CARMAKER_EN, build_codebooks
+from tests.classify.conftest import (
+    CAPTIVE_CS,
+    CAPTIVE_EN,
+    CARMAKER_EN,
+    NACE_ROWS,
+    build_codebooks,
+)
 
 
 class TestNaceShortlist:
@@ -50,6 +56,67 @@ class TestNaceShortlist:
     ) -> None:
         """An empty NACE shortlist is honest: it makes the classifier abstain."""
         assert len(NaceCandidateFilter(codebooks).shortlist("")) == 0
+
+
+#: The fixture codebook plus the two public-sector divisions the register rules name.
+PUBLIC_NACE_ROWS = (
+    *NACE_ROWS,
+    ("84", "Veřejná správa a obrana", ("Veřejná správa a obrana; povinné sociální zabezpečení",)),
+    (
+        "99",
+        "Činnosti exteritoriálních organizací",
+        ("Činnosti exteritoriálních organizací a orgánů",),
+    ),
+)
+
+
+class TestRegisterPrecedence:
+    def test_an_international_organisation_leads_with_99_although_its_name_says_bank(
+        self,
+    ) -> None:
+        """GLEIF files the EIB as INTERNATIONAL_ORGANIZATION; "bank" in its name must not win."""
+        codebooks = build_codebooks(nace_rows=PUBLIC_NACE_ROWS)
+        text = (
+            "European Investment Bank, the EU's lending institution, owned by the member "
+            "states.\n\nGLEIF (LEI X): European Investment Bank. Kategorie subjektu podle GLEIF: "
+            "mezinárodní organizace (supranational international organisation) "
+            "[INTERNATIONAL_ORGANIZATION]."
+        )
+        result = NaceCandidateFilter(codebooks).shortlist(text)
+        assert result.codes[:2] == ("99", "64")
+        assert result.candidates[0].reasons[0].startswith("register:")
+
+    def test_a_government_leads_with_84_although_it_mentions_bank_loans(self) -> None:
+        codebooks = build_codebooks(nace_rows=PUBLIC_NACE_ROWS)
+        text = (
+            "Ville de Paris borrows through bank loans and an EMTN programme.\n\n"
+            "Kategorie subjektu podle GLEIF: vládní instituce (government) "
+            "[RESIDENT_GOVERNMENT_ENTITY], místní samospráva (local government, municipality)."
+        )
+        assert NaceCandidateFilter(codebooks).shortlist(text).codes[0] == "84"
+
+    def test_without_the_register_a_government_word_still_offers_84(self) -> None:
+        """A typed description has no fact sheet; the keyword alone must still offer 84."""
+        codebooks = build_codebooks(nace_rows=PUBLIC_NACE_ROWS)
+        assert "84" in NaceCandidateFilter(codebooks).shortlist("sovereign borrower").codes
+
+
+class TestEnglishTitles:
+    def test_an_english_description_reaches_a_division_no_keyword_names(self) -> None:
+        """No hint mentions crops; only division 01's English title does."""
+        rows = (*NACE_ROWS, ("01", "Rostlinná a živočišná výroba", ("Pěstování obilovin",)))
+        codebooks = build_codebooks(nace_rows=rows)
+        result = NaceCandidateFilter(codebooks).shortlist("grows crops and raises animals")
+        assert result.codes[:1] == ("01",)
+
+    def test_the_english_title_is_scored_but_never_becomes_part_of_the_candidate(
+        self, codebooks: CodebookSet
+    ) -> None:
+        """MO sees the Czech codebook; the prompt gets the codebook's own texts."""
+        candidate = NaceCandidateFilter(codebooks).shortlist(CARMAKER_EN).by_code("29")
+        assert candidate is not None
+        assert not any("motor vehicles, trailers" in text for text in candidate.definitions)
+        assert "Manufacture" not in candidate.label
 
 
 class TestEsaShortlist:
