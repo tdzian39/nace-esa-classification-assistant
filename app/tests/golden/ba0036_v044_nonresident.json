@@ -1,0 +1,235 @@
+{
+  "_comment": [
+    "CNB codelist BA0036 'Ekonomicke sektory podle ESA2010 v uprave CNB', version 044 (valid from",
+    "2025-01-01; version 042 of 2024 has the same items): the 56 elementary non-resident items, read",
+    "from the CNB SDAT portal (Metodicke informace > Knihovna > Ciselniky) on 22 Sept 2026. Public",
+    "data. CTS holds the same 56. Used to check that every golden ESA code exists."
+  ],
+  "source": "https://sdat.cnb.cz/sdat_ext/pages/sdat/portal/EXT/public/metapopis/knihovna/F1002-prehled-ciselniku.zul",
+  "items": [
+    {
+      "code": "2001001",
+      "name_cs": "Nefinanční podniky veřejné"
+    },
+    {
+      "code": "2001002",
+      "name_cs": "Nefinanční podniky soukromé národní"
+    },
+    {
+      "code": "2001003",
+      "name_cs": "Nefinanční podniky soukromé pod zahraniční kontrolou"
+    },
+    {
+      "code": "2002100",
+      "name_cs": "Centrální banka"
+    },
+    {
+      "code": "2002211",
+      "name_cs": "Banky veřejné"
+    },
+    {
+      "code": "2002212",
+      "name_cs": "Banky soukromé národní"
+    },
+    {
+      "code": "2002213",
+      "name_cs": "Banky pod zahraniční kontrolou"
+    },
+    {
+      "code": "2002221",
+      "name_cs": "Jiné instituce přijímající vklady veřejné"
+    },
+    {
+      "code": "2002222",
+      "name_cs": "Spořitelní a úvěrní družstva soukromé národní"
+    },
+    {
+      "code": "2002223",
+      "name_cs": "Spořitelní a úvěrní družstva pod zahraniční kontrolou"
+    },
+    {
+      "code": "2002242",
+      "name_cs": "Jiné instituce přijímající vklady soukromé národní"
+    },
+    {
+      "code": "2002243",
+      "name_cs": "Jiné instituce přijímající vklady pod zahraniční kontrolou"
+    },
+    {
+      "code": "2002301",
+      "name_cs": "Fondy peněžního trhu veřejné"
+    },
+    {
+      "code": "2002302",
+      "name_cs": "Fondy peněžního trhu soukromé národní"
+    },
+    {
+      "code": "2002303",
+      "name_cs": "Fondy peněžního trhu pod zahraniční kontrolou"
+    },
+    {
+      "code": "2002401",
+      "name_cs": "Investiční fondy jiné než fondy peněžního trhu, veřejné"
+    },
+    {
+      "code": "2002402",
+      "name_cs": "Investiční fondy jiné než fondy peněžního trhu, soukromé národní"
+    },
+    {
+      "code": "2002403",
+      "name_cs": "Investiční fondy jiné než fondy peněžního trhu, pod zahraniční kontrolou"
+    },
+    {
+      "code": "2002511",
+      "name_cs": "Účelové finanční instituce pro sekuritizaci aktiv - veřejné"
+    },
+    {
+      "code": "2002512",
+      "name_cs": "Účelové finanční instituce pro sekuritizaci aktiv - soukromé národní"
+    },
+    {
+      "code": "2002513",
+      "name_cs": "Účelové finanční instituce pro sekuritizaci aktiv - pod zahraniční kontrolou"
+    },
+    {
+      "code": "2002521",
+      "name_cs": "Obchodníci s cennými papíry a deriváty - veřejní"
+    },
+    {
+      "code": "2002522",
+      "name_cs": "Obchodníci s cennými papíry a deriváty - soukromí národní"
+    },
+    {
+      "code": "2002523",
+      "name_cs": "Obchodníci s cennými papíry a deriváty - pod zahraniční kontrolou"
+    },
+    {
+      "code": "2002531",
+      "name_cs": "Finanční instituce poskytující úvěry - veřejné"
+    },
+    {
+      "code": "2002532",
+      "name_cs": "Finanční instituce poskytující úvěry - soukromé národní"
+    },
+    {
+      "code": "2002533",
+      "name_cs": "Finanční instituce poskytující úvěry - pod zahraniční kontrolou"
+    },
+    {
+      "code": "2002541",
+      "name_cs": "Specializované finanční instituce - veřejné"
+    },
+    {
+      "code": "2002542",
+      "name_cs": "Specializované finanční instituce - soukromé národní"
+    },
+    {
+      "code": "2002543",
+      "name_cs": "Specializované finanční instituce - pod zahraniční kontrolou"
+    },
+    {
+      "code": "2002601",
+      "name_cs": "Pomocné finanční instituce veřejné"
+    },
+    {
+      "code": "2002602",
+      "name_cs": "Pomocné finanční instituce soukromé národní"
+    },
+    {
+      "code": "2002603",
+      "name_cs": "Pomocné finanční instituce pod zahraniční kontrolou"
+    },
+    {
+      "code": "2002701",
+      "name_cs": "Kaptivní finanční instituce a půjčovatelé peněz veřejné"
+    },
+    {
+      "code": "2002702",
+      "name_cs": "Kaptivní finanční instituce a půjčovatelé peněz soukromé národní"
+    },
+    {
+      "code": "2002703",
+      "name_cs": "Kaptivní finanční instituce a půjčovatelé peněz pod zahraniční kontrolou"
+    },
+    {
+      "code": "2002801",
+      "name_cs": "Pojišťovací společnosti (IC) veřejné"
+    },
+    {
+      "code": "2002802",
+      "name_cs": "Pojišťovací společnosti (IC) soukromé národní"
+    },
+    {
+      "code": "2002803",
+      "name_cs": "Pojišťovací společnosti (IC) pod zahraniční kontrolou"
+    },
+    {
+      "code": "2002901",
+      "name_cs": "Penzijní fondy (PF) veřejné"
+    },
+    {
+      "code": "2002902",
+      "name_cs": "Penzijní fondy (PF) soukromé národní"
+    },
+    {
+      "code": "2002903",
+      "name_cs": "Penzijní fondy (PF) pod zahraniční kontrolou"
+    },
+    {
+      "code": "2003110",
+      "name_cs": "Ústřední vládní instituce"
+    },
+    {
+      "code": "2003120",
+      "name_cs": "Národní vládní instituce"
+    },
+    {
+      "code": "2003130",
+      "name_cs": "Místní vládní instituce"
+    },
+    {
+      "code": "2003140",
+      "name_cs": "Fondy sociálního zabezpečení"
+    },
+    {
+      "code": "2004100",
+      "name_cs": "Zaměstnavatelé"
+    },
+    {
+      "code": "2004200",
+      "name_cs": "Osoby samostatně výdělečně činné"
+    },
+    {
+      "code": "2004300",
+      "name_cs": "Zaměstnanci"
+    },
+    {
+      "code": "2004410",
+      "name_cs": "Příjemci důchodů z vlastnictví"
+    },
+    {
+      "code": "2004420",
+      "name_cs": "Příjemci penzí"
+    },
+    {
+      "code": "2004430",
+      "name_cs": "Příjemci ostatních transferů (obsahuje výhradně SVJ)"
+    },
+    {
+      "code": "2005002",
+      "name_cs": "Neziskové instituce sloužící domácnostem soukromé národní"
+    },
+    {
+      "code": "2005003",
+      "name_cs": "Neziskové instituce sloužící domácnostem pod zahraniční kontrolou"
+    },
+    {
+      "code": "2009031",
+      "name_cs": "Mezinárodní rozvojové banky"
+    },
+    {
+      "code": "2009035",
+      "name_cs": "Ostatní mezinárodní instituce"
+    }
+  ]
+}

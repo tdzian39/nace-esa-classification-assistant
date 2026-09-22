@@ -5,6 +5,12 @@ Two modes, neither of which calls a model or needs an API key:
     python -m core.classify "captive funding vehicle of a bank"   # show both shortlists
     python -m core.classify --golden                              # recall over the golden set
     python -m core.classify "..." --estimate                      # prompt size before paying
+    python -m core.classify --golden-capture                      # re-record the register answers
+
+A golden case with an ISIN (a real issuer, roadmap E8) is scored the way the pipeline works:
+its description plus the issuer's register fact sheet, replayed from the GLEIF/OpenFIGI answers
+recorded in tests/golden/identity.json. ``--golden-capture`` asks the live registers (throttled,
+a few minutes) and rewrites that file; it is the only mode that uses the network.
 
 Recall is the pre-filter's grade: the share of golden cases whose correct code made it onto
 the shortlist at all. A code the filter never offers is one the classifier can never return,
@@ -20,6 +26,7 @@ import argparse
 import logging
 import sys
 from collections.abc import Sequence
+from datetime import date
 
 from config.settings import get_settings
 from core.classify.candidates import (
@@ -30,11 +37,13 @@ from core.classify.candidates import (
 from core.classify.golden import (
     ESA,
     NACE,
+    GoldenCase,
     GoldenError,
     counts,
     load_golden,
     score_recall,
 )
+from core.classify.golden_fixtures import capture, load_answers, replaying_identifier
 from core.classify.models import CandidateSet
 from core.classify.prompts import build_prompt
 from core.codebooks.errors import CodebookError
@@ -54,6 +63,11 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("description", nargs="*", help="activity description to shortlist for")
     parser.add_argument(
         "--golden", action="store_true", help="score recall over tests/golden/cases.json"
+    )
+    parser.add_argument(
+        "--golden-capture",
+        action="store_true",
+        help="record the GLEIF/OpenFIGI answers for the golden ISINs (uses the network)",
     )
     parser.add_argument(
         "--limit", type=int, default=DEFAULT_LIMIT, help=f"shortlist size (default {DEFAULT_LIMIT})"
@@ -127,7 +141,25 @@ def _print_estimate(nace: CandidateSet, esa: CandidateSet, description: str) -> 
     print(f"  both codebooks: ~{total} input tokens per issuer, then cached")
 
 
-def _run_golden(codebooks: CodebookSet, limit: int, resident: bool) -> int:
+def _golden_texts(cases: Sequence[GoldenCase], settings) -> dict[str, str]:
+    """What each case is scored on: the description, plus the fact sheet for a real issuer."""
+    answers = load_answers()
+    identifier = replaying_identifier(settings, answers) if answers else None
+    if identifier is None and any(case.real for case in cases):
+        print(
+            "WARNING: no recorded register answers (tests/golden/identity.json) - real issuers "
+            "are scored on their description only; run --golden-capture"
+        )
+    texts: dict[str, str] = {}
+    for case in cases:
+        parts = [case.description]
+        if identifier is not None and case.isin:
+            parts.append(identifier.identify(case.isin).fact_sheet())
+        texts[case.id] = "\n\n".join(part for part in parts if part)
+    return texts
+
+
+def _run_golden(codebooks: CodebookSet, limit: int, resident: bool, settings) -> int:
     cases = load_golden()
     stats = counts(cases)
     print(
@@ -139,17 +171,23 @@ def _run_golden(codebooks: CodebookSet, limit: int, resident: bool) -> int:
             "WARNING: no case is verified yet - these figures exercise the filter, not its quality"
         )
 
+    texts = _golden_texts(cases, settings)
     nace_filter = NaceCandidateFilter(codebooks)
     esa_filter = EsaCandidateFilter(codebooks, resident=resident)
-    nace_lists = [(case, nace_filter.shortlist(case.description, limit=limit)) for case in cases]
-    esa_lists = [(case, esa_filter.shortlist(case.description, limit=limit)) for case in cases]
-
     misses = 0
-    for kind, shortlists in ((NACE, nace_lists), (ESA, esa_lists)):
-        report = score_recall(cases, shortlists, kind)
-        print(f"\n--- {kind} (shortlist of {limit}) ---")
-        print(report.summary())
-        misses += len(report.misses())
+    groups = (
+        ("real issuers (provisional unless verified)", [case for case in cases if case.real]),
+        ("fictional trap cases", [case for case in cases if not case.real]),
+    )
+    for label, group in groups:
+        if not group:
+            continue
+        for kind, shortlist in ((NACE, nace_filter.shortlist), (ESA, esa_filter.shortlist)):
+            lists = [(case, shortlist(texts[case.id], limit=limit)) for case in group]
+            report = score_recall(group, lists, kind)
+            print(f"\n--- {kind}, {label} (shortlist of {limit}) ---")
+            print(report.summary())
+            misses += len(report.misses())
     return EXIT_MISSES if misses else EXIT_OK
 
 
@@ -164,6 +202,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if hasattr(stdout, "reconfigure"):  # never crash on a console that cannot show Czech letters
         stdout.reconfigure(errors="backslashreplace")
 
+    if args.golden_capture:
+        try:
+            recorded = capture(load_golden(), settings, captured_on=date.today())
+        except GoldenError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return EXIT_LOAD_FAILED
+        print(f"recorded {recorded} register answer(s) in tests/golden/identity.json")
+        return EXIT_OK
+
     try:
         codebooks = _load(settings)
     except (CodebookError, OSError) as exc:
@@ -176,7 +223,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.golden:
         try:
-            return _run_golden(codebooks, args.limit, args.resident)
+            return _run_golden(codebooks, args.limit, args.resident, settings)
         except GoldenError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return EXIT_LOAD_FAILED

@@ -170,9 +170,16 @@ app/
   sector/type, last digit control (1 veřejné, 2 soukromé národní, 3 pod zahraniční kontrolou). Examples used in
   tests: `2002703` kaptivní finanční instituce pod zahraniční kontrolou · `2002213` banky pod zahraniční
   kontrolou (`2002212` soukromé národní, `2002211` veřejné) · `2001003` nefinanční podniky pod zahraniční
-  kontrolou · `2002803` pojišťovny · `2002513` sekuritizace · `2002533` úvěrové instituce · `2002403` investiční
+  kontrolou · `2002803` pojišťovny · `2002513` sekuritizace · `2002533` finanční instituce poskytující úvěry (S.125 lenders — not banks) · `2002403` investiční
   fondy jiné než FPT · `2002303` fondy peněžního trhu · `2009031` mezinárodní rozvojové banky; resident block
   `1221300`, `1100300`. Foreign issuers → the `2…` block (`EsaCandidateFilter(resident=False)`).
+- **The public source of BA0036** (found 22 Sept 2026, E8): the ČNB SDAT portal, *Metodické informace → Knihovna →
+  Číselníky*, code BA0036 "Ekonomické sektory podle ESA2010 v úpravě ČNB", version 044 (valid from 1 Jan 2025;
+  the 2024 version 042 has the same 321 items). Its non-resident aggregate `2000000` has exactly **56** elementary
+  items — the 56 in CTS, and all 16 codes read from the CTS export match in meaning. The resident aggregate has 54,
+  so ČNB has 110 leaves where `BA0036_2024_jen_validni.xlsx` has 109: one resident leaf is missing from the CTS
+  file (irrelevant for foreign issuers; whoever has the file can diff it). The E8 golden cases take their ESA codes
+  from this list.
 - **The S.12203 problem**: RES/ARES report ESA in the `S.xxxxx` form (`12203` for Raiffeisenbank); CTS splits
   S.1220x into banks (1221x) / credit unions (1222x) / other deposit-takers (1224x), so a RES sector is **not** a
   lexical lookup into BA0036. Irrelevant for foreign issuers, relevant if anyone ever maps register sectors.
