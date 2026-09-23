@@ -57,6 +57,12 @@ optional.
    (`LOOKUP_DEADLINE_SECONDS`); `python -m core.classify --golden --model` measures a model against the rules.
    **Switch-on** = the env vars in "Switching it on in production", the owner adds `LLM_API_KEY`, redeploy,
    smoke checks; rollback = `LLM_ENABLED=false` and redeploy. Never made a live call yet.
+3b. **E5.1-lite: the description from Wikipedia (branch `feat/e5-wikipedia-description`, 23 Sept 2026).**
+   With no typed description, an ISIN's LEI finds the Wikidata item (P1278) and its Wikipedia lead (cs, then
+   en); Wikidata's one-liner and industry labels are appended. Identifier-matched only, so a name-only lookup
+   still needs a typed description. Live: `DE0005140008` alone now yields Deutsche Bank's description with
+   both pages cited. Not done: industries' NACE codes (P4496, too heavy over the Action API), and no recall
+   figure yet for descriptions fetched this way instead of typed.
 4. **E5-lite: the FIRDS LEI fallback.** GLEIF maps 25 of 36 golden ISINs; the misses (Eurobond, LU/IE funds) include
    all four captive vehicles, the core ESA trap. ESMA FIRDS returns the issuer LEI for them; `/probe` already
    shows the host reachable from Vercel.
@@ -230,7 +236,8 @@ app/
    Result `IssuerIdentity` with `fact_sheet()` (Czech one-liners whose parentheses carry English hint words),
    citable record pages, sources that answered, notes for what is missing.
 3. `WebEvidenceGatherer.gather(name=typed or legal name, isin, description)` — a typed description wins and
-   skips the web; otherwise a pluggable `SearchProvider` (HTTP JSON, Brave-shaped defaults, **none configured**)
+   skips the web; otherwise, with a LEI, Wikidata -> Wikipedia (`core/sources/wikimedia.py`, E5.1), then a
+   pluggable `SearchProvider` (HTTP JSON, Brave-shaped defaults, **none configured**)
    + stdlib HTML text extraction. `apl.czso.cz` / `or.justice.cz` are refused in code.
 4. `classifier_text = description + "\n\n" + fact_sheet` → `NaceCandidateFilter` / `EsaCandidateFilter`
    (`limit=12`): keyword hints (`hints.py`, cs+en, +10 score), register rules (a GLEIF category in the fact
@@ -310,8 +317,9 @@ Sample ISINs for tests and demos: `DE0005140008` Deutsche Bank AG (GENERAL, no p
 
 - A **name-only** lookup never touches a register (E3). An ISIN with no web provider yields register facts only —
   that is the intended deterministic pilot mode.
-- The web search provider is **not configured** and is a procurement question; Wikipedia summaries (E5) give a
-  free description for well-known issuers and may make a paid provider unnecessary for the pilot.
+- The web search provider is **not configured** and is a procurement question; Wikipedia summaries (E5.1, now
+  built) give a free description for issuers Wikidata links to their LEI - the big corporates and banks, not
+  the EIB or financing vehicles like BMW Finance N.V. - and may make a paid provider unnecessary.
 - `pandas` is gone (PR #5). `numpy` stays a **dev** extra only: the identifier and codebook tests feed numpy scalars
   (`np.int64`, a NaN `np.float64`) to the normalisers. Keep both out of the runtime dependencies.
 - `py -m pytest` from `app/` **without** `pip install -e .` fails to collect `tests/api` (the `tests/api` package
@@ -519,6 +527,10 @@ visible on the page.
 ### E5 — More sources: Wikidata/Wikipedia and FIRDS (M)
 
 **Goal:** a description without a paid search provider, and a structured NACE path for well-known issuers.
+**Status (23 Sept 2026):** item 1's description half is built (`core/sources/wikimedia.py`, called from
+`WebEvidenceGatherer` by LEI; `/probe` checks Wikidata and Wikipedia by default). Left: the P4496 NACE path
+(the industry items' claims are ~250 KB over the Action API - a WDQS SPARQL query or per-industry
+`wbgetclaims` would do it), and items 2-3.
 **Work:**
 1. `core/sources/wikidata.py`: LEI → item (`haswbstatement:P1278=`), `P452` industry → `P4496` NACE code →
    division candidates with evidence ("Wikidata: automotive industry → NACE 29"); description (cs/en) and

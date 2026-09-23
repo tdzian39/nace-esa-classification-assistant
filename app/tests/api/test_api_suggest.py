@@ -61,7 +61,12 @@ def make_service(
 ) -> SuggestionService:
     import httpx
 
-    settings = Settings(web_min_interval_seconds=0.0, llm_cache_path=None, llm_api_key=None)
+    settings = Settings(
+        web_min_interval_seconds=0.0,
+        llm_cache_path=None,
+        llm_api_key=None,
+        wikimedia_enabled=False,
+    )
     client = httpx.Client(
         transport=httpx.MockTransport(
             lambda request: httpx.Response(200, text=PAGE, headers={"content-type": "text/html"})
@@ -335,6 +340,20 @@ class TestHealth:
         assert body["codebook_version"]
         assert body["llm_configured"] is False
         assert body["search_configured"] is False
+        assert body["wikimedia_enabled"] is True
+
+
+class TestWarnings:
+    def test_with_wikimedia_the_banner_says_where_the_description_comes_from(self) -> None:
+        warnings = api._warnings(Settings(llm_api_key=None, web_search_url=None))
+        assert any("Wikipedii podle LEI" in warning for warning in warnings)
+        assert not any("WEB_SEARCH_URL" in warning for warning in warnings)
+
+    def test_without_wikimedia_it_asks_for_a_typed_description(self) -> None:
+        warnings = api._warnings(
+            Settings(llm_api_key=None, web_search_url=None, wikimedia_enabled=False)
+        )
+        assert any("WEB_SEARCH_URL" in warning for warning in warnings)
 
 
 def test_every_lookup_is_audited(client: TestClient, caplog: pytest.LogCaptureFixture) -> None:
@@ -437,6 +456,7 @@ class TestIsinIdentity:
             gleif_max_attempts=1,
             openfigi_min_interval_seconds=0.0,
             openfigi_max_attempts=1,
+            wikimedia_enabled=False,
         )
         identifier = IssuerIdentifier(
             settings,

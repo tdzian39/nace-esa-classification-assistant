@@ -29,16 +29,16 @@ def settings(**overrides: object) -> Settings:
 
 def healthy(request: httpx.Request) -> httpx.Response:
     """Every register answering the way it did when the probes were written."""
-    host, path = request.url.host, request.url.path
+    host = request.url.host
     if host == "api.gleif.org":
         return httpx.Response(200, json=GLEIF_OK)
     if host == "api.openfigi.com":
         return httpx.Response(200, json=FIGI_OK)
     if host == "registers.esma.europa.eu":
         return httpx.Response(200, json=FIRDS_OK)
-    if host == "www.wikidata.org" and path.endswith("api.php"):
+    if host == "www.wikidata.org" and request.url.params.get("action") == "query":
         return httpx.Response(200, json=WIKIDATA_SEARCH_OK)
-    if host == "www.wikidata.org":
+    if host == "www.wikidata.org" and request.url.params.get("action") == "wbgetentities":
         return httpx.Response(200, json=WIKIDATA_ENTITY_OK)
     if host.endswith("wikipedia.org"):
         return httpx.Response(200, json=WIKIPEDIA_OK)
@@ -50,20 +50,44 @@ def client(handler) -> httpx.Client:
 
 
 class TestTheFixedChecks:
-    def test_by_default_only_the_registers_in_use_are_checked(self) -> None:
-        assert [check.key for check in checks(settings())] == ["gleif", "openfigi"]
+    def test_by_default_only_the_sources_in_use_are_checked(self) -> None:
+        assert [check.key for check in checks(settings())] == [
+            "gleif",
+            "openfigi",
+            "wikidata",
+            "wikipedia_cs",
+            "wikipedia_en",
+        ]
+        assert all(check.in_use for check in checks(settings()))
+
+    def test_the_wikipedia_checks_follow_the_configured_languages(self) -> None:
+        keys = [check.key for check in checks(settings(wikipedia_languages="en"))]
+        assert keys == ["gleif", "openfigi", "wikidata", "wikipedia_en"]
 
     def test_the_extended_set_adds_the_e5_candidates(self) -> None:
         keys = [check.key for check in checks(settings(), extended=True)]
-        assert keys == ["gleif", "openfigi", "firds", "wikidata", "wikipedia_en", "wikipedia_cs"]
+        assert keys == ["gleif", "openfigi", "wikidata", "wikipedia_cs", "wikipedia_en", "firds"]
+
+    @pytest.mark.parametrize("switch", ["wikimedia_enabled", "web_enabled"])
+    def test_wikimedia_switched_off_is_only_a_candidate(self, switch: str) -> None:
+        off = settings(**{switch: False})
+        assert [check.key for check in checks(off)] == ["gleif", "openfigi"]
+        extended = checks(off, extended=True)
+        assert [check.key for check in extended][2:] == [
+            "firds",
+            "wikidata",
+            "wikipedia_cs",
+            "wikipedia_en",
+        ]
+        assert not any(check.in_use for check in extended[2:])
 
     def test_the_requests_are_fixed_and_harmless(self) -> None:
-        gleif, figi = checks(settings())
+        gleif, figi, *_ = checks(settings())
         assert gleif.method == "GET" and gleif.url.endswith(f"/lei-records/{LEI}")
         assert figi.method == "POST" and figi.json_body == [{"idType": "ID_ISIN", "idValue": ISIN}]
 
     def test_the_configured_base_urls_are_used(self) -> None:
-        gleif, figi = checks(
+        gleif, figi, *_ = checks(
             settings(
                 gleif_base_url="https://gleif.test/api/v1", openfigi_base_url="https://figi.test/v3"
             )
@@ -152,7 +176,7 @@ class TestReport:
     def test_all_registers_answering_is_ok(self) -> None:
         result = report(settings(), client=client(healthy))
         assert result["ok"] is True
-        assert [host["status"] for host in result["hosts"]] == ["ok", "ok"]
+        assert [host["status"] for host in result["hosts"]] == ["ok"] * 5
 
     def test_the_wikidata_check_follows_the_search_to_the_item(self) -> None:
         result = report(settings(), extended=True, client=client(healthy))

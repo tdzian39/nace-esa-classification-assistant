@@ -194,11 +194,14 @@ class SuggestionService:
             self._identifier.identify(cleaned.isin) if self._identifier is not None else NO_IDENTITY
         )
         # The register's legal name is the best possible search query; what the user typed
-        # still wins as the name shown, because it is what they will recognise.
+        # still wins as the name shown, because it is what they will recognise. The LEI lets
+        # the gatherer find the issuer's Wikipedia article by identifier, not by name.
         evidence = self._gatherer.gather(
             name=cleaned.name or identity.legal_name,
             isin=cleaned.isin,
             description=cleaned.description,
+            lei=identity.lei,
+            deadline=deadline,
         )
         issuer_name = cleaned.name or identity.legal_name or evidence.issuer_name
         text = "\n\n".join(part for part in (evidence.description, identity.fact_sheet()) if part)
