@@ -5,40 +5,145 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Diagnostika – ESA a NACE našeptávač</title>
+<script>
+  /* The same theme switch as the suggest page, sharing its remembered choice. */
+  (function () {
+    try {
+      var saved = localStorage.getItem("nace-esa-theme");
+      if (saved === "light" || saved === "dark") {
+        document.documentElement.setAttribute("data-theme", saved);
+      }
+    } catch (e) {}
+    document.addEventListener("click", function (event) {
+      var button = event.target.closest ? event.target.closest("[data-theme-toggle]") : null;
+      if (!button) { return; }
+      var root = document.documentElement;
+      var current = root.getAttribute("data-theme") ||
+        (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      var next = current === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("nace-esa-theme", next); } catch (e) {}
+    });
+  })();
+</script>
 <style>
+  /* The suggest page's tokens (the RB team gateway look), for an operator page. */
   :root {
-    --bg: #f4f5f7; --surface: #ffffff; --border: #d8dce3; --text: #1a1d23; --muted: #5d6673;
-    --good: #1a7f4b; --warn: #9a6700; --bad: #b3261e; --radius: 8px;
+    color-scheme: light;
+    --bg: #e3ddd1; --surface: #f1ede6; --fg: #2b2d33; --muted: #646568; --faint: #878789;
+    --line: #d3cec4; --accent: #fee600; --focus: #6a4cad;
+    --good: #225b45; --warn: #7a5200; --bad: #a8412f;
+    --topbar-bg: #fee600; --topbar-fg: #2b2d33; --topbar-muted: rgba(43, 45, 51, 0.7);
+    --topbar-line: rgba(43, 45, 51, 0.24);
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, "Liberation Mono", monospace;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #14161a; --surface: #1c1f25; --border: #2e333c; --text: #e8eaed; --muted: #9aa3b0;
-      --good: #4ec98a; --warn: #e0b341; --bad: #f2837a;
+      color-scheme: dark;
+      --bg: #2b2d33; --surface: #3b3d42; --fg: #f8f6f2; --muted: #b6b6b5; --faint: #8d8e8f;
+      --line: #505155; --focus: #9d88d9; --good: #67d0ab; --warn: #e8c25a; --bad: #ff8b6b;
+      --topbar-bg: #2b2d33; --topbar-fg: #f8f6f2; --topbar-muted: rgba(248, 246, 242, 0.72);
+      --topbar-line: #505155;
     }
   }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #2b2d33; --surface: #3b3d42; --fg: #f8f6f2; --muted: #b6b6b5; --faint: #8d8e8f;
+    --line: #505155; --focus: #9d88d9; --good: #67d0ab; --warn: #e8c25a; --bad: #ff8b6b;
+    --topbar-bg: #2b2d33; --topbar-fg: #f8f6f2; --topbar-muted: rgba(248, 246, 242, 0.72);
+    --topbar-line: #505155;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text);
-         font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif; }
-  .wrap { max-width: 1060px; margin: 0 auto; padding: 24px 16px 64px; }
-  h1 { font-size: 20px; margin: 0 0 4px; font-weight: 650; }
-  h2 { font-size: 15px; margin: 24px 0 8px; }
-  .sub { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-          padding: 14px 16px; overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; font-size: 13px; }
-  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--sans); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 0.85rem 2rem; background: var(--topbar-bg); color: var(--topbar-fg);
+    border-bottom: 1px solid var(--topbar-line);
+  }
+  .brand { display: flex; align-items: center; gap: 0.85rem; min-width: 0; }
+  .brand-name { font-weight: 800; letter-spacing: -0.01em; white-space: nowrap; }
+  .brand-divider { width: 1px; height: 2rem; flex: none; background: var(--topbar-line); }
+  .brand small {
+    color: var(--topbar-muted); font: 0.7rem/1.3 var(--mono); letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .theme-btn {
+    display: inline-grid; place-items: center; width: 2.1rem; height: 2.1rem; flex: none;
+    border: 1px solid var(--topbar-line); border-radius: 7px;
+    background: transparent; color: var(--topbar-fg); cursor: pointer;
+  }
+  .theme-btn svg { width: 1.05rem; height: 1.05rem; }
+  .icon-sun { display: none; }
+  :root[data-theme="dark"] .icon-sun { display: block; }
+  :root[data-theme="dark"] .icon-moon { display: none; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .icon-sun { display: block; }
+    :root:not([data-theme="light"]) .icon-moon { display: none; }
+  }
+  .wrap { max-width: 76rem; margin: 0 auto; padding: 2rem 2rem 3.5rem; }
+  .kicker {
+    display: block; margin-bottom: 0.6rem; color: var(--muted);
+    font: 0.72rem/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase;
+  }
+  h1 { font-size: 2rem; font-weight: 400; letter-spacing: -0.03em; line-height: 1.1; margin: 0 0 0.4rem; }
+  h2 {
+    margin: 1.8rem 0 0.6rem; color: var(--fg); font: 700 0.76rem/1.4 var(--mono);
+    letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .sub { color: var(--muted); font-size: 0.86rem; margin: 0 0 1rem; }
+  nav { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  nav a {
+    padding: 0.4rem 0.9rem; border: 1px solid var(--line); border-radius: 999px;
+    background: var(--surface); color: var(--muted); font-size: 0.84rem; text-decoration: none;
+  }
+  nav a:hover { color: var(--fg); border-color: var(--faint); }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 1rem 1.1rem; overflow-x: auto;
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 0.84rem; }
+  th, td { text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { color: var(--muted); font-weight: 600; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  code { font-size: 12px; overflow-wrap: anywhere; }
+  code { font: 0.78rem var(--mono); overflow-wrap: anywhere; }
   .ok { color: var(--good); font-weight: 650; }
   .candidate { color: var(--warn); font-weight: 650; }
   .fail { color: var(--bad); font-weight: 650; }
-  .verdict { font-size: 16px; margin: 0 0 12px; }
-  nav a { color: inherit; margin-right: 14px; font-size: 13px; }
+  .verdict { font-size: 1rem; margin: 0 0 0.75rem; }
+  @media (max-width: 760px) {
+    .topbar { padding: 0.7rem 1rem; }
+    .wrap { padding: 1.4rem 0.75rem 2.5rem; }
+  }
+  @media (max-width: 460px) {
+    .brand-divider, .brand small { display: none; }
+  }
 </style>
 </head>
 <body>
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-name">ESA a NACE našeptávač</span>
+    <span class="brand-divider" aria-hidden="true"></span>
+    <small>Diagnostika nasazení</small>
+  </div>
+  <button type="button" class="theme-btn" data-theme-toggle aria-label="Přepnout světlý a tmavý režim"
+          title="Přepnout světlý a tmavý režim">
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>
+    </svg>
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+    </svg>
+  </button>
+</header>
 <div class="wrap">
+  <span class="kicker">Provoz · registry a číselníky</span>
   <h1>Diagnostika nasazení</h1>
   <p class="sub">Jeden neškodný dotaz na každý registr, časový limit {{ report.timeout_s }} s, bez opakování.
     Spuštěno {{ report.checked_at }} (UTC), celkem {{ report.total_ms }} ms.</p>
