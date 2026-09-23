@@ -274,9 +274,25 @@ Spending limits are already enforced and fail closed (see `core/classify/budget.
   cannot be one CTS does not know, and a code with no CTS ID is never offered in the first
   place. It optimises **recall**, not precision: a code the filter omits is one the model can
   never return. Two mechanisms: the reviewable keyword table in `hints.py` (Czech + English)
-  and IDF-weighted lexical overlap in `text.py`, which works on Czech input and barely at all
-  on English - the model-based narrowing stage will be the primary path and slots in behind
-  the same `CandidateFilter` protocol.
+  and IDF-weighted lexical overlap in `text.py`, which works on Czech input and, for NACE,
+  on English through the English division titles in `nace_en.py` (scored only - never shown,
+  never in a prompt; PR #8) - the model-based narrowing stage will be the primary path and
+  slots in behind the same `CandidateFilter` protocol.
+- **Register rules outrank keywords** (`hints.REGISTER_RULES`, PR #8): the GLEIF categories
+  `RESIDENT_GOVERNMENT_ENTITY` -> NACE 84 and `INTERNATIONAL_ORGANIZATION` -> 99 add
+  `REGISTER_SCORE` on top of the keyword hit, matched on the bracketed code in the fact sheet
+  so only the register can fire them. "European Investment Bank" says "bank"; the register
+  says what it is. OpenFIGI `Govt` is deliberately not a register rule (Kommuninvest, a bank,
+  issues Govt bonds). Four S.125 families have no `Popis` in the CTS file (securitisation,
+  dealers, lenders, specialised institutions): they are reached by name and keyword only, so
+  each has a keyword entry - keep it that way when the table changes.
+- **Navrhovaný kód** (`classify/proposal.py`, PR #8): what the page, the row and the JSON call
+  the proposal. The model's first pick; with no model answer, the shortlist's first candidate
+  **only if a rule put it there** (score >= 5; lexical scores stop at 1.0) **and no rule for
+  a different code or ESA family ties with it** (the captive trap: "bank" and "captive" tie
+  for an English description, and the alphabet would pick the bank). A rule's proposal has no
+  confidence (`*_confidence` empty in the row), names its rules, and lists tied control
+  variants. `answered` and the audit outcome still mean "the model answered".
 - **ESA is a grid, not a list** (`hints.py`): BA0036 is *entity family* x *control type*
   (Banky / Pojišťovny / Kaptivní ... x veřejné | soukromé národní | pod zahraniční
   kontrolou). The grid is **derived** from the codebook names by stripping the control

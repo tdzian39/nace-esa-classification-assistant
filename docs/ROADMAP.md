@@ -12,13 +12,15 @@ picking up. Then run the tests (§8) before changing anything.
 
 ---
 
-## 0. Next steps (22 Sept 2026) — read this first
+## 0. Next steps (23 Sept 2026) — read this first
 
-**Where it stands.** E0, E1 and E8 are done. The tool does what the brief asks, in deterministic mode: an ISIN,
-name or description goes in; the issuer's register facts and two shortlists — NACE and ESA, every candidate with
-its CTS ID — come out, and a person picks. It runs on Vercel (production behind Vercel Authentication, the real
-codebooks in the private Blob store, `DE0005140008` end to end in about 5 s). It is not gold-plated, and should
-not be: what follows is the short list that separates "works for Jakub" from "MO uses it", then what is optional.
+**Where it stands.** E0, E1 and E8 are done, E4-lite is in PR #8. The tool does what the brief asks, in
+deterministic mode: an ISIN, name or description goes in; the issuer's register facts and two shortlists — NACE
+and ESA, every candidate with its CTS ID — come out, and where a rule decided (a GLEIF category or a keyword) the
+first candidate is labelled **navrhovaný kód**; a person confirms. It runs on Vercel (production behind Vercel
+Authentication, the real codebooks in the private Blob store, `DE0005140008` end to end in about 5 s; the
+deployment is still the E1 code until PR #8 is merged and redeployed). It is not gold-plated, and should not be:
+what follows is the short list that separates "works for Jakub" from "MO uses it", then what is optional.
 
 **Needed before MO uses it**
 
@@ -32,11 +34,19 @@ not be: what follows is the short list that separates "works for Jakub" from "MO
 
 **Cheap accuracy wins the golden run found (S each, do them next)**
 
-3. **E4-lite: two rules and English labels.** GLEIF category `RESIDENT_GOVERNMENT_ENTITY` (and OpenFIGI `Govt`)
-   → offer NACE 84; `INTERNATIONAL_ORGANIZATION` → NACE 99; add the English NACE labels from the design source
-   (`data/reference/nace_rev2_divisions.csv`, mapped to CZ-NACE 2025) to the lexical filter. That targets 10 of
-   the 10 NACE misses of the first run (six governments, EBRD, EU, Volkswagen, Unilever). Re-run
-   `python -m core.classify --golden` and write the new provisional figures below.
+3. ~~**E4-lite: two rules and English labels.**~~ **Done in PR #8 (23 Sept 2026).** Governments → NACE 84,
+   international organisations → 99; the GLEIF categories `RESIDENT_GOVERNMENT_ENTITY` / `INTERNATIONAL_ORGANIZATION`
+   outrank any keyword (OpenFIGI `Govt` stays a keyword: Kommuninvest, a bank, issues Govt bonds); English NACE
+   division titles in the lexical filter (the official titles in `core/classify/nace_en.py` rather than the
+   design source's Wikidata paraphrases); keywords for the four S.125 families without a `Popis`; and the
+   **navrhovaný kód** — a rule's first candidate proposed when no model answers, never text similarity alone,
+   never when rules for two codes or families tie. **Provisional figures, real issuers (before → after):** NACE
+   recall@12 72% → 97%, top-1 53% → 83%; ESA recall@12 97% → 100%, top-1 42% → 47%; fictional traps unchanged
+   (NACE 100%/90%, ESA 100%/60%). Proposals with the model off: NACE for 35 of 36 (30 as expected), ESA for 26
+   (21 in the expected family, 14 exact — the rest is the control axis, Q7). Left: Unilever (NACE 20 not
+   offered; it turns on Q15), EBRD and the EU (GLEIF files them `GENERAL`, so 99 is second), and ESA precedence
+   between families (a money-market fund still ranks the non-MMF family first; BNP Paribas the insurers) —
+   that is E4 proper, only if MO asks.
 4. **E5-lite: the FIRDS LEI fallback.** GLEIF maps 25 of 36 golden ISINs; the misses (Eurobond, LU/IE funds) include
    all four captive vehicles, the core ESA trap. ESMA FIRDS returns the issuer LEI for them; `/probe` already
    shows the host reachable from Vercel.
@@ -70,6 +80,7 @@ Q15 (a listed parent's NACE), D4 (database, for the audit), Q10 (volume; a free 
 | 2026-09-22 | **D1 — there is a Vercel account.** Claude looks up its team and plan and confirms them with Jakub before creating the project. The plan sets `maxDuration` (Hobby 60 s, Pro 300 s). | Jakub |
 | 2026-09-22 | **D5 / Q-A1 — no Entra ID app registration.** The E2.1 shared-password gate with a self-declared name becomes the permanent login. E2 keeps the untrusted-header rule and audit persistence; E2.2 (OIDC) and Q-A1 are dropped. | Jakub |
 | 2026-09-22 | **D6 — no data-classification sign-off is needed**; E1 go-live is not gated on it. The §4 data-flow list stays as documentation. | Jakub |
+| 2026-09-23 | **Navrhovaný kód in deterministic mode** (the brief's wording): the first candidate is labelled as the proposal when a rule decided it (GLEIF category or keyword), marked as the rules' and without a confidence; no proposal on text similarity alone or on a tie between rules for different codes (PR #8). | Jakub |
 | 2026-09-22 | **Q8 / E8 — the golden set is built without MO.** Claude builds ~30 real issuers from the E8 seed list, mixing banks, corporates, funds, governments, supranationals and financing vehicles, from ISINs and public sources. `verified_by` stays empty on every case until someone checks it against CTS; codes worked out this way stay provisional and no accuracy is quoted from them. | Jakub |
 
 ---
@@ -118,6 +129,9 @@ not an oracle: **a human confirms every code**.
   first.
 - **PR #7** `feat/e8-golden-set` — E8 (22 Sept 2026): 36 real foreign issuers, provisional, scored with their
   recorded register facts. Built on #6's branch, opened against `main`; merge after #5 and #6.
+- #5 → `53e4621`, #6 → `f32b2c1`, #7 → `5b029cb` (merge commits, 22 Sept 2026 evening); `main` = `5b029cb`.
+- **PR #8** `feat/e4-lite-public-sector-navrhovany` — E4-lite, the families without a `Popis`, navrhovaný kód, and
+  the deterministic list layout fix (23 Sept 2026). Against `main`.
 
 ### Where the next session starts: §0 above
 
@@ -174,13 +188,15 @@ app/
                          blob.py (the four files from a private Vercel Blob store, E1)
     probe.py             the /probe checks: one fixed request per register, status per failure mode (E1)
     sources/             base.py (Source literal, Provenance, Source*Error) · gleif.py · openfigi.py · identity.py · web.py
-    classify/            candidates.py (pre-filter) · hints.py (keyword table + ESA family grid) · text.py (IDF)
+    classify/            candidates.py (pre-filter) · hints.py (keyword table, register rules, ESA family grid)
+                         nace_en.py (English division titles, scored only) · text.py (IDF)
+                         proposal.py (navrhovaný kód: the model's pick, else a rule's)
                          prompts.py · provider.py · llm.py · cache.py · budget.py (LLM path, off)
                          golden.py (cases, recall@12, top-1) · golden_fixtures.py (register answers: capture / replay)
     export/              columns.py (the suggestion row contract) · xlsx.py (Subjects + Run sheets)
     batch/               reader.py (messy xlsx in — E6 reuses it; nothing calls it yet)
     audit.py             one log line per lookup: identifier, time, user, sources, outcome — never content
-  tests/                 1248 passed / 16 skipped (skips = tests needing the real xlsx); fixtures are trimmed live payloads
+  tests/                 1292 passed / 19 skipped (skips = tests needing the real xlsx; 1311 with them); fixtures are trimmed live payloads
     golden/              cases.json (10 fictional trap cases + 36 real issuers, all provisional) · identity.json
                          (recorded GLEIF/OpenFIGI answers) · ba0036_v044_nonresident.json (the public CNB list)
 ```
@@ -197,13 +213,19 @@ app/
    skips the web; otherwise a pluggable `SearchProvider` (HTTP JSON, Brave-shaped defaults, **none configured**)
    + stdlib HTML text extraction. `apl.czso.cz` / `or.justice.cz` are refused in code.
 4. `classifier_text = description + "\n\n" + fact_sheet` → `NaceCandidateFilter` / `EsaCandidateFilter`
-   (`limit=12`): keyword hints (`hints.py`, cs+en, +10 score) plus IDF-weighted lexical overlap against the
-   codebook texts; ESA is treated as a **grid of family × control** derived from the codebook names; the
-   residual family *nefinanční podniky* always gets reserved slots; every candidate already carries its CTS ID.
-5. `LlmClassifier.classify_both()` — with `NullLlmProvider` it **abstains** with a readable reason; the
-   shortlist is the result. With a model: JSON schema pins `code` to the offered codes, answers are re-checked,
-   suggestions are built from candidates (CTS ID cannot be invented), cache keyed on everything that changes the
-   answer, spending limits fail closed.
+   (`limit=12`): keyword hints (`hints.py`, cs+en, +10 score), register rules (a GLEIF category in the fact
+   sheet, +5 on top — PR #8) plus IDF-weighted lexical overlap against the codebook texts (NACE also against the
+   English division titles, `nace_en.py`); ESA is treated as a **grid of family × control** derived from the
+   codebook names; the residual family *nefinanční podniky* always gets reserved slots; every candidate already
+   carries its CTS ID.
+5. `LlmClassifier.classify_both()` — with `NullLlmProvider` it **abstains** with a readable reason. With a
+   model: JSON schema pins `code` to the offered codes, answers are re-checked, suggestions are built from
+   candidates (CTS ID cannot be invented), cache keyed on everything that changes the answer, spending limits
+   fail closed.
+5a. `propose()` (`proposal.py`, PR #8) — the **navrhovaný kód** per codebook: the model's first pick; else the
+   shortlist's first candidate if a rule put it there (score ≥ 5, i.e. a keyword or register rule — lexical
+   scores stop at 1.0) and no rule for another code or ESA family ties with it; else nothing ("výběr je na vás").
+   A rule's proposal has no confidence, names its rules and lists tied control variants.
 6. Page / JSON (`identity` object included) / xlsx (`SUGGESTION_COLUMNS` incl. `issuer_lei`, `issuer_country`,
    `source` = the registers that answered + `WEB`, e.g. `GLEIF+OPENFIGI+WEB`, `OPENFIGI+WEB`, or `WEB` for a
    name) / audit line.
@@ -238,9 +260,11 @@ app/
 - **Hint family keys** (folded codebook names; `hints.py`): `banky`, `pojistovaci spolecnosti (ic)`,
   `penzijni fondy (pf)`, `investicni fondy jine nez fondy penezniho trhu`, `fondy penezniho trhu`,
   `ucelove financni instituce pro sekuritizaci aktiv`, `kaptivni financni instituce a pujcovatele penez`,
-  `obchodnici s cennymi papiry a derivaty`, `financni instituce poskytujici uvery`, `ustredni vladni instituce`,
-  `narodni vladni instituce`, `mistni vladni instituce`, `mezinarodni rozvojove banky`,
-  `ostatni mezinarodni instituce`; baseline `nefinancni podniky`.
+  `obchodnici s cennymi papiry a derivaty`, `financni instituce poskytujici uvery`,
+  `specializovane financni instituce` (PR #8), `ustredni vladni instituce`, `narodni vladni instituce`,
+  `mistni vladni instituce`, `mezinarodni rozvojove banky`, `ostatni mezinarodni instituce`; baseline
+  `nefinancni podniky`. **No `Popis`** in the CTS file (nor at ČNB) for four S.125 families — securitisation,
+  dealers, lenders, specialised — and for the NPISH family; the first four are reached by name and keyword only.
 - **Measured on the (provisional, fictional) golden cases**: deterministic top pick right 90 % for NACE, 60 %
   for ESA. **Do not quote these** — no case has `verified_by` set; §E8 fixes that.
 - **Prompt budget** (real codebooks, ~4 chars/token): all 87 NACE short labels ≈ 895 tokens; every label of every
@@ -555,6 +579,10 @@ traps NACE 100% (90%), ESA 100% (60%). NACE misses: all six governments (84 neve
 Volkswagen (29), Unilever (20); ESA miss: the Amundi money-market fund. §0 item 3 targets them. With the real
 codebooks present the full suite runs without skips: 1264 passed; the 100%-recall tests assert the trap
 cases only — the real ones are measured, not gated.
+**Second run, after E4-lite (PR #8, 23 Sept 2026), same cases, still provisional:** real issuers NACE recall@12
+97% (top-1 83%), ESA recall@12 100% (top-1 47%); fictional traps unchanged. The one NACE miss left is Unilever
+(20; Q15). Top-1 misses: EBRD 64 and the EU 84 before 99 (GLEIF files both `GENERAL`), Allianz 64 before 65, Siemens
+62 before 27, Toyota Motor Credit 46 before 64 (by 0.01). The ESA top-1 misses are mostly the control digit (Q7).
 
 ### E9 — LLM second opinion (M) — *deferred until an approved endpoint exists*
 
@@ -714,7 +742,7 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 ```bash
 cd app
 python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]"   # Windows paths; the repo path may contain spaces — quote it
-../.venv/Scripts/python.exe -m pytest -q          # 1248 passed, 16 skipped without the real xlsx (skips are expected)
+../.venv/Scripts/python.exe -m pytest -q          # 1292 passed, 19 skipped without the real xlsx (skips are expected); 1311 with them
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .
 ../.venv/Scripts/python.exe -m core.codebooks     # startup consistency check against data/codebooks (needs the xlsx)
 ../.venv/Scripts/python.exe -m core.classify "popis cinnosti" --verbose   # shortlist for a description

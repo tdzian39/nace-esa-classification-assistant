@@ -132,6 +132,10 @@ class TestPage:
         assert "LLM_API_KEY" in client.get("/").text
 
 
+#: A typed description no keyword and no register rule speaks to: winegrowing.
+UNRULED = "Pěstování vinné révy a výroba vína v údolí Rýna."
+
+
 class TestAbstention:
     def test_an_abstention_is_shown_not_hidden(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A blank panel would look like a bug; the reason has to be on screen."""
@@ -139,13 +143,52 @@ class TestAbstention:
         api._state["settings"] = Settings(llm_api_key=None, llm_cache_path=None)
         api._state["service"] = make_service(codebooks, provider=NullLlmProvider())
         try:
-            response = TestClient(api.app).post("/suggest", data={"name": "Nordkap"})
+            response = TestClient(api.app).post("/suggest", data={"description": UNRULED})
             assert "Nástroj kód nevybral" in response.text
+            assert "navrhovaný kód" not in response.text
             assert "no model configured" in response.text
             # Deterministic mode is a result, not a failure: the narrowed codebook has to be
             # on screen with its CTS IDs, or the tool has thrown its own work away.
             assert "zúžený číselník" in response.text
             assert "CTS ID" in response.text
+        finally:
+            api._state.clear()
+
+    def test_without_a_model_a_rule_s_code_is_proposed_and_says_so(self) -> None:
+        """The brief asks for a suggested code; a rule's pick is one, labelled as the rules'."""
+        codebooks = build_codebooks()
+        api._state["settings"] = Settings(llm_api_key=None, llm_cache_path=None)
+        api._state["service"] = make_service(codebooks, provider=NullLlmProvider())
+        try:
+            response = TestClient(api.app).post("/suggest", data={"name": "Nordkap Funding B.V."})
+            assert "navrhovaný kód" in response.text
+            assert "podle pravidel" in response.text
+            assert "Podle pravidel, bez modelu" in response.text
+            assert "jistota" not in response.text  # only a model has a confidence
+            assert "no model configured" in response.text  # why the rules had to decide
+            # The rest of the narrowed codebook stays on screen under the proposal.
+            assert "další kandidáti ze zúženého číselníku" in response.text
+        finally:
+            api._state.clear()
+
+    def test_the_json_names_the_basis_of_each_proposal(self) -> None:
+        codebooks = build_codebooks()
+        api._state["settings"] = Settings(llm_api_key=None, llm_cache_path=None)
+        api._state["service"] = make_service(codebooks, provider=NullLlmProvider())
+        try:
+            client = TestClient(api.app)
+            ruled = client.post("/api/suggest", json={"name": "Nordkap Funding B.V."}).json()
+            assert ruled["answered"] is False  # the model did not answer ...
+            assert ruled["nace"]["proposal"]["basis"] == "rules"  # ... a rule did
+            assert ruled["nace"]["proposal"]["code"] == "64"
+            assert ruled["nace"]["proposal"]["confidence"] is None
+            assert ruled["row"]["NACE_code"] == "64"
+            assert ruled["row"]["NACE_confidence"] is None
+            assert ruled["row"]["NACE_justification"].startswith("Podle pravidel, bez modelu")
+
+            unruled = client.post("/api/suggest", json={"description": UNRULED}).json()
+            assert unruled["nace"]["proposal"] is None
+            assert unruled["row"]["NACE_code"] is None
         finally:
             api._state.clear()
 
@@ -170,6 +213,8 @@ class TestJson:
         assert body["answered"] is True
         assert body["nace"]["suggestions"][0]["code"] == "64"
         assert body["esa"]["suggestions"][0]["code"] == "2002703"
+        assert body["nace"]["proposal"]["basis"] == "model"
+        assert body["esa"]["proposal"]["code"] == "2002703"
         assert body["row"]["NACE_cts_id"]
 
     def test_an_empty_request_is_422(self, client: TestClient) -> None:

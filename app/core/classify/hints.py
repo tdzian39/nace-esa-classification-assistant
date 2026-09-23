@@ -108,7 +108,9 @@ def build_families(sectors: Iterable[tuple[str, str]]) -> dict[str, EsaFamily]:
     :class:`~core.classify.candidates.EsaCandidateFilter` filters by prefix before calling
     this, which is the only supported use.
 
-    The first spelling of a family wins as the display name.
+    The display name is the first spelling of the family without its control suffix
+    ("Banky"), so a candidate's reason "family: Banky" does not name one control variant
+    while another is proposed.
     """
     grouped: dict[str, dict[Control, str]] = {}
     display: dict[str, str] = {}
@@ -119,11 +121,23 @@ def build_families(sectors: Iterable[tuple[str, str]]) -> dict[str, EsaFamily]:
         grouped.setdefault(family, {})
         # Keep the first code seen for a given control slot; codebooks do not repeat them.
         grouped[family].setdefault(control, key)
-        display.setdefault(family, name)
+        display.setdefault(family, _family_display(name, family))
     return {
         family: EsaFamily(key=family, display=display[family], members=members)
         for family, members in grouped.items()
     }
+
+
+def _family_display(name: str, family: str) -> str:
+    """``name`` cut to its family part, accents and case kept: "Banky veřejné" -> "Banky".
+
+    Folding strips accents without changing the length of precomposed text, so the folded
+    family is a prefix of the same length; anything else keeps the whole name.
+    """
+    stripped = name.strip()
+    if len(fold(stripped)) != len(stripped) or not fold(stripped).startswith(family):
+        return stripped
+    return _TRAILING_JUNK.sub("", stripped[: len(family)]) or stripped
 
 
 # ---------------------------------------------------------------------------------------
@@ -181,7 +195,13 @@ HINTS: Final[tuple[Hint, ...]] = (
         note="investment fund",
     ),
     Hint(
-        triggers=("money market fund", "fond peněžního trhu"),
+        # "Money market sub-fund of the ... SICAV" is how a Luxembourg umbrella's MMF reads.
+        triggers=(
+            "money market fund",
+            "money-market fund",
+            "money market sub-fund",
+            "fond peněžního trhu",
+        ),
         nace=("64",),
         esa_families=("fondy penezniho trhu",),
         note="money market fund",
@@ -219,6 +239,10 @@ HINTS: Final[tuple[Hint, ...]] = (
             "účelová finanční",
             "intra-group",
             "treasury company",
+            # "Dutch financing company of Shell plc, with no staff" - how the golden
+            # descriptions of Eurobond vehicles read, whose ISINs GLEIF does not map.
+            "financing company",
+            "finance company",
         ),
         nace=("64",),
         esa_families=("kaptivni financni instituce a pujcovatele penez",),
@@ -247,6 +271,8 @@ HINTS: Final[tuple[Hint, ...]] = (
             "credit corporation",
             "capital corporation",
             "treasury b.v.",
+            # Dutch for "financing company": Siemens Financieringsmaatschappij N.V.
+            "financieringsmaatschappij",
         ),
         nace=("64",),
         esa_families=("kaptivni financni instituce a pujcovatele penez",),
@@ -265,36 +291,83 @@ HINTS: Final[tuple[Hint, ...]] = (
         note="securities dealer",
     ),
     Hint(
-        triggers=("leasing", "lease", "consumer credit", "spotřebitelský úvěr", "lending"),
+        # The lender, dealer, securitisation and specialised-institution families have no
+        # Popis in BA0036_2024_jen_validni.xlsx (nor at the CNB), so the lexical scorer has
+        # only their names to go on; these triggers are the rest. Factoring and hire
+        # purchase are ESA 2010's own examples of lending corporations (S.125.3).
+        triggers=(
+            "leasing",
+            "lease",
+            "consumer credit",
+            "spotřebitelský úvěr",
+            "lending",
+            "factoring",
+            "faktoring",
+            "hire purchase",
+            "splátkový prodej",
+        ),
         nace=("64",),
         esa_families=("financni instituce poskytujici uvery",),
         note="lending / leasing",
     ),
     Hint(
+        # ESA 2010's specialised financial corporations (S.125.4): venture and development
+        # capital companies, export/import financing companies. The one family without a
+        # Popis that no other hint reached.
+        triggers=(
+            "venture capital",
+            "development capital",
+            "rizikový kapitál",
+            "rizikového kapitálu",
+            "export credit",
+            "export finance",
+            "export financing",
+            "exportní úvěr",
+            "vývozní úvěr",
+            "financování vývozu",
+        ),
+        nace=("64",),
+        esa_families=("specializovane financni instituce",),
+        note="specialised financial institution",
+    ),
+    Hint(
+        # NACE 84 because a government borrower is public administration whatever it
+        # finances. The GLEIF category RESIDENT_GOVERNMENT_ENTITY and the OpenFIGI sector
+        # Govt reach this through the fact sheet's glosses ("government", "sovereign").
         triggers=("government", "sovereign", "ministry", "vláda", "ministerstvo", "státní"),
+        nace=("84",),
         esa_families=("ustredni vladni instituce", "narodni vladni instituce"),
         note="government",
     ),
     Hint(
         triggers=("municipality", "city of", "region of", "obec", "kraj", "město"),
+        nace=("84",),
         esa_families=("mistni vladni instituce",),
         note="local government",
     ),
     Hint(
+        # NACE 99 (extraterritorial organisations) - the division for the EU, the World
+        # Bank group and the other international bodies, development banks included. The
+        # GLEIF category INTERNATIONAL_ORGANIZATION reaches it through its gloss.
         triggers=(
             "development bank",
             "rozvojová banka",
             "supranational",
             "nadnárodní",
+            "international organisation",
+            "international organization",
+            "mezinárodní organizace",
+            "intergovernmental",
             "european investment bank",
             "world bank",
         ),
+        nace=("99",),
         esa_families=("mezinarodni rozvojove banky", "ostatni mezinarodni instituce"),
         note="supranational institution",
     ),
     # --- non-financial issuers: NACE only, ESA follows from "nefinanční podniky" ---------
     Hint(
-        triggers=("automotive", "motor vehicle", "automobil", "vozidel"),
+        triggers=("automotive", "motor vehicle", "automobil", "vozidel", "carmaker", "automaker"),
         nace=("29",),
         note="automotive",
     ),
@@ -356,3 +429,42 @@ def hinted_esa_families(text: str) -> dict[str, str]:
         for family in hint.esa_families:
             out.setdefault(family, f"keyword: {hint.note}")
     return out
+
+
+# ---------------------------------------------------------------------------------------
+# Register rules. A register fact outranks any keyword: the European Investment Bank's
+# name says "bank", but GLEIF files it as an international organisation, and the NACE
+# division follows what the entity is, not what it is called. Matched on the bracketed
+# category the fact sheet carries ("... [INTERNATIONAL_ORGANIZATION]"), so only the
+# register can fire them, never prose. OpenFIGI's Govt sector is deliberately not one:
+# Kommuninvest, a Swedish bank, issues bonds OpenFIGI files as Govt.
+# ---------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class RegisterRule:
+    """A GLEIF entity category that settles the NACE division.
+
+    Attributes:
+        category: The GLEIF value as the fact sheet brackets it.
+        nace: The NACE division it settles.
+        note: Why, recorded on the candidate as its reason.
+    """
+
+    category: str
+    nace: str
+    note: str
+
+    def matches(self, text: str) -> bool:
+        return f"[{self.category}]" in text
+
+
+REGISTER_RULES: Final[tuple[RegisterRule, ...]] = (
+    RegisterRule("INTERNATIONAL_ORGANIZATION", "99", "GLEIF: international organisation"),
+    RegisterRule("RESIDENT_GOVERNMENT_ENTITY", "84", "GLEIF: government entity"),
+)
+
+
+def register_nace(text: str) -> dict[str, str]:
+    """``{NACE division: reason}`` settled by a GLEIF category in the fact sheet."""
+    return {rule.nace: f"register: {rule.note}" for rule in REGISTER_RULES if rule.matches(text)}

@@ -18,14 +18,17 @@ This README describes what exists, how it is laid out and how to run it.
 ## Status
 
 **Running mode: deterministic.** No model key is configured, by choice. The tool narrows each
-codebook to about a dozen candidates, each with its CTS ID resolved, and a human picks. The
-page and the xlsx both carry that shortlist; the panel says plainly that no code was chosen.
+codebook to about a dozen candidates, each with its CTS ID resolved. Where a rule decided - a
+GLEIF category or a keyword - the first candidate is shown as the **navrhovaný kód**, marked
+"podle pravidel · ověřte" and without a confidence; where only text similarity ranks the list,
+or rules for two codes tie, nothing is proposed and the panel says the choice is MO's. The page
+and the xlsx carry the same proposal and the whole shortlist; a person confirms every code.
 
-On the ten fictional, provisional golden cases the deterministic top pick was right 90% of the
-time for NACE and 60% for ESA - an indication, not an accuracy figure: no accuracy is quoted
-until cases have been checked against CTS (roadmap E8). The golden set now also holds 36 real
-foreign issuers (E8), provisional as well; their first numbers need the real codebooks. Useful on its own, but unable to
-explain itself or to resolve distinctions that turn on a sentence.
+On the golden set (real codebooks, all cases provisional - roadmap E8) the deterministic top pick
+of the 36 real issuers is right 83% of the time for NACE and 47% for ESA, where most ESA misses
+are the control digit (Q7); the ten fictional trap cases give 90% and 60%. These are indications,
+not accuracy figures: no accuracy is quoted until cases have been checked against CTS. Useful on
+its own, but unable to explain itself or to resolve distinctions that turn on a sentence.
 
 **An ISIN is now enough to start.** GLEIF resolves it to the issuer's LEI record (legal
 name, country, legal form, entity category, direct and ultimate parent) and OpenFIGI to the
@@ -125,7 +128,7 @@ python -m pytest -q
 ```
 
 Without the real codebooks (a fresh clone: they are bank-internal and git-ignored) the
-suite reports **1248 passed, 16 skipped**. The skips are the tests that need the four real
+suite reports **1292 passed, 19 skipped** (1311 passed with them). The skips are the tests that need the four real
 xlsx files - the real-file smoke test (`tests/codebooks/test_codebooks_real_files.py`),
 the real-recall and most of the cost tests in `tests/classify/` - and they run on a machine
 that has them, where all four load with 0 errors (version `cb-3b12e64837840ca0`). Every

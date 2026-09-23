@@ -354,8 +354,8 @@ def suggest_json(
             "description": suggestion.description,
             "identity": _identity_json(suggestion.identity),
             "row": json_row(suggestion_row(suggestion)),
-            "nace": _classification_json(suggestion.nace),
-            "esa": _classification_json(suggestion.esa),
+            "nace": _classification_json(suggestion.nace, suggestion.nace_proposal),
+            "esa": _classification_json(suggestion.esa, suggestion.esa_proposal),
             "notes": list(suggestion.all_notes),
         }
     )
@@ -432,10 +432,24 @@ def _attachment(stem: str) -> str:
 # -- helpers -----------------------------------------------------------------------------
 
 
-def _classification_json(classification: object) -> dict[str, object]:
+def _classification_json(classification: object, proposal: object = None) -> dict[str, object]:
+    """The model's answer, plus the proposal: the model's pick or, when it abstained, a rule's."""
     return {
         "abstained": classification.abstained,  # type: ignore[attr-defined]
         "reason": classification.abstain_reason,  # type: ignore[attr-defined]
+        "proposal": (
+            {
+                "code": proposal.code,  # type: ignore[attr-defined]
+                "cts_id": proposal.cts_id,  # type: ignore[attr-defined]
+                "label": proposal.label,  # type: ignore[attr-defined]
+                "basis": proposal.basis,  # type: ignore[attr-defined]
+                "confidence": proposal.confidence,  # type: ignore[attr-defined]
+                "justification": proposal.justification,  # type: ignore[attr-defined]
+                "tied": list(proposal.tied),  # type: ignore[attr-defined]
+            }
+            if proposal is not None
+            else None
+        ),
         "suggestions": [
             {
                 "code": item.code,
@@ -492,9 +506,9 @@ def _warnings(settings: Settings) -> list[str]:
         # Deliberately phrased as a mode, not a fault: running without the model is the
         # current intended state, and the narrowed codebook is a usable result on its own.
         warnings.append(
-            "Deterministický režim: nástroj zúží číselník na kandidáty s jejich CTS ID, "
-            "výběr konkrétního kódu je na vás. (Automatický výběr se zapne po nastavení "
-            "LLM_API_KEY.)"
+            "Deterministický režim: nástroj zúží číselník na kandidáty s jejich CTS ID a kód "
+            "navrhne jen tam, kde rozhodlo pravidlo (kategorie v GLEIF nebo klíčové slovo); "
+            "ověření a výběr jsou na vás. (Model se zapne po nastavení LLM_API_KEY.)"
         )
     if not settings.web_search_url:
         warnings.append(

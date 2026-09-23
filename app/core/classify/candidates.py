@@ -32,8 +32,15 @@ import logging
 from collections.abc import Sequence
 from typing import Final, Protocol
 
-from core.classify.hints import EsaFamily, build_families, hinted_esa_families, hinted_nace
+from core.classify.hints import (
+    EsaFamily,
+    build_families,
+    hinted_esa_families,
+    hinted_nace,
+    register_nace,
+)
 from core.classify.models import ESA, NACE, Candidate, CandidateSet, Kind
+from core.classify.nace_en import NACE_TITLES_EN
 from core.classify.text import inverse_document_frequency, overlap_score, stems
 from core.codebooks.errors import UnknownCodeError
 from core.codebooks.models import CodebookSet
@@ -47,6 +54,11 @@ DEFAULT_LIMIT: Final[int] = 12
 #: Score added for a keyword hit. Comfortably above any lexical score, so a hinted code is
 #: never pushed off the shortlist by prose that happens to overlap a lot.
 HINT_SCORE: Final[float] = 10.0
+
+#: Score added when a register category settles the code (:data:`~core.classify.hints.REGISTER_RULES`).
+#: Above a keyword hit plus any lexical score, so "European Investment Bank" - a bank by
+#: name, an international organisation by register - leads with 99, not 64.
+REGISTER_SCORE: Final[float] = 5.0
 
 #: ESA keys in the rest-of-world block start with this. Foreign issuers are non-residents,
 #: so Tool 1 restricts to it; the resident block stays reachable for completeness.
@@ -80,16 +92,19 @@ def _scored(
     entries: Sequence[tuple[str, str, tuple[str, ...]]],
     description: str,
     hints: dict[str, str],
+    settled: dict[str, str] | None = None,
 ) -> list[tuple[float, tuple[str, ...], str]]:
     """Score ``(code, label, texts)`` entries against the description.
 
     Returns ``(score, reasons, code)`` per entry. IDF is computed over this codebook's own
     texts, so stems that appear everywhere in it (``financ`` across section K) stop being
     evidence and the discriminating ones (``pojist``, ``leasin``) count for more.
+    ``settled`` holds the codes a register category decided; they outrank every hint.
     """
     documents = [stems(" ".join((label, *texts))) for _, label, texts in entries]
     weights = inverse_document_frequency(documents)
     query = stems(description)
+    settled = settled or {}
 
     scored: list[tuple[float, tuple[str, ...], str]] = []
     for (code, _label, _texts), document in zip(entries, documents, strict=True):
@@ -100,6 +115,9 @@ def _scored(
         if code in hints:
             score += HINT_SCORE
             reasons.insert(0, hints[code])
+        if code in settled:
+            score += REGISTER_SCORE
+            reasons.insert(0, settled[code])
         if score > 0:
             scored.append((score, tuple(reasons), code))
     scored.sort(key=lambda item: (-item[0], item[2]))
@@ -113,6 +131,8 @@ class NaceCandidateFilter:
     label, not just the short one. That is what lets a captive funding vehicle reach
     division 64 through its sub-item "Činnosti účelových finančních společností", which the
     short label alone ("Finanční činnosti, kromě pojišťování...") would never have matched.
+    The division's English title (:mod:`core.classify.nace_en`) is scored too, for the
+    English descriptions; it never becomes part of the candidate.
     """
 
     name = "nace-lexical+hints"
@@ -120,16 +140,20 @@ class NaceCandidateFilter:
     def __init__(self, codebooks: CodebookSet) -> None:
         self._codebooks = codebooks
         self._entries: list[tuple[str, str, tuple[str, ...]]] = []
+        self._definitions: dict[str, tuple[str, ...]] = {}
         for division in codebooks.nace_divisions():
             labels = division.labels
             if not labels:
                 continue
-            self._entries.append((division.code, division.short_text or labels[0], labels))
+            english = NACE_TITLES_EN.get(division.code)
+            scored_texts = (*labels, english) if english else labels
+            self._entries.append((division.code, division.short_text or labels[0], scored_texts))
+            self._definitions[division.code] = labels
 
     def shortlist(self, description: str, *, limit: int = DEFAULT_LIMIT) -> CandidateSet:
         hints = hinted_nace(description)
-        ranked = _scored(self._entries, description, hints)
-        texts = {code: labels for code, _label, labels in self._entries}
+        ranked = _scored(self._entries, description, hints, register_nace(description))
+        texts = self._definitions
         labels = {code: label for code, label, _ in self._entries}
 
         candidates: list[Candidate] = []
