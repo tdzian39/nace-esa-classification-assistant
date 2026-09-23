@@ -611,6 +611,20 @@ cases only — the real ones are measured, not gated.
 97% (top-1 83%), ESA recall@12 100% (top-1 47%); fictional traps unchanged. The one NACE miss left is Unilever
 (20; Q15). Top-1 misses: EBRD 64 and the EU 84 before 99 (GLEIF files both `GENERAL`), Allianz 64 before 65, Siemens
 62 before 27, Toyota Motor Credit 46 before 64 (by 0.01). The ESA top-1 misses are mostly the control digit (Q7).
+**Third run, through the live model (23 Sept 2026, still provisional):** the 36 real issuers sent to production
+`/api/suggest` (`gpt-5.6-luna`, prompt v2), once by ISIN alone and once with the case's description; 72 lookups,
+6.4 s mean, about 0.08 USD. The code on the page matches the golden code for NACE 67% by ISIN alone and 83% with the
+description, for ESA 47% and 86%. By ISIN alone the model declined 8 NACE (corporates, insurers, two vehicles) and
+12 ESA (mostly who owns a bank; the rules then show the bank family with `2002213` first, Q7); with the
+description it declined none - but the descriptions state the deciding facts, so that column is a best case.
+"High" ESA picks matched 9 of 15 by ISIN alone, 30 of 35 with the description. With the description every NACE
+disagreement is a convention question (supranational development banks 64 vs 99, the EU 84 vs 99, Unilever 10
+vs 20 - Q15); the model flips between 64 and 99 for the same development bank depending on the input. Clear
+mistakes at "high": the Republic of Austria as `2003120` and Land Berlin as `2003130` - the codebook describes the
+non-resident government codes only as "like resident subsector 13xx000", and S.1312 is not in it, so "Národní
+vládní instituce" read as "national"; prompt v3 explains the four codes (`CODE_NOTES` in `prompts.py`), to be
+re-measured once deployed. Also: the EIB as `2009031` although the model quoted the ČNB exception that files it
+among banks, and KfW as `2001001` by ISIN alone.
 
 ### E9 — LLM second opinion (M) — *ready to switch on (PR #9, 23 Sept 2026); the endpoint arrives 24 Sept*
 
