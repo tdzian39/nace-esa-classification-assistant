@@ -251,6 +251,27 @@ def health(settings: SettingsDep) -> JSONResponse:
     )
 
 
+#: ``/api/version`` key -> the variable Vercel sets on every deployment of a Git commit.
+VERSION_ENV: Final[dict[str, str]] = {
+    "commit_sha": "VERCEL_GIT_COMMIT_SHA",
+    "commit_ref": "VERCEL_GIT_COMMIT_REF",
+    "commit_message": "VERCEL_GIT_COMMIT_MESSAGE",
+    "env": "VERCEL_ENV",
+    "deployment_url": "VERCEL_URL",
+}
+
+
+@app.get("/api/version")
+def version() -> dict[str, str | None]:
+    """Which commit this deployment was built from: Vercel's own variables, nothing else.
+
+    No settings, no codebooks, no outbound call, so it answers even when the rest cannot. A
+    variable Vercel did not set (a CLI deploy has no Git metadata, a local run has none at
+    all) is ``null``.
+    """
+    return {key: os.environ.get(name) or None for key, name in VERSION_ENV.items()}
+
+
 @app.get("/probe", include_in_schema=False, response_model=None)
 def probe(
     request: Request,
