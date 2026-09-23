@@ -5,201 +5,357 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ESA a NACE našeptávač pro MO</title>
 <!--
-  DESIGN PROTOTYPE for build step 4. Static HTML with sample data, no server.
-  This file becomes the Jinja2 template (app/ui/templates/suggest.html); the markup and the
-  classes are meant to survive that conversion, with htmx on the form and no JS framework.
+  DESIGN PROTOTYPE of app/ui/templates/suggest.html: static HTML with sample data, no server.
+  The CSS, the theme script, the topbar and the masthead are copied verbatim from the
+  template (23 Sept 2026) - change both together; the result below shows the model-mode state.
+
+  The look is that of the RB team gateway (anorfidien/finance_rb_cz, after the Raiffeisenbank
+  brand manual 2023), re-implemented - that repository has no licence, so nothing was copied.
 
   Every code, CTS ID and Czech description below is REAL, read through
-  CodebookSet.cts_id_for_nace() / cts_id_for_esa() from all four codebooks
-  (version cb-3b12e64837840ca0). Only the issuer is fictional.
+  CodebookSet.cts_id_for_nace() / cts_id_for_esa() from all four codebooks. Only the issuer
+  is fictional.
 -->
+<script>
+  /* Theme: follows the system until the button picks one; the choice is kept per browser.
+     Registered on the document, so it survives htmx swapping the whole body. */
+  (function () {
+    try {
+      var saved = localStorage.getItem("nace-esa-theme");
+      if (saved === "light" || saved === "dark") {
+        document.documentElement.setAttribute("data-theme", saved);
+      }
+    } catch (e) {}
+    document.addEventListener("click", function (event) {
+      var button = event.target.closest ? event.target.closest("[data-theme-toggle]") : null;
+      if (!button) { return; }
+      var root = document.documentElement;
+      var current = root.getAttribute("data-theme") ||
+        (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      var next = current === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("nace-esa-theme", next); } catch (e) {}
+    });
+    /* htmx does not swap 4xx/5xx answers by default, which would leave the page silent on
+       "Číselníky nejsou k dispozici" (503). The server renders the whole page for those too,
+       so show it - as a plain form post without htmx would. */
+    document.addEventListener("htmx:beforeSwap", function (event) {
+      if (event.detail.xhr && event.detail.xhr.status >= 400) {
+        event.detail.shouldSwap = true;
+        event.detail.isError = false;
+      }
+    });
+  })();
+</script>
 <style>
+  /* The look of the RB team gateway (anorfidien/finance_rb_cz, after the Raiffeisenbank brand
+     manual 2023): one yellow, a deliberately dim warm light theme, an Off Black dark theme,
+     system fonts only, monospace for codes and labels. Re-implemented here, nothing copied. */
   :root {
-    --bg: #f4f5f7;
-    --surface: #ffffff;
-    --border: #d8dce3;
-    --border-strong: #b9c0cb;
-    --text: #1a1d23;
-    --muted: #5d6673;
-    --accent: #f2cc0c;          /* placeholder brand accent */
-    --accent-ink: #2b2500;
-    --good: #1a7f4b;
-    --warn: #9a6700;
-    --bad: #b3261e;
-    --pick: #eef6f1;
-    --radius: 8px;
+    color-scheme: light;
+    --bg: #e3ddd1;
+    --surface: #f1ede6;
+    --field: #faf8f4;
+    --fg: #2b2d33;
+    --muted: #646568;
+    --faint: #878789;
+    --line: #d3cec4;
+    --hairline: #e0dbd0;
+    --accent: #fee600;
+    --accent-fg: #2b2d33;
+    --tile: rgba(254, 230, 0, 0.22);
+    --focus: #6a4cad;
+    --good: #225b45;
+    --warn: #7a5200;
+    --bad: #a8412f;
+    --shadow: 0 6px 16px rgba(43, 45, 51, 0.09);
+    --topbar-bg: #fee600;
+    --topbar-fg: #2b2d33;
+    --topbar-muted: rgba(43, 45, 51, 0.7);
+    --topbar-line: rgba(43, 45, 51, 0.24);
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, "Liberation Mono", monospace;
+    --radius: 14px;
+    --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23fee600' stroke-opacity='0.4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l8 8-8 8'/%3E%3Cpath d='M41 38l8 8-8 8'/%3E%3C/g%3E%3C/svg%3E");
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #14161a; --surface: #1c1f25; --border: #2e333c; --border-strong: #3d444f;
-      --text: #e8eaed; --muted: #9aa3b0; --pick: #17251d; --good: #4ec98a;
-      --warn: #e0b341; --bad: #f2837a; --accent-ink: #2b2500;
+      color-scheme: dark;
+      --bg: #2b2d33; --surface: #3b3d42; --field: #33353a; --fg: #f8f6f2; --muted: #b6b6b5;
+      --faint: #8d8e8f; --line: #505155; --hairline: #44454a; --tile: rgba(254, 230, 0, 0.14);
+      --focus: #9d88d9; --good: #67d0ab; --warn: #e8c25a; --bad: #ff8b6b;
+      --shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+      --topbar-bg: #2b2d33; --topbar-fg: #f8f6f2; --topbar-muted: rgba(248, 246, 242, 0.72);
+      --topbar-line: #505155;
+      --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23000000' stroke-opacity='0.22' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l8 8-8 8'/%3E%3Cpath d='M41 38l8 8-8 8'/%3E%3C/g%3E%3C/svg%3E");
     }
   }
   :root[data-theme="dark"] {
-    --bg: #14161a; --surface: #1c1f25; --border: #2e333c; --border-strong: #3d444f;
-    --text: #e8eaed; --muted: #9aa3b0; --pick: #17251d; --good: #4ec98a;
-    --warn: #e0b341; --bad: #f2837a;
+    color-scheme: dark;
+    --bg: #2b2d33; --surface: #3b3d42; --field: #33353a; --fg: #f8f6f2; --muted: #b6b6b5;
+    --faint: #8d8e8f; --line: #505155; --hairline: #44454a; --tile: rgba(254, 230, 0, 0.14);
+    --focus: #9d88d9; --good: #67d0ab; --warn: #e8c25a; --bad: #ff8b6b;
+    --shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+    --topbar-bg: #2b2d33; --topbar-fg: #f8f6f2; --topbar-muted: rgba(248, 246, 242, 0.72);
+    --topbar-line: #505155;
+    --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23000000' stroke-opacity='0.22' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l8 8-8 8'/%3E%3Cpath d='M41 38l8 8-8 8'/%3E%3C/g%3E%3C/svg%3E");
   }
 
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+    margin: 0; min-height: 100vh;
+    background-color: var(--bg); background-image: var(--pattern);
+    color: var(--fg); font: 15px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 1060px; margin: 0 auto; padding: 24px 16px 64px; }
+  a { color: inherit; }
+  ::selection { background: var(--accent); color: var(--accent-fg); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-  header.app { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
-  header.app h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: -0.01em; }
-  header.app .sub { color: var(--muted); font-size: 13px; }
-
-  .banner {
-    margin: 16px 0; padding: 10px 14px; border-radius: var(--radius);
-    background: #fff8e1; border: 1px solid #f0d98a; color: #6b5400; font-size: 13px;
+  /* ---- top bar ---- */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 0.85rem 2rem;
+    background: var(--topbar-bg); color: var(--topbar-fg);
+    border-bottom: 1px solid var(--topbar-line);
   }
+  .brand { display: flex; align-items: center; gap: 0.85rem; min-width: 0; }
+  .brand-divider { width: 1px; height: 2rem; flex: none; background: var(--topbar-line); }
+  .brand-name { font-size: 1rem; font-weight: 800; letter-spacing: -0.01em; white-space: nowrap; }
+  .brand-text small {
+    display: block; color: var(--topbar-muted);
+    font: 0.7rem/1.3 var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .theme-btn {
+    display: inline-grid; place-items: center; width: 2.1rem; height: 2.1rem; flex: none;
+    border: 1px solid var(--topbar-line); border-radius: 7px;
+    background: transparent; color: var(--topbar-fg); cursor: pointer;
+  }
+  .theme-btn:hover { border-color: var(--topbar-fg); }
+  .theme-btn svg { width: 1.05rem; height: 1.05rem; }
+  .icon-sun { display: none; }
+  :root[data-theme="dark"] .icon-sun { display: block; }
+  :root[data-theme="dark"] .icon-moon { display: none; }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) .banner { background: #2a2410; border-color: #5c4d17; color: #e5cf8a; }
+    :root:not([data-theme="light"]) .icon-sun { display: block; }
+    :root:not([data-theme="light"]) .icon-moon { display: none; }
   }
+
+  /* ---- page ---- */
+  .wrap { max-width: 76rem; margin: 0 auto; padding: 0 2rem 3.5rem; }
+  .masthead { padding: 3rem 0 1.6rem; }
+  .kicker {
+    display: block; margin-bottom: 0.9rem; color: var(--muted);
+    font: 0.72rem/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase;
+  }
+  h1 {
+    margin: 0; max-width: 24ch;
+    font-size: clamp(2.1rem, 1.4rem + 3vw, 3.25rem); font-weight: 400;
+    letter-spacing: -0.035em; line-height: 1.05;
+  }
+  h1 > span { display: block; }
+  h1 strong { font-weight: 800; }
+  .marker {
+    background-image: linear-gradient(var(--accent), var(--accent));
+    background-repeat: no-repeat; background-size: 100% 0.26em; background-position: 0 88%;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  }
+  .hero-sub { margin: 1rem 0 0; max-width: 62ch; color: var(--muted); font-size: 1rem; }
+
+  .notice {
+    margin: 0 0 0.75rem; padding: 0.75rem 1rem;
+    background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    border-radius: 10px; font-size: 0.88rem;
+  }
+  .notice.error { border-left-color: var(--bad); }
 
   .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 18px;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 1.25rem;
   }
-  .card + .card { margin-top: 16px; }
+  .card + .card, .notice + .card { margin-top: 1rem; }
 
   /* ---- input form ---- */
-  form .hint { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
-  .fields { display: grid; grid-template-columns: 200px 1fr; gap: 12px; }
-  .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  form .hint { color: var(--muted); font-size: 0.88rem; margin: 0 0 1rem; }
+  .fields { display: grid; grid-template-columns: 220px 1fr; gap: 0.9rem 1rem; }
+  .field label { display: block; font-size: 0.82rem; font-weight: 650; margin-bottom: 0.35rem; }
   .field .note { font-weight: 400; color: var(--muted); }
   input[type=text], textarea {
-    width: 100%; padding: 8px 10px; font: inherit; color: var(--text);
-    background: var(--bg); border: 1px solid var(--border-strong); border-radius: 6px;
+    width: 100%; padding: 0.65rem 0.9rem; font: inherit; font-size: 0.94rem; color: var(--fg);
+    background: var(--field); border: 1px solid var(--line); border-radius: 10px;
+    transition: border-color 0.15s ease;
   }
-  textarea { min-height: 76px; resize: vertical; }
-  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input[type=text]:hover, textarea:hover { border-color: var(--faint); }
+  input[type=text]:focus, textarea:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
+  textarea { min-height: 80px; resize: vertical; }
   .full { grid-column: 1 / -1; }
-  .actions { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
-  button.primary {
-    background: var(--accent); color: var(--accent-ink); border: 1px solid #d9b60a;
-    padding: 9px 18px; border-radius: 6px; font: inherit; font-weight: 650; cursor: pointer;
+  .actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem; }
+  .btn {
+    display: inline-block; padding: 0.55rem 1.2rem; border-radius: 999px;
+    font: inherit; font-size: 0.9rem; line-height: 1.4; text-decoration: none; cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
   }
-  button.ghost, a.ghost {
-    background: transparent; color: var(--text); border: 1px solid var(--border-strong);
-    padding: 9px 14px; border-radius: 6px; font: inherit; cursor: pointer;
+  .btn-primary {
+    background: var(--accent); color: var(--accent-fg); border: 1px solid var(--accent); font-weight: 700;
   }
+  .btn-primary:hover { box-shadow: var(--shadow); }
+  .btn-ghost { background: var(--surface); color: var(--muted); border: 1px solid var(--line); }
+  .btn-ghost:hover { border-color: var(--faint); color: var(--fg); }
+  .spinner { display: none; color: var(--muted); font: 0.8rem var(--mono); letter-spacing: 0.04em; }
+  .htmx-request.spinner, .htmx-request .spinner { display: inline; }
 
-  /* ---- issuer summary ---- */
-  .issuer h2 { margin: 0 0 2px; font-size: 18px; }
-  .issuer .meta { color: var(--muted); font-size: 13px; }
-  .issuer p.desc { margin: 12px 0 0; max-width: 72ch; }
-  .issuer ul.identity { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); max-width: 84ch; }
-  .issuer ul.identity li { margin-bottom: 2px; }
+  /* ---- issuer ---- */
+  .result { margin-top: 1.5rem; }
+  .issuer h2 { margin: 0 0 0.2rem; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.015em; }
+  .issuer .meta { color: var(--muted); font: 0.76rem var(--mono); letter-spacing: 0.02em; }
+  .issuer ul.identity {
+    margin: 0.8rem 0 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.84rem; max-width: 90ch;
+  }
+  .issuer ul.identity li { margin-bottom: 0.15rem; }
+  .issuer p.desc { margin: 0.9rem 0 0; max-width: 75ch; }
 
   /* ---- suggestion panels ---- */
-  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
 
-  /* Line the two columns up row by row, so "top pick" sits beside "top pick" and the
-     runners-up beside the runners-up. Without this the longer Czech label in one column
-     pushes its card down and the two suggestions stop being comparable at a glance.
-     Guarded: browsers without subgrid keep the plain, unaligned layout.
-     16 rows = heading, codebook, pick or abstention, list title and up to twelve candidates
-     (the shortlist limit): a subgrid stacks any child beyond its last row on top of the
-     previous one, which is what the deterministic lists did with six. Unused rows are empty
-     and, with no row gap, cost nothing. */
+  /* Line the two columns up row by row, so the proposal sits beside the proposal and the
+     runners-up beside the runners-up. Guarded: browsers without subgrid keep the plain,
+     unaligned layout. 16 rows = heading, codebook, pick or abstention, list title and up to
+     twelve candidates (the shortlist limit): a subgrid stacks any child beyond its last row
+     on top of the previous one. Unused rows are empty and, with no row gap, cost nothing. */
   @supports (grid-template-rows: subgrid) {
     .panels { grid-template-rows: repeat(16, auto); row-gap: 0; }
     .panel { display: grid; grid-row: 1 / -1; grid-template-rows: subgrid; row-gap: 0; }
     .panel > * { align-self: start; }
-    .pick, .alt { align-self: stretch; }
+    .pick, .alt, .abstain { align-self: stretch; }
+  }
+  .panel {
+    min-width: 0; padding: 1.1rem;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
   }
   .panel h3 {
-    margin: 0 0 2px; font-size: 13px; text-transform: uppercase;
-    letter-spacing: .06em; color: var(--muted);
+    margin: 0; color: var(--fg); font: 700 0.76rem/1.4 var(--mono);
+    letter-spacing: 0.14em; text-transform: uppercase;
   }
-  .panel .codebook { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .panel .codebook { margin: 0.15rem 0 0.7rem; color: var(--faint); font: 0.7rem/1.4 var(--mono); }
 
-  .pick, .alt {
-    border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-top: 8px;
-  }
-  .pick { border-color: var(--good); background: var(--pick); }
+  .pick, .alt { border-radius: 12px; padding: 0.85rem 0.95rem; min-width: 0; }
+  .pick { background: var(--tile); border: 1px solid var(--accent); }
+  .alt { margin-top: 0.5rem; border: 1px solid var(--line); }
   .pick-title {
-    font-size: 11px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em;
-    color: var(--good); margin-bottom: 4px;
+    margin-bottom: 0.35rem; color: var(--fg); font: 700 0.68rem/1.3 var(--mono);
+    letter-spacing: 0.12em; text-transform: uppercase;
   }
-  .why.tie { color: var(--warn); }
-  .code-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-  .code { font: 600 21px/1.2 ui-monospace, "Cascadia Mono", Consolas, monospace; }
-  .alt .code { font-size: 16px; }
+  .code-row { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+  .code { font: 700 1.45rem/1.15 var(--mono); letter-spacing: -0.01em; }
+  .alt .code { font-size: 1.05rem; }
   .ctsid {
-    font: 600 12px/1 ui-monospace, Consolas, monospace; padding: 4px 7px; border-radius: 4px;
-    background: var(--border); color: var(--text); white-space: nowrap;
+    padding: 0.18rem 0.45rem; border-radius: 5px; background: var(--hairline); color: var(--fg);
+    font: 600 0.72rem/1.2 var(--mono); letter-spacing: 0.02em; white-space: nowrap;
   }
-  .ctsid.none { background: transparent; border: 1px dashed var(--border-strong); color: var(--muted); }
-  /* Codebook labels are long Czech phrases ("Kaptivní finanční instituce a půjčovatelé
-     peněz pod zahraniční kontrolou") and must not overflow a half-width column. */
-  .panel { min-width: 0; }
-  .label { margin-top: 4px; font-weight: 600; overflow-wrap: break-word; hyphens: auto; }
-  .why { margin-top: 6px; font-size: 13px; color: var(--muted); overflow-wrap: break-word; }
-  .conf { margin-left: auto; font-size: 12px; font-weight: 650; }
-  .conf.hi { color: var(--good); } .conf.mid { color: var(--warn); } .conf.lo { color: var(--bad); }
-  .alts-title { margin: 14px 0 0; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
-  .copy { background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; font-size: 12px; padding: 2px 4px; }
-  .copy:hover { color: var(--text); text-decoration: underline; }
+  .conf {
+    display: inline-flex; align-items: center; gap: 0.35rem; margin-left: auto;
+    font: 650 0.68rem/1.2 var(--mono); letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .conf::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .conf.hi { color: var(--good); }
+  .conf.mid { color: var(--warn); }
+  .conf.lo { color: var(--bad); }
+  /* "anywhere", not "break-word": only it lowers the minimum width a grid track is sized
+     from, so a codebook abbreviation such as "prosazov.společných" cannot push a card past
+     its panel on a phone. */
+  .label { margin-top: 0.35rem; font-weight: 650; overflow-wrap: anywhere; hyphens: auto; }
+  .why { margin-top: 0.35rem; font-size: 0.82rem; color: var(--muted); overflow-wrap: anywhere; }
+  .why.tie { color: var(--warn); }
+  .alts-title {
+    margin: 1rem 0 0; color: var(--muted); font: 0.68rem/1.4 var(--mono);
+    letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  .abstain {
+    margin-top: 0.1rem; padding: 0.85rem 0.95rem;
+    border: 1px dashed var(--faint); border-radius: 12px; color: var(--muted); font-size: 0.86rem;
+  }
+  .abstain strong { color: var(--fg); }
 
-  /* ---- evidence + provenance ---- */
-  details.evidence { margin-top: 16px; }
-  details.evidence summary { cursor: pointer; font-weight: 600; font-size: 14px; }
-  .sources { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
-  .sources li { margin-bottom: 4px; }
-  .sources a { color: inherit; }
-
+  /* ---- evidence, notes, download, provenance ---- */
+  details.evidence { margin-top: 1rem; padding: 0.9rem 1.1rem; }
+  details.evidence summary { cursor: pointer; font-weight: 650; font-size: 0.92rem; }
+  .sources { margin: 0.7rem 0 0; padding-left: 1.1rem; font-size: 0.84rem; color: var(--muted); }
+  .sources li { margin-bottom: 0.25rem; }
+  .notes { margin: 1rem 0 0; padding-left: 1.1rem; font-size: 0.82rem; color: var(--muted); }
+  .notes li { margin-bottom: 0.2rem; }
+  .downloads { display: flex; gap: 0.6rem; align-items: center; margin-top: 1.1rem; flex-wrap: wrap; }
   .foot {
-    display: flex; gap: 18px; flex-wrap: wrap; margin-top: 18px; padding-top: 14px;
-    border-top: 1px solid var(--border); font-size: 12px; color: var(--muted);
+    display: flex; gap: 0.5rem 1.4rem; flex-wrap: wrap; margin-top: 1.2rem; padding-top: 0.9rem;
+    border-top: 1px solid var(--line); color: var(--faint); font: 0.72rem/1.5 var(--mono);
   }
-  .foot code { font-family: ui-monospace, Consolas, monospace; }
-
-  .downloads { display: flex; gap: 10px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+  .foot code { font: inherit; color: var(--muted); }
 
   /* NACE and ESA stay side by side at every width: the whole point is comparing the two
      suggestions at a glance, and stacking them hides the second one below the fold.
      Narrow screens get tighter spacing and smaller type instead of a second column. */
   @media (max-width: 760px) {
+    .topbar { padding: 0.7rem 1rem; }
+    .wrap { padding: 0 0.75rem 2.5rem; }
+    .masthead { padding: 1.8rem 0 1.2rem; }
     .fields { grid-template-columns: 1fr; }
-    .wrap { padding-left: 12px; padding-right: 12px; }
-    .card { padding: 14px; }
-    .panels { column-gap: 10px; }
-    .pick, .alt { padding: 9px; }
-    .code { font-size: 17px; }
-    .alt .code { font-size: 14px; }
-    .label { font-size: 13px; }
-    .why { font-size: 12px; }
+    .card { padding: 1rem; }
+    .panels { column-gap: 0.6rem; }
+    .panel { padding: 0.7rem; }
+    .pick, .alt, .abstain { padding: 0.6rem; }
+    .code { font-size: 1.1rem; }
+    .alt .code { font-size: 0.95rem; }
+    .label { font-size: 0.84rem; }
+    .why { font-size: 0.76rem; }
     .conf { margin-left: 0; }
   }
   @media (max-width: 460px) {
-    .panels { column-gap: 8px; }
-    .code { font-size: 15px; }
-    .ctsid { font-size: 11px; padding: 3px 5px; }
-    .label { font-size: 12px; }
+    .brand-divider, .brand-text small { display: none; }
+    .panels { column-gap: 0.4rem; }
+    .panel { padding: 0.55rem; }
+    .code { font-size: 1rem; }
+    .ctsid { font-size: 0.66rem; padding: 0.15rem 0.35rem; }
+    .label { font-size: 0.78rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <header class="app">
-    <h1>ESA a NACE našeptávač</h1>
-    <span class="sub">Middle Office treasury · zahraniční emitenti · návrh položek do CTS</span>
-  </header>
-
-  <div class="banner">
-    <strong>Návrh rozhraní.</strong> Všechny kódy, CTS ID i popisy jsou skutečné —
-    načtené ze všech čtyř číselníků (verze <code>cb-3b12e64837840ca0</code>).
-    Smyšlený je pouze emitent.
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-name">ESA a NACE našeptávač</span>
+    <span class="brand-divider" aria-hidden="true"></span>
+    <span class="brand-text"><small>Middle Office treasury · návrh položek do CTS</small></span>
   </div>
+  <button type="button" class="theme-btn" data-theme-toggle aria-label="Přepnout světlý a tmavý režim"
+          title="Přepnout světlý a tmavý režim">
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>
+    </svg>
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+    </svg>
+  </button>
+</header>
 
-  <!-- ============ INPUT ============ -->
+<main class="wrap">
+
+  <section class="masthead">
+    <span class="kicker">Zahraniční emitenti · číselníky CTS</span>
+    <h1><span>Kódy NACE a ESA</span> <strong class="marker">s ID do CTS</strong></h1>
+    <p class="hero-sub">Zadejte ISIN, název emitenta nebo popis činnosti. Nástroj emitenta dohledá
+      v registrech, zúží oba číselníky na kandidáty s jejich CTS ID a řekne, o co se opírá.</p>
+  </section>
+
+  <div class="notice"><strong>Návrh rozhraní.</strong> Všechny kódy, CTS ID i popisy jsou skutečné —
+    načtené ze všech čtyř číselníků. Smyšlený je pouze emitent.</div>
+
   <form class="card" method="post" action="/suggest">
     <p class="hint">Vyplňte alespoň jednu položku. Čím více údajů, tím přesnější návrh.</p>
     <div class="fields">
@@ -214,41 +370,38 @@
                placeholder="např. Nordkap Funding B.V." autocomplete="off">
       </div>
       <div class="field full">
-        <label for="activity">Popis činnosti <span class="note">— volitelné, pokud jej znáte</span></label>
-        <textarea id="activity" name="activity"
+        <label for="description">Popis činnosti <span class="note">— volitelné, pokud jej znáte</span></label>
+        <textarea id="description" name="description"
                   placeholder="Nechte prázdné a nástroj popis dohledá na webu."></textarea>
       </div>
     </div>
     <div class="actions">
-      <button type="submit" class="primary">Navrhnout kódy</button>
-      <button type="reset" class="ghost">Vymazat</button>
+      <button type="submit" class="btn btn-primary">Navrhnout kódy</button>
+      <button type="reset" class="btn btn-ghost">Vymazat</button>
     </div>
   </form>
 
-  <!-- ============ RESULT ============ -->
-  <section class="card issuer" id="result">
-    <h2>Nordkap Funding B.V.</h2>
-    <div class="meta">ISIN XS2345678901 · LEI 724500XXXXXXXXXXXX56 · sídlo NL · nerezident</div>
-    <ul class="identity" aria-label="Údaje z registrů GLEIF a OpenFIGI">
-      <li>GLEIF (LEI 724500XXXXXXXXXXXX56): Nordkap Funding B.V. Země sídla: NL. Právní forma: ELF B5PM.
-          Kategorie subjektu podle GLEIF: běžná právnická osoba [GENERAL]. Stav: subjekt ACTIVE, registrace LEI ISSUED.</li>
-      <li>Přímá mateřská společnost: Nordkap Bank AB (SE). Konečná mateřská společnost je totožná s přímou.
-          Konečná mateřská společnost sídlí v jiné zemi (SE) než emitent (NL).</li>
-      <li>OpenFIGI (ISIN XS2345678901): NORDKAP FUNDING BV. Typ nástroje: EURO MTN. Tržní sektor: korporátní dluhopis (corporate bond) [Corp].</li>
-    </ul>
-    <p class="desc">
-      Účelová finanční společnost skupiny Nordkap Bank. Vydává dluhopisy na mezinárodních
-      trzích a získané prostředky půjčuje výhradně mateřské bance a jejím dceřiným
-      společnostem. Nepřijímá vklady od veřejnosti a nemá vlastní bankovní licenci.
-    </p>
+  <section class="result" id="result">
+    <div class="card issuer">
+      <span class="kicker">Emitent</span>
+      <h2>Nordkap Funding B.V.</h2>
+      <div class="meta">ISIN XS2345678901 · LEI 724500XXXXXXXXXXXX56 · sídlo NL · nerezident</div>
+      <ul class="identity" aria-label="Údaje z registrů GLEIF a OpenFIGI">
+        <li>GLEIF (LEI 724500XXXXXXXXXXXX56): Nordkap Funding B.V. Země sídla: NL. Právní forma: ELF B5PM.
+            Kategorie subjektu podle GLEIF: běžná právnická osoba [GENERAL]. Stav: subjekt ACTIVE, registrace LEI ISSUED.</li>
+        <li>Přímá mateřská společnost: Nordkap Bank AB (SE). Konečná mateřská společnost je totožná s přímou.
+            Konečná mateřská společnost sídlí v jiné zemi (SE) než emitent (NL).</li>
+        <li>OpenFIGI (ISIN XS2345678901): NORDKAP FUNDING BV. Typ nástroje: EURO MTN. Tržní sektor: korporátní dluhopis (corporate bond) [Corp].</li>
+      </ul>
+      <p class="desc">Účelová finanční společnost skupiny Nordkap Bank. Vydává dluhopisy na mezinárodních
+        trzích a získané prostředky půjčuje výhradně mateřské bance a jejím dceřiným
+        společnostem. Nepřijímá vklady od veřejnosti a nemá vlastní bankovní licenci.</p>
+    </div>
 
     <div class="panels">
-
-      <!-- ---- NACE ---- -->
       <div class="panel">
         <h3>NACE</h3>
         <div class="codebook">číselník CTS_OKEC_NACE2 · první 2 číslice</div>
-
         <div class="pick">
           <div class="pick-title">navrhovaný kód</div>
           <div class="code-row">
@@ -259,9 +412,7 @@
           <div class="label">Finanční činnosti, kromě pojišťování a penzijního financování</div>
           <div class="why">Oddíl 64 zahrnuje „Činnosti účelových finančních společností“ —
             přesně to, čím emitent je. Nejde o pojišťování ani o pomocnou činnost.</div>
-          <button class="copy" type="button">kopírovat</button>
         </div>
-
         <p class="alts-title">další kandidáti</p>
         <div class="alt">
           <div class="code-row">
@@ -285,11 +436,9 @@
         </div>
       </div>
 
-      <!-- ---- ESA ---- -->
       <div class="panel">
         <h3>ESA 2010</h3>
         <div class="codebook">číselník BA0036 · jen elementární kódy · nerezident</div>
-
         <div class="pick">
           <div class="pick-title">navrhovaný kód</div>
           <div class="code-row">
@@ -300,9 +449,7 @@
           <div class="label">Kaptivní finanční instituce a půjčovatelé peněz pod zahraniční kontrolou</div>
           <div class="why">Financuje výhradně vlastní skupinu a nepřijímá vklady — to je
             definice kaptivní finanční instituce, nikoli banky.</div>
-          <button class="copy" type="button">kopírovat</button>
         </div>
-
         <p class="alts-title">další kandidáti</p>
         <div class="alt">
           <div class="code-row">
@@ -323,36 +470,31 @@
           <div class="why">Pouze pokud by převažovala nefinanční činnost skupiny.</div>
         </div>
       </div>
-
     </div>
 
-    <details class="evidence">
+    <details class="card evidence">
       <summary>Podklady, ze kterých návrh vychází</summary>
       <ul class="sources">
         <li>GLEIF — záznam LEI 724500XXXXXXXXXXXX56 (název, sídlo, právní forma, kategorie, mateřská společnost)</li>
         <li>OpenFIGI — nástroj XS2345678901 (typ nástroje, tržní sektor)</li>
-        <li>Webový zdroj — profil emitenta, popis účelu společnosti <span>(vyhledáno 22. 9. 2026)</span></li>
-        <li>Webový zdroj — prospekt emise, oddíl „Use of proceeds“</li>
+        <li>Webový zdroj — profil emitenta, popis účelu společnosti <em>(vyhledáno 22. 9. 2026)</em></li>
         <li>Číselník BA0036 — definice subsektoru kaptivních finančních institucí</li>
         <li>Číselník NACE_STAT, oddíl 64 — položka „Činnosti účelových finančních společností“</li>
       </ul>
     </details>
 
     <div class="downloads">
-      <button class="primary" type="button">Stáhnout výsledek (.xlsx)</button>
-      <span class="sub" style="color:var(--muted);font-size:13px">
-        jeden řádek na emitenta, sloupce jako níže + list „Run“ s původem dat
-      </span>
+      <button class="btn btn-primary" type="button">Stáhnout výsledek (.xlsx)</button>
     </div>
 
     <div class="foot">
       <span>zdroj: <code>GLEIF+OPENFIGI+WEB</code></span>
-      <span>vyhledáno: <code>2026-09-22 13:41 UTC</code></span>
-      <span>verze číselníku: <code>cb-3b12e64837840ca0</code></span>
-      <span>model: <code>(konfigurovatelný)</code></span>
+      <span>vyhledáno: <code>2026-09-23 09:41 UTC</code></span>
+      <span>verze číselníku: <code>cb-cc2c7e89a673069c</code></span>
+      <span>model: <code>gpt-5.6-luna</code></span>
     </div>
   </section>
 
-</div>
+</main>
 </body>
 </html>
