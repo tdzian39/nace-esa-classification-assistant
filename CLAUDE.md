@@ -46,7 +46,8 @@ Never scrape `apl.czso.cz` or `or.justice.cz`.
 core/identifiers  ico.py (mod-11; batch reader only), isin.py
 core/sources      base.py, gleif.py, openfigi.py, identity.py (ISIN -> issuer), web.py
 core/codebooks    loaders, versioning, consistency; blob.py (private Vercel Blob)
-core/classify     candidates.py (pre-filter), hints.py, llm.py, proposal.py, golden.py
+core/classify     candidates.py (pre-filter), hints.py, llm.py, proposal.py, golden.py,
+                  budget.py (limits, usage ledger), usage_report.py (the ledger as Excel)
 core/export       columns.py (the row), xlsx.py     core/batch reader.py (E6 reuses)
 core/probe.py     the /probe register checks
 api/  GET / · POST /suggest · POST /api/suggest · GET /suggest.xlsx · /health · /probe
@@ -81,6 +82,7 @@ framework. No pandas; numpy is a dev extra only (tests feed numpy scalars to the
 ../.venv/Scripts/python.exe -m core.classify --golden [--model]    # recall + top-1 (--model costs money)
 ../.venv/Scripts/python.exe -m core.classify --golden-capture      # re-record register answers (network)
 ../.venv/Scripts/python.exe -m core.classify --usage               # limits and today's spend
+../.venv/Scripts/python.exe -m core.classify --usage-xlsx [PATH]   # every call, tokens and cost, as Excel
 ../.venv/Scripts/python.exe -m pytest
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .
 ../.venv/Scripts/python.exe -m core.codebooks [--no-strict --json --dir PATH]
@@ -212,6 +214,11 @@ the FIRDS LEI fallback, and getting the 36 real golden cases checked against CTS
   * Shortlist size is **not** a useful lever: 12→8 saves ~9%, and ESA recall falls to 80% at 6
     because a shorter list loses a whole family of three control variants.
   * The cache is the real saving: a repeated issuer costs nothing.
+  * `--usage-xlsx` (`usage_report.py`) writes the ledger as a workbook — Summary by model,
+    codebook and day; Calls; Prices — priced at `PRICES` (OpenAI's standard prices, checked
+    23 Sept 2026). A model missing there gets empty cost cells, never a guess; costs are an
+    upper bound, since cached input is not recorded. It knows only this machine's calls:
+    Vercel keeps no ledger, so production spend is on the provider's usage page.
 - **Golden set** (`tests/golden/`): a case counts only when `verified_by` is set; verified and
   provisional are scored separately and **no accuracy may be quoted from provisional cases**.
   All are provisional: 10 fictional traps plus 36 real issuers built from public sources (Q8).
