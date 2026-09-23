@@ -439,8 +439,18 @@ Spending limits are already enforced and fail closed (see `core/classify/budget.
     classifier caches, and keeps a shared link meaningful.
   * The page states plainly when the model or the search provider is not configured, so
     MO knows it is being shortlisted for rather than answered.
-  * The template is generated from `ui/prototype/suggest.html` - keep the prototype in
-    step when changing the design, it is the approved reference.
+  * The look (PR #10) is the RB team gateway's (`anorfidien/finance_rb_cz`). That repo has
+    NO licence: look only, re-implemented in our CSS, nothing copied, no logo files (this
+    repo is public). Light/dark by system plus a toggle (`localStorage` `nace-esa-theme`,
+    shared with `/probe`).
+  * htmx's `integrity` must be the hash cdnjs publishes: a wrong one blocks the script
+    silently, and the page ran as plain form posts until PR #10. Keep the `htmx:beforeSwap`
+    handler, or 4xx/5xx answers (the 503 codebook refusal) show nothing. Each state label
+    ("navrhovaný kód", "podle pravidel", "jistota") occurs in the template only where it is
+    rendered: CSS comments are sent with the page. `tests/test_templates.py` pins all three.
+  * `ui/prototype/suggest.html` is the static design reference with sample data. Its CSS,
+    theme script, top bar and masthead are copied verbatim from the template - change both
+    together.
 - **Docker** (`app/Dockerfile`, installs the `server` extra for uvicorn): codebooks and
   `.env` are MOUNTED, never baked in. Mount
   a volume at `/app/data/cache` or the answer cache and usage ledger are lost on every
