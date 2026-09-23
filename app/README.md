@@ -1,7 +1,7 @@
 # NACE/ESA classification assistant (Raiffeisenbank CZ Finance/MIS)
 
-**Since 22 September 2026 this repository is Tool 1 only, deploys to Vercel and keeps the
-LLM off until an endpoint is approved** - the plan is in [`../docs/ROADMAP.md`](../docs/ROADMAP.md).
+**Since 22 September 2026 this repository is Tool 1 only and deploys to Vercel; the model is on
+in production since 23 September 2026** - the plan is in [`../docs/ROADMAP.md`](../docs/ROADMAP.md).
 Tool 2 is built elsewhere; its code was removed from this repository in PR #5 (roadmap E0.3).
 
 Originally two internal tools sharing one codebase, for Middle Office treasury and Reporting:
@@ -17,18 +17,22 @@ This README describes what exists, how it is laid out and how to run it.
 
 ## Status
 
-**Running mode: deterministic.** No model key is configured, by choice. The tool narrows each
-codebook to about a dozen candidates, each with its CTS ID resolved. Where a rule decided - a
-GLEIF category or a keyword - the first candidate is shown as the **navrhovaný kód**, marked
-"podle pravidel · ověřte" and without a confidence; where only text similarity ranks the list,
-or rules for two codes tie, nothing is proposed and the panel says the choice is MO's. The page
-and the xlsx carry the same proposal and the whole shortlist; a person confirms every code.
+**Running mode: with the model (production, since 23 Sept 2026).** The tool narrows each
+codebook to about a dozen candidates, each with its CTS ID resolved, and the model (OpenAI
+`gpt-5.6-luna`) may pick only from those: its first pick is the **navrhovaný kód**, with a
+confidence and a one-sentence reason. When the model is off or declines - typically ESA when
+the evidence does not say who owns the issuer - the deterministic result stands: where a rule
+decided - a GLEIF category or a keyword - the first candidate is shown as the **navrhovaný kód**,
+marked "podle pravidel · ověřte" and without a confidence; where only text similarity ranks the
+list, or rules for two codes tie, nothing is proposed and the panel says the choice is MO's. The
+page and the xlsx carry the same proposal and the whole shortlist; a person confirms every code.
 
 On the golden set (real codebooks, all cases provisional - roadmap E8) the deterministic top pick
 of the 36 real issuers is right 83% of the time for NACE and 47% for ESA, where most ESA misses
 are the control digit (Q7); the ten fictional trap cases give 90% and 60%. These are indications,
 not accuracy figures: no accuracy is quoted until cases have been checked against CTS. Useful on
-its own, but unable to explain itself or to resolve distinctions that turn on a sentence.
+its own, but unable to explain itself or to resolve distinctions that turn on a sentence. The
+model's own figures come from `python -m core.classify --golden --model`, not recorded yet.
 
 **An ISIN is now enough to start.** GLEIF resolves it to the issuer's LEI record (legal
 name, country, legal form, entity category, direct and ultimate parent) and OpenFIGI to the
@@ -54,7 +58,7 @@ The original build steps are history now; the plan from here is the roadmap's ep
 | 3 | Batch xlsx in/out with messy-input tolerance (`core/batch`, `core/export`) | reader and writer **done**; the Tool 2 batch runner removed in PR #5 |
 | 4 | Single-lookup API + server-rendered UI (Jinja2 + htmx) | **done** (Tool 1) |
 | 5 | Deterministic classifier: RES ESA sector -> BA0036 ID, RES 2-digit NACE -> OKEC_NACE2 ID | dropped with Tool 2; roadmap E4 adds a rule table for foreign issuers |
-| 6 | LLM classifier for foreign issuers (structured selection from a candidate list) | built, tested against a stub, **off** until E9 |
+| 6 | LLM classifier for foreign issuers (structured selection from a candidate list) | **done**; on in production since 23 Sept 2026 (E9) |
 
 Work stops after each step: tests run, the state is summarised, and the next step waits
 for an explicit go-ahead.
