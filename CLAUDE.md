@@ -103,8 +103,8 @@ resolves every CTS ID up front, shows the shortlist on the page and in the xlsx
 (`NACE_candidates`, `ESA_candidates`), and says it did not choose, and why.
 
 Figures are **provisional** (no case is `verified_by`-confirmed) and must not be quoted as
-accuracy. Next steps are `docs/ROADMAP.md` §0: E2 (login + audit, needs D4), the Pro plan,
-the FIRDS LEI fallback, and getting the 36 real golden cases checked against CTS.
+accuracy. Next steps are `docs/ROADMAP.md` §0: E2 (login + audit, needs D4) once MO is let in,
+and the FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept 2026).
 
 ## Architecture notes
 

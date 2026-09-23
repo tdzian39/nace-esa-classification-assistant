@@ -74,7 +74,6 @@ níže nestojí jinak.
 | Akce | Cena |
 |---|---|
 | Hosting na Vercelu, plán Hobby (dnes) | 0 – ale jen pro osobní, nekomerční použití |
-| Přechod na plán Pro (nutný před ostrým provozem v bance) | **20 USD měsíčně za každého, kdo nasazuje** |
 | Nasazení nové verze | 0 |
 | Uložení číselníků ve Vercel Blob | 0 v rámci limitu, který plán obsahuje (soubory mají pár set kB) |
 | Registry GLEIF a OpenFIGI | 0 – veřejné a zdarma |
