@@ -9,13 +9,14 @@ clock is injected; nothing sleeps.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
 
 from config.settings import Settings
 from core.classify.cache import SqliteCache
-from core.classify.llm import LlmClassifier, build_classifier
+from core.classify.llm import LlmClassifier, build_classifier, can_start_a_call, warn_if_unstartable
 from core.classify.models import ESA
 from core.classify.provider import (
     CONNECT_TIMEOUT_SECONDS,
@@ -65,7 +66,7 @@ class TestWorstCase:
         [
             (15.0, 1, 20.0),  # connect 5 + answer 15
             (15.0, 2, 42.0),  # two attempts of 20 and a 2 s pause
-            (60.0, 3, 201.0),  # the local defaults: 3 x 65 + 2 + 4
+            (60.0, 3, 201.0),  # what the defaults USED to be - 3 x 65 + 2 + 4, unstartable
             (3.0, 1, 6.0),  # a timeout below 5 s caps the connect wait too
         ],
     )
@@ -93,6 +94,39 @@ class TestWorstCase:
         two worst-case calls end at 45 s, before the 50 s deadline and Vercel's 60 s."""
         worst = worst_case_call_seconds(settings(llm_timeout_seconds=15, llm_max_attempts=1))
         assert 5 + 2 * worst <= settings().lookup_deadline_seconds < 60
+
+    def test_the_shipped_defaults_can_actually_start_a_call(self) -> None:
+        """The regression this file exists for.
+
+        The defaults were 60 s x 3 attempts = a 201 s worst case, checked against a 50 s
+        deadline, so no model call was ever started: every lookup abstained with "no time left
+        for the model" and fell back to the rules. It looked exactly like a working
+        deterministic run, and the shipped .env.example reproduced it. Whatever the defaults
+        become, TWO of them plus the registers must fit inside the deadline.
+        """
+        defaults = settings()
+        worst = worst_case_call_seconds(defaults)
+        assert can_start_a_call(defaults, worst), (
+            f"the shipped defaults cannot start a call: 2 x {worst:.0f} s against a "
+            f"{defaults.lookup_deadline_seconds:.0f} s deadline"
+        )
+
+    def test_no_deadline_means_anything_can_start(self) -> None:
+        """Off Vercel there is no maxDuration, so a generous timeout is allowed again."""
+        assert can_start_a_call(
+            settings(lookup_deadline_seconds=0, llm_timeout_seconds=600, llm_max_attempts=5),
+            worst_case_call_seconds(settings(llm_timeout_seconds=600, llm_max_attempts=5)),
+        )
+
+    def test_an_unstartable_configuration_is_warned_about_not_swallowed(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A log line is the only warning anyone gets before the silent abstentions start."""
+        unstartable = settings(llm_timeout_seconds=60, llm_max_attempts=3)
+        with caplog.at_level(logging.WARNING, logger="core.classify.llm"):
+            warn_if_unstartable(unstartable, worst_case_call_seconds(unstartable))
+        assert "will NEVER be called" in caplog.text
+        assert "LLM_TIMEOUT_SECONDS" in caplog.text
 
 
 class TestClassifierDeadline:

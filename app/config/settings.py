@@ -246,10 +246,24 @@ class Settings(BaseSettings):
         description="API base URL; change it to point at another OpenAI-compatible endpoint.",
     )
     llm_timeout_seconds: float = Field(
-        default=60.0, gt=0, description="Timeout for one model call."
+        default=15.0,
+        gt=0,
+        description=(
+            "Timeout for one model call. With llm_max_attempts this fixes the worst case a "
+            "call can take - connect (<=5 s) + this, per attempt, plus the backoff between "
+            "them - and a lookup makes TWO calls, one per codebook. Both must finish inside "
+            "lookup_deadline_seconds or no call is started at all."
+        ),
     )
     llm_max_attempts: int = Field(
-        default=3, ge=1, description="Attempts per call, including the first (backoff on 5xx)."
+        default=1,
+        ge=1,
+        description=(
+            "Attempts per call, including the first (backoff on 5xx). Kept at 1 because a "
+            "retry does not fit: two calls of 20 s already end at 45 s of the 50 s deadline. "
+            "A failed call abstains and the rules' proposal is shown, which is cheaper than "
+            "a retry that cannot complete."
+        ),
     )
     llm_temperature: float = Field(
         default=0.0,
