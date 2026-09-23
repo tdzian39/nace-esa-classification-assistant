@@ -30,9 +30,9 @@ optional.
    get in yet. Build the shared-password gate with a self-declared name (D5) and the untrusted-header rule. The
    hard rule "log every lookup with its user" needs somewhere to keep the log — Vercel keeps runtime logs 1 hour
    on Hobby — so **decide D4** (a Neon Postgres free tier via the Vercel Marketplace, one `audit_events` table,
-   is the smallest honest answer).
-2. **Plan (owner decision).** Hobby's terms are personal, non-commercial use; move the project to Pro ($20 per
-   month per deploying seat) before the bank relies on it.
+   is the smallest honest answer). **Not now (Jakub, 23 Sept 2026):** the site stays behind Vercel
+   Authentication (all deployments) until he opens it to MO; that login is also the only guard on the model's
+   cost, as the OpenAI key has no monthly limit.
 
 **Cheap accuracy wins the golden run found (S each, do them next)**
 
@@ -60,8 +60,9 @@ optional.
 4. **E5-lite: the FIRDS LEI fallback.** GLEIF maps 25 of 36 golden ISINs; the misses (Eurobond, LU/IE funds) include
    all four captive vehicles, the core ESA trap. ESMA FIRDS returns the issuer LEI for them; `/probe` already
    shows the host reachable from Vercel.
-5. **Have someone with CTS access check the 36 real golden cases** (an hour's work). It turns provisional figures
-   into an accuracy that can be quoted, and settles Q7 and Q15 on the way.
+5. ~~**Have someone with CTS access check the 36 real golden cases**~~ **Dropped (Jakub, 23 Sept 2026):** nothing
+   can be looked up in CTS - that is why the tool exists. MO tests the tool in use once Jakub opens it; their
+   corrections will show the answers to Q7 and Q15.
 
 **Optional — only if MO asks**
 
@@ -95,6 +96,7 @@ Q15 (a listed parent's NACE), D4 (database, for the audit), Q10 (volume; a free 
 | 2026-09-23 | **The page takes the look of the RB team gateway** (`anorfidien/finance_rb_cz`, after the Raiffeisenbank brand manual 2023). That repository has no licence, so the look is re-implemented and nothing is copied; its logo files stay out because this repository is public (PR #10). | Jakub / Claude |
 | 2026-09-23 | **Navrhovaný kód in deterministic mode** (the brief's wording): the first candidate is labelled as the proposal when a rule decided it (GLEIF category or keyword), marked as the rules' and without a confidence; no proposal on text similarity alone or on a tie between rules for different codes (PR #8). | Jakub |
 | 2026-09-22 | **Q8 / E8 — the golden set is built without MO.** Claude builds ~30 real issuers from the E8 seed list, mixing banks, corporates, funds, governments, supranationals and financing vehicles, from ISINs and public sources. `verified_by` stays empty on every case until someone checks it against CTS; codes worked out this way stay provisional and no accuracy is quoted from them. | Jakub |
+| 2026-09-23 | **No Vercel Pro — the project stays on Hobby. No app login for now** (§0 item 1): the site stays behind Vercel Authentication (all deployments) until Jakub opens it to MO. The OpenAI key has **no monthly spending limit**, so that login is the only guard on the model's cost. MO is not asked about Q7/Q15 and nothing is checked in CTS (§0 item 5); MO tests the tool in use. | Jakub |
 
 ---
 

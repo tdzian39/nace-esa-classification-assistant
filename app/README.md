@@ -672,8 +672,7 @@ bypass. (`vercel link` writes a short-lived token to `.env.local`; Vercel never 
 `CODEBOOK_BLOB_PREFIX`), wait a minute - the store's CDN can serve the old file for up to 60 s -
 and redeploy; the new version id appears on `/health`.
 
-**Plan:** Vercel's Hobby plan is for personal, non-commercial use only; Pro is $20 per month per
-deploying seat (roadmap D1).
+**Plan:** Hobby (roadmap D1); Vercel Pro is not needed (Jakub, 23 Sept 2026).
 
 ## Enabling the model (roadmap E9)
 
