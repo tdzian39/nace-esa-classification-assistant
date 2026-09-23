@@ -14,13 +14,14 @@ picking up. Then run the tests (§8) before changing anything.
 
 ## 0. Next steps (23 Sept 2026) — read this first
 
-**Where it stands.** E0, E1, E8 and E4-lite are done (PR #8 merged), and the model is ready to switch on (E9,
-PR #9 merged). PR #10 (merged) gave the page the look of the RB team gateway and fixed htmx, which had never loaded. The
-tool does what the brief asks, in deterministic mode: an ISIN, name or description goes in; the issuer's register
-facts and two shortlists — NACE and ESA, every candidate with its CTS ID — come out, and where a rule decided (a
-GLEIF category or a keyword) the first candidate is labelled **navrhovaný kód**; a person confirms. It runs on
+**Where it stands.** E0, E1, E8 and E4-lite are done (PR #8 merged), and the model is **on in production** since
+23 Sept 2026 (E9: PR #9, then the owner's switch-on, item 3a). PR #10 (merged) gave the page the look of the RB team gateway and fixed htmx, which had never loaded. The
+tool does what the brief asks: an ISIN, name or description goes in; the issuer's register facts and two
+shortlists — NACE and ESA, every candidate with its CTS ID — come out, and the first candidate is labelled
+**navrhovaný kód** when the model chose it (with a confidence and a one-sentence reason) or, where the model is
+off or declines, when a rule decided it (a GLEIF category or a keyword); a person confirms. It runs on
 Vercel (production behind Vercel Authentication, the real codebooks in the private Blob store, `DE0005140008` end
-to end in about 5 s; `main` at `3b1fa7b`, with #8, #9 and #10, was deployed on 23 Sept 2026, the model still off). It is not gold-plated, and
+to end in about 12 s with the model; `main` at `ee410e2` is deployed). It is not gold-plated, and
 should not be: what follows is the short list that separates "works for Jakub" from "MO uses it", then what is
 optional.
 
@@ -49,14 +50,17 @@ optional.
    offered; it turns on Q15), EBRD and the EU (GLEIF files them `GENERAL`, so 99 is second), and ESA precedence
    between families (a money-market fund still ranks the non-MMF family first; BNP Paribas the insurers) —
    that is E4 proper, only if MO asks.
-3a. **E9: the model is ready to switch on — PR #9 (merged 23 Sept 2026).** The endpoint arriving on
-   24 Sept is not known yet, so no new adapter: `app/README.md` → "Enabling the model" has the steps per case
-   (OpenAI and Azure v1 need no code; Azure classic and the Claude API need an adapter). `gpt-5.6-luna` with
-   `LLM_REASONING_EFFORT=none` replaces the `gpt-4o-mini` placeholder (OpenAI's docs, checked 23 Sept);
-   `LLM_DAILY_TOKEN_BUDGET=0` on Vercel (§1); no model call that could outlive the 60 s cap
-   (`LOOKUP_DEADLINE_SECONDS`); `python -m core.classify --golden --model` measures a model against the rules.
-   **Switch-on** = the env vars in "Switching it on in production", the owner adds `LLM_API_KEY`, redeploy,
-   smoke checks; rollback = `LLM_ENABLED=false` and redeploy. Never made a live call yet.
+3a. **E9: the model is on in production — switched on 23 Sept 2026** (the owner's decision, §1), after PR #9
+   made it ready: OpenAI `gpt-5.6-luna` with `LLM_REASONING_EFFORT=none`, the owner's key as `LLM_API_KEY`
+   (Sensitive, Production only), `LLM_ENABLED=true`, `LLM_DAILY_TOKEN_BUDGET=0` (§1), then a redeploy; no code
+   changed. First live calls, `DE0005140008` by ISIN alone: NACE `64` by the model (high); ESA declined ("the
+   model judged the evidence insufficient" — nothing in the evidence says who owns the bank), so the rules' tied
+   bank family shows. With a one-line popis stating the ownership (private, listed, no controlling shareholder)
+   the model picked `2002212` Banky soukromé národní (high): the golden expectation, and Q7 in practice. A
+   lookup takes about 12 s instead of 4; no model call can outlive the 60 s cap (`LOOKUP_DEADLINE_SECONDS`).
+   Rollback = `LLM_ENABLED=false` and redeploy. Should the endpoint approved on 24 Sept differ, switching is env
+   vars plus a redeploy (`app/README.md` → "Enabling the model"; Azure classic and the Claude API need an
+   adapter). Still to record: `python -m core.classify --golden --model` against the rules.
 4. **E5-lite: the FIRDS LEI fallback.** GLEIF maps 25 of 36 golden ISINs; the misses (Eurobond, LU/IE funds) include
    all four captive vehicles, the core ESA trap. ESMA FIRDS returns the issuer LEI for them; `/probe` already
    shows the host reachable from Vercel.
@@ -68,7 +72,7 @@ optional.
 - E3 (name → issuer via GLEIF full text): a name alone already works through the typed description.
 - E6 (batch): only if the one-off CTS clean-up (Q9) is wanted. E7 (confirm/history): only after E2 and D4.
 - E10: a one-page Czech user guide when MO starts; the runbook is `app/README.md` → "Deploying on Vercel".
-- **Parked:** E9 (the LLM) until an approved endpoint exists; E4b (ECB lists offline).
+- **Parked:** E4b (ECB lists offline).
 
 **Open questions that still matter:** Q7 (control axis — changes 15 golden ESA codes and the candidate order),
 Q15 (a listed parent's NACE), D4 (database, for the audit), Q10 (volume; a free OpenFIGI key if volume grows).
@@ -79,11 +83,12 @@ Q15 (a listed parent's NACE), D4 (database, for the audit), Q10 (volume; a free 
 
 | Date | Decision | By |
 |---|---|---|
+| 2026-09-23 | **The model is on in production** — the owner's decision, superseding "the LLM stays off until an approved endpoint exists" (22 Sept): OpenAI `gpt-5.6-luna` with the owner's key (a Sensitive Vercel variable, Production only), `LLM_ENABLED=true`, `LLM_DAILY_TOKEN_BUDGET=0`. Rollback is `LLM_ENABLED=false` and a redeploy; another endpoint is env vars plus a redeploy (§0 item 3a). | tdzian39 |
 | 2026-09-23 | **No automatic popis činnosti from Wikipedia.** MO types the description when they want NACE/ESA codes; an empty one is not filled in by the tool. The Wikidata/Wikipedia-by-LEI lookup (E5.1) was built and tested in PR #13, then closed unmerged; branch `feat/e5-wikipedia-description` keeps it if this is revisited. | Timotej |
 | 2026-09-22 | This repository is the **primary codebase of Tool 1** (the ESA/NACE suggester for foreign issuers). Jakub's earlier repo `jaeksrampota/esa-nace-naseptavac` (CodeNOW Flask scaffold + design docs) is the *design source*, not a parallel implementation any more. | Jakub |
 | 2026-09-22 | **Tool 2 (RES/OR lookup) is out of scope here** — it is built elsewhere (`jaeksrampota/res-or-lookup`). Its code in this repo is parked and will be removed (E0). | Jakub |
 | 2026-09-22 | **Deployment target is Vercel**, not CodeNOW. The old hard rule "no PaaS config, Dockerfile only" is withdrawn; the Dockerfile may stay for local runs. Design for serverless (§4). | Jakub |
-| 2026-09-22 | **The LLM stays off** until an approved endpoint exists. Everything for it is built and tested against a stub; nothing more is done on it before E9. The tool ships *deterministic* (shortlist with CTS IDs, a human picks). | Jakub |
+| 2026-09-22 | **The LLM stays off** until an approved endpoint exists. Everything for it is built and tested against a stub; nothing more is done on it before E9. The tool ships *deterministic* (shortlist with CTS IDs, a human picks). *Superseded 2026-09-23: the model is on in production.* | Jakub |
 | 2026-09-22 | DWS access is not granted for this project (from `CLAUDE.md`); irrelevant to Tool 1, which never touched it. | bank |
 | 2026-09-22 | Issuer identification by ISIN (GLEIF + OpenFIGI) added in PR #1; the pattern for every further source: public, keyless, fail-soft, trimmed live payloads as test fixtures. | Jakub / Claude |
 | 2026-09-22 | **D2 — the repository stays public.** E0.2 (make it private) is dropped and E1 no longer waits for it. The rule "nothing bank-internal in git" stays, so the codebooks live only in a private Vercel Blob store — which settles **D3 as Blob** (the CSV option needed a private repo). | Jakub |
@@ -457,6 +462,14 @@ Blob in 290 ms and the model off (`llm_configured: false`), and `/probe?set=all`
 one tied with its control variants, and the page is in the new look. From Git Bash, `vercel curl /health` fails
 ("URL rejected"), because Bash rewrites `/health` into a Windows path. Run it from PowerShell, or set
 `MSYS_NO_PATHCONV=1` and give curl's `--data-binary @file` a Windows path.
+**Redeployed twice on 23 Sept 2026 (afternoon)**, `main` at `ee410e2` (the `/api/version` endpoint), through the
+Vercel API building straight from GitHub (the CLI on the deploying machine was logged out): first unchanged, then
+with the model switched on (E9, §0 item 3a). `/api/version` names the commit; `/health` shows `llm_configured:
+true`, `gpt-5.6-luna`, the codebooks loaded. `LLM_DAILY_TOKEN_BUDGET=0` had never been set on Vercel, so until then
+every production row carried "model call failed: … cannot be enforced", even with the model off. The project's Git
+connection points at the fork `jaeksrampota/nace-esa-classification-assistant`, which is still at the first commit:
+a push to this repository deploys nothing, and a push to the fork or a Redeploy of its build would put that first
+commit back into production. Deploys are therefore made on request, from this repository's `main`.
 **Depends on:** no epic (E0.2 was dropped, D2); D1 confirmed. Before real data: the four codebook files from the
 repository owner (perhaps in `tdzian39/rb_files`, where Jakub has a pending invite), uploaded with
 `vercel blob put` as in `app/README.md`.
@@ -612,11 +625,12 @@ cases only — the real ones are measured, not gated.
 (20; Q15). Top-1 misses: EBRD 64 and the EU 84 before 99 (GLEIF files both `GENERAL`), Allianz 64 before 65, Siemens
 62 before 27, Toyota Motor Credit 46 before 64 (by 0.01). The ESA top-1 misses are mostly the control digit (Q7).
 
-### E9 — LLM second opinion (M) — *ready to switch on (PR #9, 23 Sept 2026); the endpoint arrives 24 Sept*
+### E9 — LLM second opinion (M) — *on in production since 23 Sept 2026 (PR #9, then the owner's switch-on, §0 item 3a)*
 
 What exists: `prompts.py` (versioned, register facts already flow into the prompt via `classifier_text`),
 `provider.py` (OpenAI Chat Completions over httpx, structured output, 429/5xx retry), `llm.py` (abstain, not
-guess), `cache.py`, `budget.py` (fail-closed limits), `--estimate`/`--usage` CLI. Never made a live call.
+guess), `cache.py`, `budget.py` (fail-closed limits), `--estimate`/`--usage` CLI. First live calls on 23 Sept
+2026, in production (§0 item 3a).
 **PR #9 adds** the `gpt-5.6-luna` default with `LLM_REASONING_EFFORT=none` (OpenAI docs, 23 Sept), the steps per
 endpoint (`app/README.md` → "Enabling the model"), `LLM_DAILY_TOKEN_BUDGET=0` on Vercel (§1), the lookup deadline
 (`LOOKUP_DEADLINE_SECONDS`, no call that could outlive Vercel's 60 s), the page states tested with the stub, and
@@ -663,7 +677,8 @@ E0 ──► E1 ──┬──► E2 ──► E6 ──► E7
             ├──► E3
             ├──► E4 ──► E4b (optional)
             └──► E5
-E8 runs alongside from the first pilot; E9 only after E8 has numbers and an endpoint is approved; E10 last.
+E8 runs alongside from the first pilot; E9 only after E8 has numbers and an endpoint is approved (switched on by
+the owner on 23 Sept 2026, §1); E10 last.
 ```
 E0 + E1 give MO a usable pilot (shortlist with CTS IDs, deterministic). E2 makes it safe to hand out.
 E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily tool and the cleanup tool.

@@ -39,10 +39,10 @@ bank is a bank because the register says so. See "Tool 1: issuer identification 
 **Running on Vercel (roadmap E1, 22 Sept 2026).** Production is up behind Vercel
 Authentication, with the real codebooks in the private Blob store; the app loads them lazily,
 reports a codebook problem as HTTP 503 instead of dying, and has a `/probe` page for the
-registers; see "Deploying on Vercel". What comes next is in `docs/ROADMAP.md` section 0. The model (E9) is ready to switch on with
-environment variables - adapter, spending limits, a lookup deadline inside Vercel's 60 s and a
-golden run through the model, tested against a stub and a fake endpoint; see "Enabling the
-model" below.
+registers; see "Deploying on Vercel". What comes next is in `docs/ROADMAP.md` section 0. The model (E9) is on
+in production since 23 Sept 2026 (OpenAI `gpt-5.6-luna`, switched on with environment
+variables); the adapter, spending limits, a lookup deadline inside Vercel's 60 s and the golden
+run through the model are in "Enabling the model" below.
 
 
 The original build steps are history now; the plan from here is the roadmap's epics.
@@ -707,9 +707,9 @@ stays (below).
    python -m core.classify --golden --model
    ```
    It prints each case's rules' pick next to the model's, both top-1 figures and the tokens the
-   provider reported. **The provider path has never made a live call** - the request shape is
-   verified against the docs and run against a fake endpoint, but expect to fix something small
-   the first time; the abstention reason printed per case says what.
+   provider reported. The provider path first ran live on 23 Sept 2026, in production with
+   OpenAI `gpt-5.6-luna`, and needed no change; on another endpoint, the abstention reason
+   printed per case says what to fix.
 4. Have someone check the suggestions against CTS, then record the confirmed ones in
    `tests/golden/cases.json` with `verified_by` filled in. That is what turns "seems right"
    into a number, and what justifies keeping the cheap model.
@@ -723,6 +723,9 @@ fail closed: an unenforceable daily cap refuses to spend rather than quietly dis
 Set a cap in the provider dashboard as well - that is the backstop.
 
 ### Switching it on in production (Vercel)
+
+**Done on 23 Sept 2026** (OpenAI `gpt-5.6-luna`, the owner's key; roadmap §0 item 3a). The steps
+stay here for a key rotation, another endpoint or a rollback.
 
 Before anything else, set a monthly spending cap in the provider's dashboard: on Vercel the
 daily budget is 0 (no usage ledger), so that cap is the backstop.
