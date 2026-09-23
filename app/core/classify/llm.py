@@ -22,7 +22,7 @@ import logging
 import time
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core.classify.cache import ClassificationCache, NullCache, cache_key
 from core.classify.errors import LlmError, LlmNotConfiguredError
@@ -37,6 +37,9 @@ from core.classify.models import (
 )
 from core.classify.prompts import PROMPT_VERSION, Prompt, build_prompt
 from core.classify.provider import LlmProvider, LlmResponse, NullLlmProvider
+
+if TYPE_CHECKING:  # the settings import stays lazy at runtime (see build_classifier)
+    from config.settings import Settings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -293,6 +296,39 @@ class LlmClassifier:
         )
 
 
+def can_start_a_call(settings: Settings, call_seconds: float) -> bool:
+    """Whether a lookup can start both of its model calls inside the deadline.
+
+    A lookup classifies TWO codebooks, so the deadline has to hold two worst-case calls, not
+    one. Returns True when no deadline is set (``lookup_deadline_seconds`` 0) or no call is
+    made at all.
+    """
+    if settings.lookup_deadline_seconds <= 0 or call_seconds <= 0:
+        return True
+    return 2 * call_seconds <= settings.lookup_deadline_seconds
+
+
+def warn_if_unstartable(settings: Settings, call_seconds: float) -> None:
+    """Say loudly when the configured timeouts make a model call impossible to start.
+
+    This is the failure that hides: the classifier abstains, the rules propose a code, and the
+    page looks exactly like a working deterministic run. The only clue is one sentence inside
+    an abstention reason. Anyone raising LLM_TIMEOUT_SECONDS or LLM_MAX_ATTEMPTS to be
+    "safer" silently switches the model off, so say so at build time instead.
+    """
+    if can_start_a_call(settings, call_seconds):
+        return
+    LOGGER.warning(
+        "the model will NEVER be called: one call can take up to %.0f s and a lookup makes two, "
+        "but LOOKUP_DEADLINE_SECONDS is %.0f. Lower LLM_TIMEOUT_SECONDS (%.0f) or "
+        "LLM_MAX_ATTEMPTS (%d), or raise the deadline off Vercel.",
+        call_seconds,
+        settings.lookup_deadline_seconds,
+        settings.llm_timeout_seconds,
+        settings.llm_max_attempts,
+    )
+
+
 def build_classifier(
     settings: Any = None,
     *,
@@ -314,20 +350,22 @@ def build_classifier(
         budget=build_budget(resolved),
         ledger=build_ledger(resolved.llm_usage_path),
     )
+    # The null provider makes no call, so there is nothing to fit into the deadline - and
+    # "no model configured" stays the reason the page shows.
+    call_seconds = 0.0 if isinstance(inner, NullLlmProvider) else worst_case_call_seconds(resolved)
+    warn_if_unstartable(resolved, call_seconds)
     return LlmClassifier(
         guarded,
         cache=build_cache(resolved.llm_cache_path),
         codebook_version=codebook_version,
         max_suggestions=resolved.llm_max_suggestions,
-        # The null provider makes no call, so there is nothing to fit into the deadline -
-        # and "no model configured" stays the reason the page shows.
-        call_seconds=0.0
-        if isinstance(inner, NullLlmProvider)
-        else worst_case_call_seconds(resolved),
+        call_seconds=call_seconds,
     )
 
 
 __all__ = [
+    "can_start_a_call",
+    "warn_if_unstartable",
     "MAX_JUSTIFICATION_CHARS",
     "Confidence",
     "LlmClassifier",
