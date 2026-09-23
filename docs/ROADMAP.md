@@ -15,12 +15,12 @@ picking up. Then run the tests (§8) before changing anything.
 ## 0. Next steps (23 Sept 2026) — read this first
 
 **Where it stands.** E0, E1, E8 and E4-lite are done (PR #8 merged), and the model is ready to switch on (E9,
-PR #9 merged). PR #10 gives the page the look of the RB team gateway and fixes htmx, which had never loaded. The
+PR #9 merged). PR #10 (merged) gave the page the look of the RB team gateway and fixed htmx, which had never loaded. The
 tool does what the brief asks, in deterministic mode: an ISIN, name or description goes in; the issuer's register
 facts and two shortlists — NACE and ESA, every candidate with its CTS ID — come out, and where a rule decided (a
 GLEIF category or a keyword) the first candidate is labelled **navrhovaný kód**; a person confirms. It runs on
 Vercel (production behind Vercel Authentication, the real codebooks in the private Blob store, `DE0005140008` end
-to end in about 5 s; the deployment is still the E1 code until `main` is redeployed). It is not gold-plated, and
+to end in about 5 s; `main` at `3b1fa7b`, with #8, #9 and #10, was deployed on 23 Sept 2026, the model still off). It is not gold-plated, and
 should not be: what follows is the short list that separates "works for Jakub" from "MO uses it", then what is
 optional.
 
@@ -150,6 +150,8 @@ not an oracle: **a human confirms every code**.
 - **PR #10** `feat/ui-rb-gateway-look` — the page and `/probe` in the look of the RB team gateway
   (`anorfidien/finance_rb_cz`, look only: no licence), a light/dark toggle, and the htmx fix (the SRI hash was
   wrong, so htmx never loaded) (23 Sept 2026). Against `main`.
+- #10 → `3b1fa7b` (merge commit, 23 Sept 2026); `main` = `3b1fa7b`, deployed to production the same morning (E1
+  below).
 
 ### Where the next session starts: §0 above
 
@@ -447,6 +449,13 @@ on Vercel `/health` reports `ok`, version `cb-cc2c7e89a673069c`, codebooks fetch
 348 ms; `DE0005140008` returns Deutsche Bank AG via GLEIF + OpenFIGI in about 5 s, NACE `64` (CTS 512)
 first and the bank family (`2002213` CTS 635, `2002212` 634, `2002211` 633) first on ESA. Uploading needed
 `BLOB_STORE_ID` as a project variable (the CLI refuses the OIDC token without it).
+**Redeployed 23 Sept 2026** from a clean checkout of `main` at `3b1fa7b` (#8, #9 and #10 merged) with
+`vercel deploy --prod`, no environment variable changed. `/health` answers `ok` with the codebooks loaded from
+Blob in 290 ms and the model off (`llm_configured: false`), and `/probe?set=all` has all six hosts `ok`.
+`DE0005140008` gives the navrhovaný kód NACE `64` (CTS 512) and ESA `2002213` (CTS 635) by the rules, the ESA
+one tied with its control variants, and the page is in the new look. From Git Bash, `vercel curl /health` fails
+("URL rejected"), because Bash rewrites `/health` into a Windows path. Run it from PowerShell, or set
+`MSYS_NO_PATHCONV=1` and give curl's `--data-binary @file` a Windows path.
 **Depends on:** no epic (E0.2 was dropped, D2); D1 confirmed. Before real data: the four codebook files from the
 repository owner (perhaps in `tdzian39/rb_files`, where Jakub has a pending invite), uploaded with
 `vercel blob put` as in `app/README.md`.
