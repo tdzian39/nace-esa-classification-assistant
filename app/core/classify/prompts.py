@@ -29,7 +29,8 @@ from core.classify.text import overlap_score, stems
 #: Bump on ANY change to the wording or the schema below. It is part of the cache key.
 # v2: candidate definitions are trimmed to a character budget (see MAX_DEFINITION_CHARS),
 # which changes what the model is shown, so cached v1 answers must not be reused.
-PROMPT_VERSION: Final[str] = "nace-esa/2"
+# v3: the government codes carry an explanation (CODE_NOTES).
+PROMPT_VERSION: Final[str] = "nace-esa/3"
 
 #: Rough tokens per character for Czech/English mixed text in a BPE tokenizer. Used only for
 #: budgeting and reporting, never for truncation.
@@ -42,6 +43,37 @@ _CHARS_PER_TOKEN: Final[int] = 4
 #: plainly does not perform. A budget rather than a fixed count, because the cost is in the
 #: handful of giant divisions; a typical division fits whole and is sent whole.
 MAX_DEFINITION_CHARS: Final[int] = 1100
+
+#: What the codebook does not say, sent right under the candidate it explains. BA0036
+#: describes each non-resident government code only as "like resident subsector 13xx000",
+#: and the resident S.1312 is not in the codebook at all (the Czech Republic has no state
+#: government). So for 2003120 the model saw nothing but the label "Národní vládní
+#: instituce", read "národní" as "national" and put the Republic of Austria there, and Land
+#: Berlin, which GLEIF files as STATE_GOVERNMENT, went to local government (live golden
+#: run, 23 Sept 2026). Written for this tool, not ČNB text; keyed by BA0036 code.
+CODE_NOTES: Final[dict[str, str]] = {
+    "2003110": (
+        "Vysvětlivka: S.1311 ústřední vláda - stát jako celek (republika, spolková republika, "
+        "království), jeho ministerstva, státní pokladna a ústřední agentury; ve federaci "
+        "federální vláda. V GLEIF subkategorie CENTRAL_GOVERNMENT."
+    ),
+    "2003120": (
+        "Vysvětlivka: S.1312 vlády spolkových zemí a států ve federacích - úroveň mezi ústřední "
+        "a místní vládou, např. německé spolkové země včetně Berlína, Hamburku a Brém, "
+        "rakouské spolkové země, státy USA, kanadské provincie, švýcarské kantony, španělská "
+        "autonomní společenství. „Národní“ zde NEznamená celostátní - celostátní vláda je "
+        "S.1311. V GLEIF subkategorie STATE_GOVERNMENT."
+    ),
+    "2003130": (
+        "Vysvětlivka: S.1313 místní vláda - obce, města, okresy a kraje; ve státech bez "
+        "federálního uspořádání sem patří i regiony (např. Paříž, francouzské nebo italské "
+        "regiony). V GLEIF subkategorie LOCAL_GOVERNMENT."
+    ),
+    "2003140": (
+        "Vysvětlivka: S.1314 fondy sociálního zabezpečení - jednotky, jejichž hlavní činností "
+        "je poskytování sociálních dávek. V GLEIF subkategorie SOCIAL_SECURITY_SYSTEM."
+    ),
+}
 
 
 _KIND_SUBJECT: Final[dict[Kind, str]] = {
@@ -198,6 +230,8 @@ def _render_candidates(candidates: CandidateSet, description: str) -> str:
     blocks: list[str] = []
     for index, candidate in enumerate(candidates, start=1):
         lines = [f"{index}. kód {candidate.code} — {candidate.label}"]
+        if note := CODE_NOTES.get(candidate.code):
+            lines.append(f"   • {note}")
         seen: set[str] = set()
         for item in select_definitions(candidate, description):
             if item and item != candidate.label and item not in seen:
