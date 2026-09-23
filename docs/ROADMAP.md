@@ -79,6 +79,7 @@ Q15 (a listed parent's NACE), D4 (database, for the audit), Q10 (volume; a free 
 
 | Date | Decision | By |
 |---|---|---|
+| 2026-09-23 | **No automatic popis činnosti from Wikipedia.** MO types the description when they want NACE/ESA codes; an empty one is not filled in by the tool. The Wikidata/Wikipedia-by-LEI lookup (E5.1) was built and tested in PR #13, then closed unmerged; branch `feat/e5-wikipedia-description` keeps it if this is revisited. | Timotej |
 | 2026-09-22 | This repository is the **primary codebase of Tool 1** (the ESA/NACE suggester for foreign issuers). Jakub's earlier repo `jaeksrampota/esa-nace-naseptavac` (CodeNOW Flask scaffold + design docs) is the *design source*, not a parallel implementation any more. | Jakub |
 | 2026-09-22 | **Tool 2 (RES/OR lookup) is out of scope here** — it is built elsewhere (`jaeksrampota/res-or-lookup`). Its code in this repo is parked and will be removed (E0). | Jakub |
 | 2026-09-22 | **Deployment target is Vercel**, not CodeNOW. The old hard rule "no PaaS config, Dockerfile only" is withdrawn; the Dockerfile may stay for local runs. Design for serverless (§4). | Jakub |
