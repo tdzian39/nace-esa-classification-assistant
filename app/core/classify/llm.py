@@ -19,7 +19,8 @@ confident wrong code entered into CTS is the outcome nobody catches.
 from __future__ import annotations
 
 import logging
-from collections.abc import Mapping, Sequence
+import time
+from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
@@ -55,6 +56,11 @@ class LlmClassifier:
         cache: Answers are reused across runs; see :mod:`core.classify.cache` for the key.
         codebook_version: Part of the cache key, so a codebook update invalidates answers.
         max_suggestions: Ranked suggestions to keep.
+        call_seconds: The longest one model call can take, retries included
+            (:func:`~core.classify.provider.worst_case_call_seconds`). With a ``deadline``,
+            a call that could end after it is not started. 0 (the default, and what the
+            null provider gets) means there is no network call to bound.
+        clock: Monotonic seconds; injected by the tests.
     """
 
     def __init__(
@@ -64,6 +70,8 @@ class LlmClassifier:
         cache: ClassificationCache | None = None,
         codebook_version: str | None = None,
         max_suggestions: int = 3,
+        call_seconds: float = 0.0,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         # Explicit None checks, not `or`: SqliteCache defines __len__, so an EMPTY cache is
         # falsy and `cache or NullCache()` would silently discard it - disabling caching
@@ -72,6 +80,8 @@ class LlmClassifier:
         self._cache = NullCache() if cache is None else cache
         self._codebook_version = codebook_version
         self._max_suggestions = max(1, max_suggestions)
+        self._call_seconds = max(0.0, call_seconds)
+        self._clock = clock
 
     @property
     def provider(self) -> LlmProvider:
@@ -85,8 +95,13 @@ class LlmClassifier:
         *,
         issuer_name: str | None,
         description: str | None,
+        deadline: float | None = None,
     ) -> Classification:
-        """Choose from ``candidates``, or abstain with a reason."""
+        """Choose from ``candidates``, or abstain with a reason.
+
+        ``deadline`` is a :func:`time.monotonic` value: a model call that could end after it
+        is not started (a cached answer is still served, it costs no time).
+        """
         kind = candidates.kind
         text = (description or "").strip()
 
@@ -111,6 +126,17 @@ class LlmClassifier:
         if cached is not None:
             LOGGER.debug("%s classification served from cache", kind)
             return cached
+
+        if deadline is not None and self._call_seconds > 0:
+            left = deadline - self._clock()
+            if left < self._call_seconds:
+                return self._abstain(
+                    kind,
+                    f"no time left for the model: a call can take up to "
+                    f"{self._call_seconds:.0f} s and the lookup has {max(left, 0.0):.0f} s "
+                    "of its limit left (LOOKUP_DEADLINE_SECONDS)",
+                    len(candidates),
+                )
 
         prompt = build_prompt(
             candidates,
@@ -137,15 +163,19 @@ class LlmClassifier:
         *,
         issuer_name: str | None,
         description: str | None,
+        deadline: float | None = None,
     ) -> tuple[Classification, Classification]:
         """Classify both codebooks.
 
         Two separate calls on purpose: the reasoning differs, each is cached and measured on
-        its own, and a bad NACE answer cannot drag the ESA one with it.
+        its own, and a bad NACE answer cannot drag the ESA one with it. They run one after
+        the other, so the ``deadline`` check before the second sees what the first took.
         """
         return (
-            self.classify(nace, issuer_name=issuer_name, description=description),
-            self.classify(esa, issuer_name=issuer_name, description=description),
+            self.classify(
+                nace, issuer_name=issuer_name, description=description, deadline=deadline
+            ),
+            self.classify(esa, issuer_name=issuer_name, description=description, deadline=deadline),
         )
 
     # -- internals ---------------------------------------------------------------------
@@ -273,13 +303,14 @@ def build_classifier(
     from config.settings import Settings, get_settings
     from core.classify.budget import BudgetedProvider, build_budget, build_ledger
     from core.classify.cache import build_cache
-    from core.classify.provider import build_provider
+    from core.classify.provider import build_provider, worst_case_call_seconds
 
     resolved: Settings = settings if isinstance(settings, Settings) else get_settings()
     # Every caller gets the limits, because they are applied here rather than at each call
     # site: a new entry point cannot forget them.
+    inner = provider if provider is not None else build_provider(resolved)
     guarded = BudgetedProvider(
-        provider if provider is not None else build_provider(resolved),
+        inner,
         budget=build_budget(resolved),
         ledger=build_ledger(resolved.llm_usage_path),
     )
@@ -288,6 +319,11 @@ def build_classifier(
         cache=build_cache(resolved.llm_cache_path),
         codebook_version=codebook_version,
         max_suggestions=resolved.llm_max_suggestions,
+        # The null provider makes no call, so there is nothing to fit into the deadline -
+        # and "no model configured" stays the reason the page shows.
+        call_seconds=0.0
+        if isinstance(inner, NullLlmProvider)
+        else worst_case_call_seconds(resolved),
     )
 
 

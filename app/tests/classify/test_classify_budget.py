@@ -10,8 +10,10 @@ import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import httpx
 import pytest
 
+from config.settings import Settings
 from core.classify.budget import (
     Budget,
     BudgetedProvider,
@@ -21,9 +23,9 @@ from core.classify.budget import (
     UsageTotals,
     build_ledger,
 )
-from core.classify.llm import LlmClassifier
+from core.classify.llm import LlmClassifier, build_classifier
 from core.classify.prompts import build_prompt
-from core.classify.provider import StubLlmProvider
+from core.classify.provider import OpenAiProvider, StubLlmProvider
 from tests.classify.test_classify_llm import ranked_set
 
 ANSWER = json.dumps(
@@ -204,6 +206,55 @@ class TestClassifierBehaviour:
         )
         assert result.abstained
         assert "per-request" in result.abstain_reason
+
+
+class TestTheVercelConfiguration:
+    """Vercel keeps no usage ledger (LLM_USAGE_PATH empty), so the daily budget decides
+    whether the model is ever called. Decided 23 Sept 2026: 0 there, the provider
+    dashboard's spending cap is the backstop, the per-request and per-run limits stay."""
+
+    @staticmethod
+    def _classifier(**overrides: object) -> tuple[LlmClassifier, list[dict]]:
+        seen: list[dict] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            seen.append(json.loads(request.content))
+            body = {"model": "m", "choices": [{"message": {"content": ANSWER}}]}
+            return httpx.Response(200, json=body)
+
+        settings = Settings(
+            _env_file=None,
+            llm_enabled=True,
+            llm_api_key="sk-test",
+            llm_usage_path="",
+            llm_cache_path="",
+            llm_max_attempts=1,
+            **overrides,
+        )
+        client = httpx.Client(
+            transport=httpx.MockTransport(handler), base_url="https://api.test/v1"
+        )
+        provider = OpenAiProvider(settings, client=client, sleep=lambda _: None)
+        return build_classifier(settings, provider=provider), seen
+
+    def test_with_the_daily_budget_at_zero_the_model_is_called(self) -> None:
+        classifier, seen = self._classifier(llm_daily_token_budget=0)
+        result = classifier.classify(ranked_set(), issuer_name="A", description="a captive lender")
+        assert result.top is not None and result.top.code == "64"
+        assert len(seen) == 1
+
+    def test_with_a_daily_budget_every_call_is_refused_before_it_is_sent(self) -> None:
+        classifier, seen = self._classifier()  # the default 500,000 tokens a day
+        result = classifier.classify(ranked_set(), issuer_name="A", description="a captive lender")
+        assert result.abstained
+        assert "LLM_DAILY_TOKEN_BUDGET=0" in (result.abstain_reason or "")
+        assert seen == [], "the refusal must come before the request"
+
+    def test_the_per_request_limit_still_applies_there(self) -> None:
+        classifier, seen = self._classifier(llm_daily_token_budget=0, llm_max_prompt_tokens=10)
+        result = classifier.classify(ranked_set(), issuer_name="A", description="a captive lender")
+        assert result.abstained and "per-request" in (result.abstain_reason or "")
+        assert seen == []
 
 
 def test_limits_are_described_readably() -> None:

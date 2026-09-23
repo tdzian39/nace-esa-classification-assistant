@@ -35,6 +35,29 @@ from core.classify.prompts import Prompt
 
 LOGGER = logging.getLogger(__name__)
 
+#: Longest wait for a TCP/TLS connection, whatever LLM_TIMEOUT_SECONDS says: a model that
+#: is slow to answer is normal, an endpoint that is slow to accept a connection is down.
+CONNECT_TIMEOUT_SECONDS = 5.0
+
+
+def _backoff_seconds(attempt: int) -> float:
+    """Pause after failed attempt ``attempt`` (1-based) before the next one."""
+    return min(2.0 * attempt, 10.0)
+
+
+def worst_case_call_seconds(settings: Settings) -> float:
+    """The longest one model call can take, every attempt timing out.
+
+    Each attempt waits at most the connect timeout plus LLM_TIMEOUT_SECONDS for the answer,
+    and the attempts are separated by the backoff. The classifier compares this with the
+    time a lookup has left, so a call that could outlive Vercel's maxDuration is never
+    started (``LOOKUP_DEADLINE_SECONDS``).
+    """
+    attempts = max(1, settings.llm_max_attempts)
+    timeout = settings.llm_timeout_seconds
+    per_attempt = min(CONNECT_TIMEOUT_SECONDS, timeout) + timeout
+    return attempts * per_attempt + sum(_backoff_seconds(a) for a in range(1, attempts))
+
 
 @dataclass(frozen=True, slots=True)
 class LlmResponse:
@@ -155,10 +178,18 @@ def _usage(payload: Mapping[str, Any]) -> tuple[int | None, int | None]:
 class OpenAiProvider:
     """Chat Completions with a strict JSON schema, spoken over plain HTTP.
 
-    Request shape verified against the structured-outputs guide on 2026-09-22:
-    ``response_format = {"type": "json_schema", "json_schema": {"name", "strict", "schema"}}``
-    with ``additionalProperties: false`` and every property required - which
+    Request shape verified against the structured-outputs guide on 2026-09-22 and again on
+    2026-09-23 (developers.openai.com): ``response_format = {"type": "json_schema",
+    "json_schema": {"name", "strict", "schema"}}``, every object ``additionalProperties:
+    false`` with every property required, ``enum`` and ``description`` supported, and array
+    ``maxItems`` supported (except on fine-tuned models) - which
     :func:`~core.classify.prompts.response_schema` produces.
+
+    ``reasoning_effort`` (``LLM_REASONING_EFFORT``) is sent when set. OpenAI's reasoning
+    models (the GPT-5.x families, including the default ``gpt-5.6-luna``) default to
+    ``medium`` and reject ``temperature`` unless the effort is ``none`` (latest-model guide,
+    2026-09-23), so ``temperature`` goes out only with no effort or ``none``. Leave the
+    effort empty for a model or gateway that does not know the parameter.
     """
 
     name = "openai"
@@ -180,9 +211,10 @@ class OpenAiProvider:
         if self._client is None:
             if self._settings.llm_api_key is None:
                 raise LlmNotConfiguredError("LLM_API_KEY is not set; put it in app/.env")
+            timeout = self._settings.llm_timeout_seconds
             self._client = httpx.Client(
                 base_url=self._settings.llm_base_url.rstrip("/"),
-                timeout=self._settings.llm_timeout_seconds,
+                timeout=httpx.Timeout(timeout, connect=min(CONNECT_TIMEOUT_SECONDS, timeout)),
                 headers={
                     "Authorization": f"Bearer {self._settings.llm_api_key.get_secret_value()}",
                     "Content-Type": "application/json",
@@ -196,9 +228,8 @@ class OpenAiProvider:
             self._client = None
 
     def _body(self, prompt: Prompt) -> dict[str, Any]:
-        return {
+        body: dict[str, Any] = {
             "model": self.model,
-            "temperature": self._settings.llm_temperature,
             # A ceiling on output: three picks with one Czech sentence each is a few hundred
             # tokens. Without it a model that starts rambling is billed for the rambling.
             "max_completion_tokens": self._settings.llm_max_output_tokens,
@@ -215,6 +246,12 @@ class OpenAiProvider:
                 },
             },
         }
+        effort = self._settings.llm_reasoning_effort
+        if effort:
+            body["reasoning_effort"] = effort
+        if not effort or effort == "none":
+            body["temperature"] = self._settings.llm_temperature
+        return body
 
     def complete(self, prompt: Prompt) -> LlmResponse:
         client = self._ensure_client()
@@ -242,7 +279,7 @@ class OpenAiProvider:
                     return self._read(response)
             if attempt < attempts:
                 LOGGER.debug("model attempt %d/%d failed, retrying", attempt, attempts)
-                self._sleep(min(2.0 * attempt, 10.0))
+                self._sleep(_backoff_seconds(attempt))
 
         raise last_error or LlmUnavailableError("model could not be reached")
 

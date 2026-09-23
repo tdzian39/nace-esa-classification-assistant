@@ -23,6 +23,8 @@ issuer themselves - which they can only do if they can see that the tool did not
 from __future__ import annotations
 
 import logging
+import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -161,12 +163,16 @@ class SuggestionService:
         classifier: LlmClassifier,
         identifier: IssuerIdentifier | None = None,
         limit: int = DEFAULT_LIMIT,
+        deadline_seconds: float = 0.0,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._codebooks = codebooks
         self._gatherer = gatherer
         self._classifier = classifier
         self._identifier = identifier
         self._limit = limit
+        self._deadline_seconds = max(0.0, deadline_seconds)
+        self._clock = clock
         self._nace = NaceCandidateFilter(codebooks)
         self._esa = EsaCandidateFilter(codebooks)
 
@@ -175,7 +181,13 @@ class SuggestionService:
         return self._codebooks
 
     def suggest(self, request: SuggestionRequest) -> IssuerSuggestion:
-        """Run one lookup. Never raises for ordinary failures."""
+        """Run one lookup. Never raises for ordinary failures.
+
+        With ``deadline_seconds`` set (``LOOKUP_DEADLINE_SECONDS``), the model calls must be
+        over that long after this started: whatever the registers took is subtracted.
+        """
+        started = self._clock()
+        deadline = started + self._deadline_seconds if self._deadline_seconds else None
         cleaned, notes = request.cleaned()
 
         identity = (
@@ -194,7 +206,11 @@ class SuggestionService:
         nace_candidates = self._nace.shortlist(text, limit=self._limit)
         esa_candidates = self._esa.shortlist(text, limit=self._limit)
         nace, esa = self._classifier.classify_both(
-            nace_candidates, esa_candidates, issuer_name=issuer_name, description=text
+            nace_candidates,
+            esa_candidates,
+            issuer_name=issuer_name,
+            description=text,
+            deadline=deadline,
         )
 
         return IssuerSuggestion(
@@ -230,6 +246,7 @@ def build_service(
         gatherer=WebEvidenceGatherer(resolved),
         classifier=build_classifier(resolved, codebook_version=codebooks.version.id),
         identifier=build_identifier(resolved),
+        deadline_seconds=resolved.lookup_deadline_seconds,
     )
 
 

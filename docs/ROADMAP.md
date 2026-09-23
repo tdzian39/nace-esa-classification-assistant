@@ -47,6 +47,14 @@ what follows is the short list that separates "works for Jakub" from "MO uses it
    offered; it turns on Q15), EBRD and the EU (GLEIF files them `GENERAL`, so 99 is second), and ESA precedence
    between families (a money-market fund still ranks the non-MMF family first; BNP Paribas the insurers) —
    that is E4 proper, only if MO asks.
+3a. **E9: the model is ready to switch on — PR #9 (23 Sept 2026; merge PR #8 first).** The endpoint arriving on
+   24 Sept is not known yet, so no new adapter: `app/README.md` → "Enabling the model" has the steps per case
+   (OpenAI and Azure v1 need no code; Azure classic and the Claude API need an adapter). `gpt-5.6-luna` with
+   `LLM_REASONING_EFFORT=none` replaces the `gpt-4o-mini` placeholder (OpenAI's docs, checked 23 Sept);
+   `LLM_DAILY_TOKEN_BUDGET=0` on Vercel (§1); no model call that could outlive the 60 s cap
+   (`LOOKUP_DEADLINE_SECONDS`); `python -m core.classify --golden --model` measures a model against the rules.
+   **Switch-on** = the env vars in "Switching it on in production", the owner adds `LLM_API_KEY`, redeploy,
+   smoke checks; rollback = `LLM_ENABLED=false` and redeploy. Never made a live call yet.
 4. **E5-lite: the FIRDS LEI fallback.** GLEIF maps 25 of 36 golden ISINs; the misses (Eurobond, LU/IE funds) include
    all four captive vehicles, the core ESA trap. ESMA FIRDS returns the issuer LEI for them; `/probe` already
    shows the host reachable from Vercel.
@@ -80,6 +88,7 @@ Q15 (a listed parent's NACE), D4 (database, for the audit), Q10 (volume; a free 
 | 2026-09-22 | **D1 — there is a Vercel account.** Claude looks up its team and plan and confirms them with Jakub before creating the project. The plan sets `maxDuration` (Hobby 60 s, Pro 300 s). | Jakub |
 | 2026-09-22 | **D5 / Q-A1 — no Entra ID app registration.** The E2.1 shared-password gate with a self-declared name becomes the permanent login. E2 keeps the untrusted-header rule and audit persistence; E2.2 (OIDC) and Q-A1 are dropped. | Jakub |
 | 2026-09-22 | **D6 — no data-classification sign-off is needed**; E1 go-live is not gated on it. The §4 data-flow list stays as documentation. | Jakub |
+| 2026-09-23 | **The daily token budget is 0 on Vercel.** Vercel keeps no usage ledger, so a positive `LLM_DAILY_TOKEN_BUDGET` would refuse every model call (it fails closed). The spending cap in the provider's dashboard is the backstop; the per-request (8,000 tokens) and per-run (200 calls per function instance) limits stay. No Postgres ledger for now (that is D4). | Jakub |
 | 2026-09-23 | **Navrhovaný kód in deterministic mode** (the brief's wording): the first candidate is labelled as the proposal when a rule decided it (GLEIF category or keyword), marked as the rules' and without a confidence; no proposal on text similarity alone or on a tie between rules for different codes (PR #8). | Jakub |
 | 2026-09-22 | **Q8 / E8 — the golden set is built without MO.** Claude builds ~30 real issuers from the E8 seed list, mixing banks, corporates, funds, governments, supranationals and financing vehicles, from ISINs and public sources. `verified_by` stays empty on every case until someone checks it against CTS; codes worked out this way stay provisional and no accuracy is quoted from them. | Jakub |
 
@@ -196,7 +205,7 @@ app/
     export/              columns.py (the suggestion row contract) · xlsx.py (Subjects + Run sheets)
     batch/               reader.py (messy xlsx in — E6 reuses it; nothing calls it yet)
     audit.py             one log line per lookup: identifier, time, user, sources, outcome — never content
-  tests/                 1292 passed / 19 skipped (skips = tests needing the real xlsx; 1311 with them); fixtures are trimmed live payloads
+  tests/                 1328 passed / 19 skipped (skips = tests needing the real xlsx; 1347 with them); fixtures are trimmed live payloads
     golden/              cases.json (10 fictional trap cases + 36 real issuers, all provisional) · identity.json
                          (recorded GLEIF/OpenFIGI answers) · ba0036_v044_nonresident.json (the public CNB list)
 ```
@@ -584,18 +593,41 @@ cases only — the real ones are measured, not gated.
 (20; Q15). Top-1 misses: EBRD 64 and the EU 84 before 99 (GLEIF files both `GENERAL`), Allianz 64 before 65, Siemens
 62 before 27, Toyota Motor Credit 46 before 64 (by 0.01). The ESA top-1 misses are mostly the control digit (Q7).
 
-### E9 — LLM second opinion (M) — *deferred until an approved endpoint exists*
+### E9 — LLM second opinion (M) — *ready to switch on (PR #9, 23 Sept 2026); the endpoint arrives 24 Sept*
 
 What exists: `prompts.py` (versioned, register facts already flow into the prompt via `classifier_text`),
 `provider.py` (OpenAI Chat Completions over httpx, structured output, 429/5xx retry), `llm.py` (abstain, not
 guess), `cache.py`, `budget.py` (fail-closed limits), `--estimate`/`--usage` CLI. Never made a live call.
-**When approved:** (1) the gateway: if OpenAI-compatible, `LLM_BASE_URL` + key; if Azure OpenAI, a small adapter
-(`api-key` header, `api-version` query, deployment name in the path); (2) cache and usage ledger → Postgres or
-KV (SQLite is impossible on Vercel; the daily budget cannot be enforced without a ledger and then **refuses to
-spend**); (3) run the golden set, compare with deterministic top-1, keep the cheaper model that passes;
-(4) governance note: what is sent (public issuer data, register facts, codebook labels — never DWS, never
-client data), which endpoint, what is logged. Show the model as a labelled second opinion with its one-sentence
-justification; keep the shortlist visible.
+**PR #9 adds** the `gpt-5.6-luna` default with `LLM_REASONING_EFFORT=none` (OpenAI docs, 23 Sept), the steps per
+endpoint (`app/README.md` → "Enabling the model"), `LLM_DAILY_TOKEN_BUDGET=0` on Vercel (§1), the lookup deadline
+(`LOOKUP_DEADLINE_SECONDS`, no call that could outlive Vercel's 60 s), the page states tested with the stub, and
+`python -m core.classify --golden --model`. Switching on is env vars plus a redeploy; the runbook has the list.
+
+**Governance note (what the model sees, where it goes, what stays behind).**
+- *Sent*, per lookup, two requests (NACE, ESA): the issuer name (typed, or GLEIF's legal name), the activity
+  description (MO's typed text, or a web page's text once a search provider exists), the register fact sheet
+  (GLEIF: legal name, country, legal form, entity category, status, parents; OpenFIGI: instrument name, type,
+  market sector), and the shortlist as codes with their codebook labels and definitions (Czech NACE_STAT texts,
+  BA0036 names and `Popis`). All of it public issuer data or codebook text.
+- *Never sent*: client data, anything from DWS (the tool has no DWS connection since PR #5), user identities, CTS
+  IDs (the prompt carries codes and labels; the IDs are attached afterwards from the codebook), and the audit log.
+  MO's typed description is the one free-text input: it should describe the issuer from public sources, nothing
+  about the bank's clients or positions — the Czech user guide (E10) says so.
+- *Where*: the endpoint in `LLM_BASE_URL` (the README table lists OpenAI, Azure OpenAI and the Claude API);
+  requests leave from Vercel's `fra1` function over HTTPS with the key from `LLM_API_KEY` (a Sensitive Vercel
+  env var, added by the owner; never in the repository, never logged — it is a `SecretStr`). That provider's own
+  retention and training terms for API data apply; check them for the chosen endpoint before real use.
+- *Logged by the tool*: one audit line per lookup (identifier, time, user, sources, outcome — never content);
+  on a failure, a warning with the reason (the provider's error text, at most 300 characters; no prompt). On
+  Vercel the cache and the usage ledger are off, so no answers or token counts are stored beyond the function's
+  runtime logs (1 hour on Hobby); locally both are SQLite files under `app/data/cache/`.
+**When approved:** (1) the gateway: if OpenAI-compatible (OpenAI, Azure OpenAI's v1 API), `LLM_BASE_URL` + key;
+if Azure OpenAI's classic endpoints, a small adapter (`api-key` header, `api-version` query, deployment name in the
+path); if the Claude API, a Messages API adapter built from the `claude-api` skill (README table); (2) cache and
+usage ledger → Postgres or KV (D4) — until then the daily budget is 0 on Vercel (§1) and the provider dashboard's
+cap is the backstop; (3) run `python -m core.classify --golden --model`, compare with the rules' top-1, keep the
+cheaper model that passes; (4) the governance note above. Show the model as a labelled second opinion with its
+one-sentence justification; keep the shortlist visible (it is: the navrhovaný kód card carries the confidence).
 
 ### E10 — Hardening and handover (S–M)
 
@@ -742,12 +774,13 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 ```bash
 cd app
 python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]"   # Windows paths; the repo path may contain spaces — quote it
-../.venv/Scripts/python.exe -m pytest -q          # 1292 passed, 19 skipped without the real xlsx (skips are expected); 1311 with them
+../.venv/Scripts/python.exe -m pytest -q          # 1328 passed, 19 skipped without the real xlsx (skips are expected); 1347 with them
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .
 ../.venv/Scripts/python.exe -m core.codebooks     # startup consistency check against data/codebooks (needs the xlsx)
 ../.venv/Scripts/python.exe -m core.classify "popis cinnosti" --verbose   # shortlist for a description
 ../.venv/Scripts/python.exe -m core.classify --golden        # recall@12 + top-1 over tests/golden (needs the xlsx)
 ../.venv/Scripts/python.exe -m core.classify --golden-capture  # re-record the register answers (network, ~2 min)
+../.venv/Scripts/python.exe -m core.classify --golden --model  # through the model: its top-1 vs the rules', tokens (needs LLM_API_KEY)
 ../.venv/Scripts/python.exe -m uvicorn api.main:app --port 8000           # local web tool (needs the xlsx)
 ```
 

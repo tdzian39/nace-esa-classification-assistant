@@ -218,10 +218,23 @@ class Settings(BaseSettings):
     )
     llm_provider: str = Field(default="openai", description="Provider adapter: 'openai' or 'stub'.")
     llm_model: str = Field(
-        default="gpt-4o-mini",
+        default="gpt-5.6-luna",
         description=(
-            "Model id. Default to the cheapest that passes /tests/golden; measure before "
-            "changing. TODO: confirm the current cheapest id with the provider."
+            "Model id (the deployment name on Azure OpenAI). The default is OpenAI's current "
+            "cost-sensitive model, which supports Chat Completions and structured outputs "
+            "(developers.openai.com, checked 23 Sept 2026). Measure with "
+            "`python -m core.classify --golden --model` before changing."
+        ),
+    )
+    llm_reasoning_effort: str | None = Field(
+        default="none",
+        description=(
+            "Sent as `reasoning_effort`. 'none' suits a classification and keeps temperature "
+            "allowed. Any other value makes the adapter drop `temperature`, which OpenAI "
+            "rejects on reasoning models unless the effort is 'none', and needs a larger "
+            "LLM_MAX_OUTPUT_TOKENS, because reasoning tokens count against it. Empty means not "
+            "sent: use that for a model or gateway without the parameter (gpt-4o-mini, many "
+            "gateways)."
         ),
     )
     llm_api_key: SecretStr | None = Field(
@@ -252,6 +265,17 @@ class Settings(BaseSettings):
             "few hundred; the cap stops a rambling model being billed for rambling."
         ),
     )
+    lookup_deadline_seconds: float = Field(
+        default=50.0,
+        ge=0,
+        description=(
+            "Seconds after a lookup starts by which every model call must be over: a call "
+            "that could run past it (all its attempts timing out) is not started, and the "
+            "codebook shortlist and the rules' proposal are returned instead. Vercel ends a "
+            "function at maxDuration (60 s in vercel.json), and the registers alone can take "
+            "~46 s in their worst case. 0 = no limit."
+        ),
+    )
     llm_max_suggestions: int = Field(
         default=3, ge=1, le=5, description="Ranked suggestions returned per codebook."
     )
@@ -273,12 +297,18 @@ class Settings(BaseSettings):
         ge=0,
         description=(
             "Refuse once this many tokens have been used since midnight UTC. At ~3,400 "
-            "tokens per issuer that is roughly 140 uncached issuers a day. 0 = off."
+            "tokens per issuer that is roughly 140 uncached issuers a day. 0 = off. Needs "
+            "the usage ledger: where none can be kept (Vercel) it must be 0, and the "
+            "spending cap in the provider's dashboard is the backstop."
         ),
     )
     llm_usage_path: Path | None = Field(
         default=APP_ROOT / "data" / "cache" / "llm_usage.sqlite3",
-        description="Usage ledger. Empty disables it AND the daily budget with it.",
+        description=(
+            "Usage ledger (SQLite). Empty switches recording off - and then a positive "
+            "LLM_DAILY_TOKEN_BUDGET refuses every model call, because a cap that cannot be "
+            "measured is not a cap. So an empty ledger goes with LLM_DAILY_TOKEN_BUDGET=0."
+        ),
     )
     llm_cache_path: Path | None = Field(
         default=APP_ROOT / "data" / "cache" / "classifications.sqlite3",
@@ -323,12 +353,14 @@ class Settings(BaseSettings):
 
     @field_validator(
         "lookup_user",
+        "llm_api_key",
         "openfigi_api_key",
         "blob_read_write_token",
         "blob_store_id",
         "codebook_download_dir",
         "llm_cache_path",
         "llm_usage_path",
+        "llm_reasoning_effort",
         mode="before",
     )
     @classmethod
@@ -336,7 +368,9 @@ class Settings(BaseSettings):
         """An empty or whitespace-only variable means "not set", not an empty value.
 
         For the two SQLite paths this is what switches them off: ``LLM_CACHE_PATH=`` used to
-        parse as ``Path(".")``, which is not "no cache" but a cache nobody can open.
+        parse as ``Path(".")``, which is not "no cache" but a cache nobody can open. For
+        ``LLM_API_KEY`` it means deterministic mode: a blank key used to count as configured
+        and sent ``Authorization: Bearer `` - an illegal header - on every call.
         """
         if isinstance(value, str) and not value.strip():
             return None
