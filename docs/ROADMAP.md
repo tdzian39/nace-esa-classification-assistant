@@ -14,13 +14,15 @@ picking up. Then run the tests (§8) before changing anything.
 
 ## 0. Next steps (23 Sept 2026) — read this first
 
-**Where it stands.** E0, E1 and E8 are done, E4-lite is in PR #8. The tool does what the brief asks, in
-deterministic mode: an ISIN, name or description goes in; the issuer's register facts and two shortlists — NACE
-and ESA, every candidate with its CTS ID — come out, and where a rule decided (a GLEIF category or a keyword) the
-first candidate is labelled **navrhovaný kód**; a person confirms. It runs on Vercel (production behind Vercel
-Authentication, the real codebooks in the private Blob store, `DE0005140008` end to end in about 5 s; the
-deployment is still the E1 code until PR #8 is merged and redeployed). It is not gold-plated, and should not be:
-what follows is the short list that separates "works for Jakub" from "MO uses it", then what is optional.
+**Where it stands.** E0, E1, E8 and E4-lite are done (PR #8 merged), and the model is ready to switch on (E9,
+PR #9 merged). PR #10 gives the page the look of the RB team gateway and fixes htmx, which had never loaded. The
+tool does what the brief asks, in deterministic mode: an ISIN, name or description goes in; the issuer's register
+facts and two shortlists — NACE and ESA, every candidate with its CTS ID — come out, and where a rule decided (a
+GLEIF category or a keyword) the first candidate is labelled **navrhovaný kód**; a person confirms. It runs on
+Vercel (production behind Vercel Authentication, the real codebooks in the private Blob store, `DE0005140008` end
+to end in about 5 s; the deployment is still the E1 code until `main` is redeployed). It is not gold-plated, and
+should not be: what follows is the short list that separates "works for Jakub" from "MO uses it", then what is
+optional.
 
 **Needed before MO uses it**
 
@@ -47,7 +49,7 @@ what follows is the short list that separates "works for Jakub" from "MO uses it
    offered; it turns on Q15), EBRD and the EU (GLEIF files them `GENERAL`, so 99 is second), and ESA precedence
    between families (a money-market fund still ranks the non-MMF family first; BNP Paribas the insurers) —
    that is E4 proper, only if MO asks.
-3a. **E9: the model is ready to switch on — PR #9 (23 Sept 2026; merge PR #8 first).** The endpoint arriving on
+3a. **E9: the model is ready to switch on — PR #9 (merged 23 Sept 2026).** The endpoint arriving on
    24 Sept is not known yet, so no new adapter: `app/README.md` → "Enabling the model" has the steps per case
    (OpenAI and Azure v1 need no code; Azure classic and the Claude API need an adapter). `gpt-5.6-luna` with
    `LLM_REASONING_EFFORT=none` replaces the `gpt-4o-mini` placeholder (OpenAI's docs, checked 23 Sept);
@@ -89,6 +91,7 @@ Q15 (a listed parent's NACE), D4 (database, for the audit), Q10 (volume; a free 
 | 2026-09-22 | **D5 / Q-A1 — no Entra ID app registration.** The E2.1 shared-password gate with a self-declared name becomes the permanent login. E2 keeps the untrusted-header rule and audit persistence; E2.2 (OIDC) and Q-A1 are dropped. | Jakub |
 | 2026-09-22 | **D6 — no data-classification sign-off is needed**; E1 go-live is not gated on it. The §4 data-flow list stays as documentation. | Jakub |
 | 2026-09-23 | **The daily token budget is 0 on Vercel.** Vercel keeps no usage ledger, so a positive `LLM_DAILY_TOKEN_BUDGET` would refuse every model call (it fails closed). The spending cap in the provider's dashboard is the backstop; the per-request (8,000 tokens) and per-run (200 calls per function instance) limits stay. No Postgres ledger for now (that is D4). | Jakub |
+| 2026-09-23 | **The page takes the look of the RB team gateway** (`anorfidien/finance_rb_cz`, after the Raiffeisenbank brand manual 2023). That repository has no licence, so the look is re-implemented and nothing is copied; its logo files stay out because this repository is public (PR #10). | Jakub / Claude |
 | 2026-09-23 | **Navrhovaný kód in deterministic mode** (the brief's wording): the first candidate is labelled as the proposal when a rule decided it (GLEIF category or keyword), marked as the rules' and without a confidence; no proposal on text similarity alone or on a tie between rules for different codes (PR #8). | Jakub |
 | 2026-09-22 | **Q8 / E8 — the golden set is built without MO.** Claude builds ~30 real issuers from the E8 seed list, mixing banks, corporates, funds, governments, supranationals and financing vehicles, from ISINs and public sources. `verified_by` stays empty on every case until someone checks it against CTS; codes worked out this way stay provisional and no accuracy is quoted from them. | Jakub |
 
@@ -141,6 +144,12 @@ not an oracle: **a human confirms every code**.
 - #5 → `53e4621`, #6 → `f32b2c1`, #7 → `5b029cb` (merge commits, 22 Sept 2026 evening); `main` = `5b029cb`.
 - **PR #8** `feat/e4-lite-public-sector-navrhovany` — E4-lite, the families without a `Popis`, navrhovaný kód, and
   the deterministic list layout fix (23 Sept 2026). Against `main`.
+- **PR #9** `feat/e9-llm-switch-on` — E9 readiness: `gpt-5.6-luna`, the lookup deadline, `--golden --model`, the
+  switch-on runbook (23 Sept 2026). Built on #8's branch, against `main`.
+- #8 → `8018c41`, #9 → `7911216` (merge commits, 23 Sept 2026); `main` = `7911216`.
+- **PR #10** `feat/ui-rb-gateway-look` — the page and `/probe` in the look of the RB team gateway
+  (`anorfidien/finance_rb_cz`, look only: no licence), a light/dark toggle, and the htmx fix (the SRI hash was
+  wrong, so htmx never loaded) (23 Sept 2026). Against `main`.
 
 ### Where the next session starts: §0 above
 
@@ -187,7 +196,7 @@ pydantic-settings, httpx, openpyxl, ruff, pytest. Everything under `app/`:
 app/
   api/main.py            FastAPI: GET / · POST /suggest · POST /api/suggest · GET /suggest.xlsx · GET /health · GET /probe
                          codebooks load once per process (startup or first use); unusable → 503 with the reason (E1)
-  ui/templates/suggest.html   (generated from ui/prototype/suggest.html — keep the prototype in step) · probe.html
+  ui/templates/suggest.html   (ui/prototype/suggest.html copies its CSS — change both together) · probe.html
   config/settings.py     pydantic-settings; relative paths resolve against app/
   vercel.json · .vercelignore · .python-version · [tool.vercel]/[tool.uv] in pyproject.toml   (E1, §4)
   core/

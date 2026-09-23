@@ -572,8 +572,23 @@ everyone.
 each panel explains that no code was chosen and why - never a blank panel that looks like a
 bug.
 
-The template is generated from `ui/prototype/suggest.html`; keep the prototype in step when
-changing the design, since it is the reference that was reviewed.
+**The look** is the RB team gateway's (`anorfidien/finance_rb_cz`, after the Raiffeisenbank
+brand manual 2023), re-implemented in the template's own CSS. That repository has no licence,
+so nothing was copied, and its logo files stay out because this repository is public. Light
+and dark follow the system. The button in the top bar switches between them and the browser
+remembers the choice (`localStorage` key `nace-esa-theme`, shared with `/probe`).
+
+**htmx must load, and must show errors.** htmx 1.9.12 comes from cdnjs with the SRI hash cdnjs
+publishes. A wrong hash makes the browser block the script without a word, and the page falls
+back to plain form posts: that is how it ran until PR #10. htmx does not swap 4xx/5xx answers
+by default, so an `htmx:beforeSwap` handler in the page head swaps them. Without it, a 503
+"Číselníky nejsou k dispozici" would leave the page silent. `tests/test_templates.py` pins
+both, and checks that each state label ("navrhovaný kód", "podle pravidel", "jistota") occurs
+in the template only where it is rendered. CSS comments are sent with the page.
+
+`ui/prototype/suggest.html` is the static design reference: sample data, no server, open it in
+a browser. Its CSS, theme script, top bar and masthead are copied verbatim from the template,
+so change both together.
 
 ### Container
 
