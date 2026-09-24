@@ -1,7 +1,7 @@
 # NACE/ESA classification assistant (Raiffeisenbank CZ Finance/MIS)
 
-**Since 22 September 2026 this repository is Tool 1 only, deploys to Vercel and keeps the
-LLM off until an endpoint is approved** - the plan is in [`../docs/ROADMAP.md`](../docs/ROADMAP.md).
+**Since 22 September 2026 this repository is Tool 1 only and deploys to Vercel; the model is on
+in production since 23 September 2026** - the plan is in [`../docs/ROADMAP.md`](../docs/ROADMAP.md).
 Tool 2 is built elsewhere; its code was removed from this repository in PR #5 (roadmap E0.3).
 
 Originally two internal tools sharing one codebase, for Middle Office treasury and Reporting:
@@ -17,18 +17,22 @@ This README describes what exists, how it is laid out and how to run it.
 
 ## Status
 
-**Running mode: deterministic.** No model key is configured, by choice. The tool narrows each
-codebook to about a dozen candidates, each with its CTS ID resolved. Where a rule decided - a
-GLEIF category or a keyword - the first candidate is shown as the **navrhovaný kód**, marked
-"podle pravidel · ověřte" and without a confidence; where only text similarity ranks the list,
-or rules for two codes tie, nothing is proposed and the panel says the choice is MO's. The page
-and the xlsx carry the same proposal and the whole shortlist; a person confirms every code.
+**Running mode: with the model (production, since 23 Sept 2026).** The tool narrows each
+codebook to about a dozen candidates, each with its CTS ID resolved, and the model (OpenAI
+`gpt-5.6-luna`) may pick only from those: its first pick is the **navrhovaný kód**, with a
+confidence and a one-sentence reason. When the model is off or declines - typically ESA when
+the evidence does not say who owns the issuer - the deterministic result stands: where a rule
+decided - a GLEIF category or a keyword - the first candidate is shown as the **navrhovaný kód**,
+marked "podle pravidel · ověřte" and without a confidence; where only text similarity ranks the
+list, or rules for two codes tie, nothing is proposed and the panel says the choice is MO's. The
+page and the xlsx carry the same proposal and the whole shortlist; a person confirms every code.
 
 On the golden set (real codebooks, all cases provisional - roadmap E8) the deterministic top pick
 of the 36 real issuers is right 83% of the time for NACE and 47% for ESA, where most ESA misses
 are the control digit (Q7); the ten fictional trap cases give 90% and 60%. These are indications,
 not accuracy figures: no accuracy is quoted until cases have been checked against CTS. Useful on
-its own, but unable to explain itself or to resolve distinctions that turn on a sentence.
+its own, but unable to explain itself or to resolve distinctions that turn on a sentence. The
+model's own figures come from `python -m core.classify --golden --model`, not recorded yet.
 
 **An ISIN is now enough to start.** GLEIF resolves it to the issuer's LEI record (legal
 name, country, legal form, entity category, direct and ultimate parent) and OpenFIGI to the
@@ -39,10 +43,10 @@ bank is a bank because the register says so. See "Tool 1: issuer identification 
 **Running on Vercel (roadmap E1, 22 Sept 2026).** Production is up behind Vercel
 Authentication, with the real codebooks in the private Blob store; the app loads them lazily,
 reports a codebook problem as HTTP 503 instead of dying, and has a `/probe` page for the
-registers; see "Deploying on Vercel". What comes next is in `docs/ROADMAP.md` section 0. The model (E9) is ready to switch on with
-environment variables - adapter, spending limits, a lookup deadline inside Vercel's 60 s and a
-golden run through the model, tested against a stub and a fake endpoint; see "Enabling the
-model" below.
+registers; see "Deploying on Vercel". What comes next is in `docs/ROADMAP.md` section 0. The model (E9) is on
+in production since 23 Sept 2026 (OpenAI `gpt-5.6-luna`, switched on with environment
+variables); the adapter, spending limits, a lookup deadline inside Vercel's 60 s and the golden
+run through the model are in "Enabling the model" below.
 
 
 The original build steps are history now; the plan from here is the roadmap's epics.
@@ -54,7 +58,7 @@ The original build steps are history now; the plan from here is the roadmap's ep
 | 3 | Batch xlsx in/out with messy-input tolerance (`core/batch`, `core/export`) | reader and writer **done**; the Tool 2 batch runner removed in PR #5 |
 | 4 | Single-lookup API + server-rendered UI (Jinja2 + htmx) | **done** (Tool 1) |
 | 5 | Deterministic classifier: RES ESA sector -> BA0036 ID, RES 2-digit NACE -> OKEC_NACE2 ID | dropped with Tool 2; roadmap E4 adds a rule table for foreign issuers |
-| 6 | LLM classifier for foreign issuers (structured selection from a candidate list) | built, tested against a stub, **off** until E9 |
+| 6 | LLM classifier for foreign issuers (structured selection from a candidate list) | **done**; on in production since 23 Sept 2026 (E9) |
 
 Work stops after each step: tests run, the state is summarised, and the next step waits
 for an explicit go-ahead.
@@ -706,9 +710,9 @@ stays (below).
    python -m core.classify --golden --model
    ```
    It prints each case's rules' pick next to the model's, both top-1 figures and the tokens the
-   provider reported. **The provider path has never made a live call** - the request shape is
-   verified against the docs and run against a fake endpoint, but expect to fix something small
-   the first time; the abstention reason printed per case says what.
+   provider reported. The provider path first ran live on 23 Sept 2026, in production with
+   OpenAI `gpt-5.6-luna`, and needed no change; on another endpoint, the abstention reason
+   printed per case says what to fix.
 4. Have someone check the suggestions against CTS, then record the confirmed ones in
    `tests/golden/cases.json` with `verified_by` filled in. That is what turns "seems right"
    into a number, and what justifies keeping the cheap model.
@@ -722,6 +726,9 @@ fail closed: an unenforceable daily cap refuses to spend rather than quietly dis
 Set a cap in the provider dashboard as well - that is the backstop.
 
 ### Switching it on in production (Vercel)
+
+**Done on 23 Sept 2026** (OpenAI `gpt-5.6-luna`, the owner's key; roadmap §0 item 3a). The steps
+stay here for a key rotation, another endpoint or a rollback.
 
 Before anything else, set a monthly spending cap in the provider's dashboard: on Vercel the
 daily budget is 0 (no usage ledger), so that cap is the backstop.

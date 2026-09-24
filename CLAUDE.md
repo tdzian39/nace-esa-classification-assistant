@@ -71,7 +71,9 @@ framework. No pandas; numpy is a dev extra only (tests feed numpy scalars to the
   in front (a client-settable header is not an identity).
 - **The repository is PUBLIC** (D2): never commit codebooks, `.env`, audit logs or real
   lookups.
-- The LLM stays off until an approved endpoint exists (E9). Keep its tests green.
+- The model is **on in production** since 23 Sept 2026 (the owner's decision, roadmap §1): OpenAI
+  `gpt-5.6-luna`, the key a Sensitive Vercel variable, never in the repo. Rollback:
+  `LLM_ENABLED=false` and redeploy. Keep its tests green.
 
 ## Commands (from `app/`)
 
@@ -101,6 +103,11 @@ synthetic fixtures via `tests/codebooks/conftest.py`.
 `LLM_API_KEY` the tool narrows 87 NACE divisions and 56 ESA sectors to ~12 candidates each,
 resolves every CTS ID up front, shows the shortlist on the page and in the xlsx
 (`NACE_candidates`, `ESA_candidates`), and says it did not choose, and why.
+
+Production runs **with the model** since 23 Sept 2026. The deterministic result is still what a
+codebook shows whenever the model is off or declines — typically ESA when the evidence does not
+say who owns the issuer (the control axis, Q7): Deutsche Bank by ISIN alone gets the rules' tied
+bank family, and a one-line popis stating the ownership lets the model pick.
 
 Figures are **provisional** (no case is `verified_by`-confirmed) and must not be quoted as
 accuracy. Next steps are `docs/ROADMAP.md` §0: E2 (login + audit, needs D4) once MO is let in,
