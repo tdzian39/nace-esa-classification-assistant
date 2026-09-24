@@ -58,6 +58,7 @@ from fastapi.responses import (
 from fastapi.templating import Jinja2Templates
 
 from config.settings import APP_ROOT, Settings, get_settings
+from core.admin import LedgerFilter, ReportFilter, ledger_view, parse_day, reports_view
 from core.audit import current_user, log_lookup, log_report, set_audit_sink
 from core.auth import (
     SESSION_COOKIE,
@@ -66,7 +67,7 @@ from core.auth import (
     normalize_name,
     verify_password,
 )
-from core.classify.budget import spending_as
+from core.classify.budget import build_ledger, spending_as
 from core.codebooks.errors import CodebookError
 from core.codebooks.loaders import load_and_check
 from core.db import DatabaseAuditSink, get_database
@@ -82,6 +83,7 @@ from core.suggest import IssuerSuggestion, SuggestionRequest, SuggestionService,
 LOGGER = logging.getLogger(__name__)
 
 TEMPLATES = Jinja2Templates(directory=str(APP_ROOT / "ui" / "templates"))
+TEMPLATES.env.globals["admin_enabled"] = lambda: admin_enabled()  # noqa: PLW0108 - defined below
 
 #: After a failed codebook load, suggestion requests answer 503 at once for this long before
 #: the next attempt, so a missing Blob token does not become one download per request.
@@ -299,6 +301,46 @@ async def require_sign_in(request: Request, call_next):  # noqa: ANN001, ANN201 
         return RedirectResponse("/login", status_code=303)
     target = request.url.path + (f"?{request.url.query}" if request.url.query else "")
     return RedirectResponse(f"/login?next={quote(target, safe='')}", status_code=303)
+
+
+# -- the developer page: its own password, on top of the app's sign-in ---------------------
+
+ADMIN_COOKIE: Final[str] = "nace_esa_admin"
+ADMIN_PREFIX: Final[str] = "/admin"
+
+
+def admin_config(settings: Settings) -> SignIn | None:
+    """``None`` when the developer page is off (no ``ADMIN_PASSWORD_HASH``); never raises."""
+    if settings.admin_password_hash is None:
+        return None
+    password_hash = settings.admin_password_hash.get_secret_value().strip()
+    if not is_password_hash(password_hash):
+        return SignIn(
+            problem="ADMIN_PASSWORD_HASH není hash hesla; vytvořte ho příkazem "
+            "python -m core.classify --hash-password."
+        )
+    if settings.session_secret is None:
+        return SignIn(problem="Chybí SESSION_SECRET, přihlášení není možné.")
+    return SignIn(
+        signer=SessionSigner(
+            secret=settings.session_secret.get_secret_value().encode("utf-8") + b"/admin",
+            max_age_seconds=round(settings.session_hours * 3600),
+            password_hash=password_hash,
+        )
+    )
+
+
+def admin_enabled() -> bool:
+    """For the templates: is there a developer page to link to?"""
+    settings = _state.get("settings")
+    return isinstance(settings, Settings) and settings.admin_password_hash is not None
+
+
+def admin_user(request: Request, settings: Settings) -> str | None:
+    config = admin_config(settings)
+    if config is None or config.signer is None:
+        return None
+    return config.signer.verify(request.cookies.get(ADMIN_COOKIE))
 
 
 def signed_in_user(request: Request | None) -> str | None:
@@ -522,6 +564,264 @@ def logout(request: Request) -> RedirectResponse:
         secure=_cookie_is_secure(request),
     )
     return response
+
+
+# -- the developer page ------------------------------------------------------------------
+
+
+def _admin_login_page(
+    request: Request, *, next_path: str, error: str | None = None, status_code: int = 200
+) -> HTMLResponse:
+    return TEMPLATES.TemplateResponse(
+        request=request,
+        name="admin_login.html",
+        context={"next": next_path, "error": error, "user": signed_in_user(request)},
+        status_code=status_code,
+    )
+
+
+def _admin_gate(request: Request, settings: Settings) -> RedirectResponse | None:
+    """``None`` when the developer may pass; a redirect to the admin sign-in otherwise.
+
+    Raises a 404 when the page is not configured at all, so an unconfigured deployment
+    does not even admit that the page exists.
+    """
+    from fastapi import HTTPException
+
+    config = admin_config(settings)
+    if config is None:
+        raise HTTPException(status_code=404)
+    if admin_user(request, settings) is not None:
+        return None
+    target = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+    return RedirectResponse(f"{ADMIN_PREFIX}/login?next={quote(target, safe='')}", status_code=303)
+
+
+def _safe_admin_next(target: str | None) -> str:
+    safe = _safe_next(target)
+    return safe if safe.startswith(ADMIN_PREFIX) else ADMIN_PREFIX
+
+
+@app.get(
+    f"{ADMIN_PREFIX}/login",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    response_model=None,
+)
+def admin_login_form(
+    request: Request,
+    settings: SettingsDep,
+    next: Annotated[str, Query()] = ADMIN_PREFIX,  # noqa: A002
+) -> HTMLResponse | RedirectResponse:
+    from fastapi import HTTPException
+
+    config = admin_config(settings)
+    if config is None:
+        raise HTTPException(status_code=404)
+    target = _safe_admin_next(next)
+    if admin_user(request, settings) is not None:
+        return RedirectResponse(target, status_code=303)
+    return _admin_login_page(request, next_path=target, error=config.problem)
+
+
+@app.post(
+    f"{ADMIN_PREFIX}/login",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+    response_model=None,
+)
+def admin_login_submit(
+    request: Request,
+    settings: SettingsDep,
+    password: Annotated[str, Form()] = "",
+    next: Annotated[str, Form()] = ADMIN_PREFIX,  # noqa: A002
+) -> HTMLResponse | RedirectResponse:
+    from fastapi import HTTPException
+
+    config = admin_config(settings)
+    if config is None:
+        raise HTTPException(status_code=404)
+    target = _safe_admin_next(next)
+    if config.signer is None:
+        return _admin_login_page(request, next_path=target, error=config.problem, status_code=503)
+    if not verify_password(password, config.signer.password_hash):
+        LOGGER.info("developer sign-in refused user=%r", signed_in_user(request))
+        return _admin_login_page(
+            request, next_path=target, error="Nesprávné heslo.", status_code=401
+        )
+    who = signed_in_user(request) or "developer"
+    LOGGER.info("developer sign-in user=%r", who)
+    response = RedirectResponse(target, status_code=303)
+    response.set_cookie(
+        ADMIN_COOKIE,
+        config.signer.issue(who),
+        max_age=config.signer.max_age_seconds,
+        path=ADMIN_PREFIX,
+        httponly=True,
+        samesite="lax",
+        secure=_cookie_is_secure(request),
+    )
+    return response
+
+
+@app.post(f"{ADMIN_PREFIX}/logout", include_in_schema=False)
+def admin_logout(request: Request) -> RedirectResponse:
+    response = RedirectResponse("/", status_code=303)
+    response.delete_cookie(
+        ADMIN_COOKIE,
+        path=ADMIN_PREFIX,
+        httponly=True,
+        samesite="lax",
+        secure=_cookie_is_secure(request),
+    )
+    return response
+
+
+def _admin_ledger(settings: Settings):
+    """Every recorded call, from the central database or the local ledger."""
+    ledger = build_ledger(settings.llm_usage_path, get_database(settings))
+    records = getattr(ledger, "records", None)
+    return list(records()) if callable(records) else []
+
+
+def _admin_reports(settings: Settings):
+    """Every complaint the configured store can list (a Blob store cannot)."""
+    try:
+        store = _report_store(settings)
+    except ReportStoreError:
+        return []
+    load = getattr(store, "load", None)
+    return list(load()) if callable(load) else []
+
+
+@app.get(ADMIN_PREFIX, response_class=HTMLResponse, include_in_schema=False, response_model=None)
+def admin_page(
+    request: Request,
+    settings: SettingsDep,
+    user: Annotated[str, Query()] = "",
+    model: Annotated[str, Query()] = "",
+    kind: Annotated[str, Query()] = "",
+    since: Annotated[str, Query()] = "",
+    until: Annotated[str, Query()] = "",
+    ruser: Annotated[str, Query()] = "",
+    rsince: Annotated[str, Query()] = "",
+    runtil: Annotated[str, Query()] = "",
+    q: Annotated[str, Query()] = "",
+) -> HTMLResponse | RedirectResponse:
+    """The cost ledger and MO's complaints, with filters; the workbook links have it all."""
+    from core.classify.usage_report import PRICES, PRICES_CHECKED, PRICES_SOURCE
+    from core.db import DatabaseError
+
+    if (redirect := _admin_gate(request, settings)) is not None:
+        return redirect
+    problems: list[str] = []
+    try:
+        records = _admin_ledger(settings)
+    except DatabaseError as exc:
+        records, problems = [], [f"Ledger se nepodařilo načíst: {exc}"]
+    try:
+        reports = _admin_reports(settings)
+    except DatabaseError as exc:
+        reports = []
+        problems.append(f"Hlášení se nepodařilo načíst: {exc}")
+    ledger_filter = LedgerFilter(
+        user=user.strip(),
+        model=model.strip(),
+        kind=kind.strip(),
+        since=parse_day(since),
+        until=parse_day(until),
+    )
+    reports_filter = ReportFilter(
+        user=ruser.strip(), since=parse_day(rsince), until=parse_day(runtil), text=q.strip()
+    )
+    database = get_database(settings)
+    return TEMPLATES.TemplateResponse(
+        request=request,
+        name="admin.html",
+        context={
+            "user": signed_in_user(request),
+            "developer": admin_user(request, settings),
+            "ledger": ledger_view(records, ledger_filter),
+            "ledger_filter": ledger_filter,
+            "complaints": reports_view(reports, reports_filter),
+            "reports_filter": reports_filter,
+            "problems": problems,
+            "source": database.describe()
+            if database
+            else (str(settings.llm_usage_path) if settings.llm_usage_path else "(ledger vypnut)"),
+            "reports_source": settings.effective_reports_source,
+            "prices": PRICES,
+            "prices_checked": PRICES_CHECKED,
+            "prices_source": PRICES_SOURCE,
+            "query": {
+                "user": user,
+                "model": model,
+                "kind": kind,
+                "since": since,
+                "until": until,
+                "ruser": ruser,
+                "rsince": rsince,
+                "runtil": runtil,
+                "q": q,
+            },
+        },
+    )
+
+
+@app.get(f"{ADMIN_PREFIX}/usage.xlsx", include_in_schema=False, response_model=None)
+def admin_usage_xlsx(
+    request: Request, settings: SettingsDep
+) -> StreamingResponse | RedirectResponse:
+    """The whole ledger as the usage workbook (Summary, Calls, Prices)."""
+    import io
+    import tempfile
+    from pathlib import Path
+
+    from core.classify.usage_report import write_usage_workbook
+
+    if (redirect := _admin_gate(request, settings)) is not None:
+        return redirect
+    database = get_database(settings)
+    source = database.describe() if database else "the local ledger"
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "llm_usage.xlsx"
+        write_usage_workbook(_admin_ledger(settings), path, source=source)
+        payload = io.BytesIO(path.read_bytes())
+    return StreamingResponse(
+        payload,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="llm_usage.xlsx"'},
+    )
+
+
+@app.get(f"{ADMIN_PREFIX}/reports.xlsx", include_in_schema=False, response_model=None)
+def admin_reports_xlsx(
+    request: Request, settings: SettingsDep
+) -> StreamingResponse | RedirectResponse:
+    """Every complaint as a workbook."""
+    import io
+    import tempfile
+    from pathlib import Path
+
+    from core.export.xlsx import write_workbook
+    from core.reports import REVIEW_COLUMNS, review_row
+
+    if (redirect := _admin_gate(request, settings)) is not None:
+        return redirect
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "hlaseni.xlsx"
+        write_workbook(
+            path,
+            REVIEW_COLUMNS,
+            [review_row(report) for report in _admin_reports(settings)],
+            run_metadata={"nástroj": "ESA a NACE našeptávač – hlášení chyb"},
+        )
+        payload = io.BytesIO(path.read_bytes())
+    return StreamingResponse(
+        payload,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="hlaseni.xlsx"'},
+    )
 
 
 # -- the page ----------------------------------------------------------------------------

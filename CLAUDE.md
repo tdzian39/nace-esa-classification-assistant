@@ -53,9 +53,10 @@ core/export       columns.py (the row), xlsx.py     core/batch reader.py (E6 reu
 core/probe.py     the /probe register checks     core/auth.py  sign-in (users, cookie)
 core/reports.py   error reports (the button): request + result row + note, to the db, a dir or Blob
 core/db.py        the central Postgres (D4): ledger, cache, audit events, reports; SQLite engine for tests
+core/admin.py     the developer page's numbers: the priced ledger and the complaints, filtered
 api/  GET / · POST /suggest · POST /report · POST /api/suggest · GET /suggest.xlsx · /health · /probe
-      GET|POST /login · POST /logout
-ui/   suggest.html, login.html + prototype/suggest.html   tests/golden  cases.json, identity.json
+      GET|POST /login · POST /logout · /admin (+ /login, /logout, usage.xlsx, reports.xlsx)
+ui/   suggest.html, login.html, admin.html, admin_login.html + prototype/suggest.html   tests/golden  cases.json, identity.json
 config/settings.py · .env.example · vercel.json · .python-version · pyproject.toml
 ```
 
@@ -321,6 +322,18 @@ FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept
   `/tmp` does not outlive the instance. **A report is content**: never a log line - the audit
   log gets `log_report()` (identifier, user, stored or not) only. Review: `python -m
   core.reports --list | --xlsx` (the database when `DATABASE_URL` is set).
+- **The developer page** (`/admin`, `core/admin.py`, 24 Sept 2026): the whole cost ledger
+  (every call, who it was charged to, priced at `PRICES`; totals by user, model, codebook and
+  day; filters by user, model, codebook and date; click-to-sort) and every complaint (the
+  error reports with the result row and the note; filters and free-text search), plus the
+  two workbook downloads. **Its own password**: `ADMIN_PASSWORD_HASH` (same
+  `--hash-password`), a separate cookie `nace_esa_admin` signed with `SESSION_SECRET`
+  + `/admin`, scoped to `/admin`; unset = 404 and no link. When the MO sign-in is on it comes
+  first, and the developer session carries the MO name. The link "Pro vývojáře" is in the
+  top bar only when configured (`admin_enabled()`, a Jinja global). Reads only: no audit row
+  for looking. Data comes from the same builders as everything else, so it shows the central
+  database when `DATABASE_URL` is set and the local files otherwise; a Blob report store
+  cannot list, so it shows no complaints.
 - **Audit**: `request_user()` is the signed-in name when sign-in is on, and then
   `WEB_USER_HEADER` is ignored — a header a browser can send is not an identity. With sign-in
   off it reads `WEB_USER_HEADER` (default `X-Remote-User`) because in a server the OS account
