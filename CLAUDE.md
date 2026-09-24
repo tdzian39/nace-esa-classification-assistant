@@ -16,7 +16,8 @@ taking DWS and ARES with it — nothing here reads them. **The plan, every decis
 open question live in `docs/ROADMAP.md`: read it after this file and keep both in step.**
 
 Sources, in order: **GLEIF** (`api.gleif.org`) + **OpenFIGI** (`api.openfigi.com`) for an
-issuer given by ISIN; **web search** for activity descriptions of foreign issuers only.
+issuer given by ISIN; **Wikidata/Wikipedia by that LEI**, then **web search**, for activity
+descriptions of foreign issuers only.
 Never scrape `apl.czso.cz` or `or.justice.cz`.
 
 ## Codebooks (xlsx; from a private Vercel Blob store in deployment, roadmap D3)
@@ -44,7 +45,7 @@ Never scrape `apl.czso.cz` or `or.justice.cz`.
 
 ```
 core/identifiers  ico.py (mod-11; batch reader only), isin.py
-core/sources      base.py, gleif.py, openfigi.py, identity.py (ISIN -> issuer), web.py
+core/sources      base.py, gleif.py, openfigi.py, identity.py (ISIN -> issuer), web.py, wikimedia.py
 core/codebooks    loaders, versioning, consistency; blob.py (private Vercel Blob)
 core/classify     candidates.py (pre-filter), hints.py, llm.py, proposal.py, golden.py,
                   budget.py (limits, usage ledger), usage_report.py (the ledger as Excel)
@@ -162,6 +163,20 @@ FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept
   and skips the web. Every thin result (no provider, search down, 404, PDF, all blocked) returns
   evidence with no description, which must make the classifier **abstain rather than guess from
   the name**. The provider is a Protocol — which search API a bank may call is procurement.
+- **Wikipedia description** (`wikimedia.py`, E5.1, revived 24 Sept 2026): with no typed description
+  and a LEI from GLEIF, the gatherer asks Wikidata for the item whose P1278 is the LEI, then the
+  Wikipedia REST summary (`WIKIPEDIA_LANGUAGES`, `cs,en`), before any search provider.
+  * Matched on the **identifier, never the name**: a name-only lookup never reaches Wikimedia.
+    The item is sometimes the group or brand (BMW AG -> "BMW"), so the page always says to check.
+  * The description is the article's lead plus Wikidata's one-liner and P452 industry labels
+    (cs with en in parentheses), so it counts as `WEB` evidence: the `source` column is unchanged.
+  * Narrow calls only: the full item is 443 KB and industry items with claims 250 KB, so the
+    industries' NACE codes (P4496) are **not** read; the labels usually are NACE titles.
+  * Up to 5 requests; `WIKIMEDIA_TIMEOUT_SECONDS` 5, and none starts that could outlive the lookup
+    deadline (a `SourceUnavailableError`, noted, never "not found"). Hosts `www.wikidata.org`,
+    `{cs,en}.wikipedia.org`, in `/probe`'s default set while `WIKIMEDIA_ENABLED`.
+  * Test helpers not about it set `wikimedia_enabled=False`, or a LEI in a fixture reaches the
+    real Wikimedia.
 - **Candidate pre-filter** (`candidates.py`): narrows to ~12 per codebook, each already carrying
   its CTS ID, so a returned code cannot be one CTS does not know. It optimises **recall**: a code
   the filter omits is one the model can never return. Mechanisms: the reviewable keyword table

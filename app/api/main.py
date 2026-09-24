@@ -350,6 +350,7 @@ def health(settings: SettingsDep) -> JSONResponse:
             "model": settings.llm_model if settings.llm_api_key else None,
             "llm_configured": settings.llm_api_key is not None and settings.llm_enabled,
             "search_configured": bool(settings.web_search_url),
+            "wikimedia_enabled": settings.web_enabled and settings.wikimedia_enabled,
             "gleif_enabled": settings.gleif_enabled,
             "openfigi_enabled": settings.openfigi_enabled,
             "python": platform.python_version(),
@@ -742,7 +743,13 @@ def _warnings(settings: Settings) -> list[str]:
             "navrhne jen tam, kde rozhodlo pravidlo (kategorie v GLEIF nebo klíčové slovo); "
             "ověření a výběr jsou na vás. (Model se zapne po nastavení LLM_API_KEY.)"
         )
-    if not settings.web_search_url:
+    wikimedia = settings.web_enabled and settings.wikimedia_enabled
+    if not settings.web_search_url and wikimedia:
+        warnings.append(
+            "Popis činnosti se dohledá na Wikipedii podle LEI z registru GLEIF, tedy jen pro "
+            "emitenta zadaného ISIN; u ostatních (a kde Wikipedie nic nemá) jej zadejte ručně."
+        )
+    elif not settings.web_search_url:
         warnings.append(
             "Vyhledávání na webu není nastaveno (WEB_SEARCH_URL); zadejte popis činnosti ručně."
         )

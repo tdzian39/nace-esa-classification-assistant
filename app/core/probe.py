@@ -6,8 +6,9 @@ traffic is open. The question is no longer "what does the corporate proxy allow"
 deployment work, and which instance answered": the page is the first thing to open when a
 register "stops working" or a new deployment misbehaves.
 
-* Two fixed host lists: the registers the tool uses today (GLEIF, OpenFIGI - the default) and,
-  with ``?set=all``, the ones roadmap E5 will add (ESMA FIRDS, Wikidata, Wikipedia cs/en).
+* Two fixed host lists: the sources the tool uses today (GLEIF, OpenFIGI, and Wikidata plus
+  Wikipedia in ``WIKIPEDIA_LANGUAGES`` while ``WIKIMEDIA_ENABLED`` - the default) and, with
+  ``?set=all``, the ones roadmap E5 may add (ESMA FIRDS; Wikimedia too when switched off).
   One harmless request per host, a 5-second timeout, no retry, one after another. The only
   inputs are switches between fixed alternatives, so nothing a user types reaches the network.
 * Nothing runs at import time and nothing is cached, and ``/health`` never calls into this
@@ -214,7 +215,9 @@ def _expect_wikipedia(body: object) -> str | None:
     return "extract: " + extract[:70] + ("…" if len(extract) > 70 else "")
 
 
-def _wikidata_entity_step(body: object, headers: Mapping[str, str]) -> Check | None:
+def _wikidata_entity_step(
+    body: object, headers: Mapping[str, str], *, in_use: bool
+) -> Check | None:
     """After the LEI search: the entity record of the first hit, or ``None`` if nothing came."""
     query = body.get("query") if isinstance(body, dict) else None
     hits = query.get("search") if isinstance(query, dict) else None
@@ -226,9 +229,13 @@ def _wikidata_entity_step(body: object, headers: Mapping[str, str]) -> Check | N
         host="www.wikidata.org",
         label="Wikidata – položka",
         method="GET",
-        url=f"{WIKIDATA_URL}/wiki/Special:EntityData/{title}.json",
+        # The same small call the adapter makes; Special:EntityData is the whole item (443 KB).
+        url=(
+            f"{WIKIDATA_URL}/w/api.php?action=wbgetentities&ids={title}"
+            "&props=labels|descriptions|sitelinks/urls&languages=cs|en&format=json"
+        ),
         expect=_expect_wikidata_entity,
-        in_use=False,
+        in_use=in_use,
         headers=headers,
     )
 
@@ -237,7 +244,7 @@ def _wikidata_entity_step(body: object, headers: Mapping[str, str]) -> Check | N
 
 
 def checks(settings: Settings, *, extended: bool = False) -> tuple[Check, ...]:
-    """The registers in use (GLEIF, OpenFIGI), plus the E5 candidates when ``extended``."""
+    """The sources in use (GLEIF, OpenFIGI, Wikimedia when on), plus the rest when ``extended``."""
     agent = {"User-Agent": settings.web_user_agent}
     figi_headers = {**agent, "Content-Type": "application/json", "Accept": "application/json"}
     if settings.openfigi_api_key:
@@ -263,8 +270,43 @@ def checks(settings: Settings, *, extended: bool = False) -> tuple[Check, ...]:
             json_body=[{"idType": "ID_ISIN", "idValue": ISIN}],
         ),
     ]
+    wikimedia_in_use = settings.wikimedia_enabled and settings.web_enabled
+    languages = [
+        lang.strip().lower() for lang in settings.wikipedia_languages.split(",") if lang.strip()
+    ] or ["cs", "en"]
+    wikimedia = [
+        Check(
+            key="wikidata",
+            host="www.wikidata.org",
+            label="Wikidata – hledání podle LEI",
+            method="GET",
+            url=(
+                f"{WIKIDATA_URL}/w/api.php?action=query&list=search"
+                f"&srsearch=haswbstatement:P1278={LEI}&format=json"
+            ),
+            expect=_expect_wikidata_search,
+            in_use=wikimedia_in_use,
+            headers=agent,
+            then=lambda body: _wikidata_entity_step(body, agent, in_use=wikimedia_in_use),
+        ),
+        *(
+            Check(
+                key=f"wikipedia_{lang}",
+                host=f"{lang}.wikipedia.org",
+                label=f"Wikipedia ({lang.upper()}) – souhrn článku",
+                method="GET",
+                url=WIKIPEDIA_URL.format(lang=lang, title=WIKIPEDIA_TITLE),
+                expect=_expect_wikipedia,
+                in_use=wikimedia_in_use,
+                headers=agent,
+            )
+            for lang in languages
+        ),
+    ]
+    if wikimedia_in_use:
+        items += wikimedia
     if extended:
-        items += [
+        items.append(
             Check(
                 key="firds",
                 host="registers.esma.europa.eu",
@@ -274,35 +316,10 @@ def checks(settings: Settings, *, extended: bool = False) -> tuple[Check, ...]:
                 expect=_expect_firds,
                 in_use=False,
                 headers=agent,
-            ),
-            Check(
-                key="wikidata",
-                host="www.wikidata.org",
-                label="Wikidata – hledání podle LEI",
-                method="GET",
-                url=(
-                    f"{WIKIDATA_URL}/w/api.php?action=query&list=search"
-                    f"&srsearch=haswbstatement:P1278={LEI}&format=json"
-                ),
-                expect=_expect_wikidata_search,
-                in_use=False,
-                headers=agent,
-                then=lambda body: _wikidata_entity_step(body, agent),
-            ),
-            *(
-                Check(
-                    key=f"wikipedia_{lang}",
-                    host=f"{lang}.wikipedia.org",
-                    label=f"Wikipedia ({lang.upper()}) – souhrn článku",
-                    method="GET",
-                    url=WIKIPEDIA_URL.format(lang=lang, title=WIKIPEDIA_TITLE),
-                    expect=_expect_wikipedia,
-                    in_use=False,
-                    headers=agent,
-                )
-                for lang in ("en", "cs")
-            ),
-        ]
+            )
+        )
+        if not wikimedia_in_use:
+            items += wikimedia
     return tuple(items)
 
 

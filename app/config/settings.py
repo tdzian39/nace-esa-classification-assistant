@@ -210,6 +210,38 @@ class Settings(BaseSettings):
         description="Attempts per OpenFIGI request, including the first; 429 and 5xx are retried.",
     )
 
+    # --- Activity description from Wikidata / Wikipedia (roadmap E5) ---------------------
+    # When MO types no description and GLEIF gave a LEI, the LEI finds the issuer's Wikidata
+    # item (property P1278) and its Wikipedia article supplies the description. Free and
+    # keyless, and matched on an identifier rather than a name, so it cannot describe some
+    # other company that happens to share the name. Hosts: www.wikidata.org and
+    # {lang}.wikipedia.org. Wikimedia refuses a User-Agent without contact (WEB_USER_AGENT).
+    wikimedia_enabled: bool = Field(
+        default=True,
+        description="Describe an issuer with a LEI from Wikidata and Wikipedia when no "
+        "description was typed. Also off when WEB_ENABLED is false.",
+    )
+    wikipedia_languages: str = Field(
+        default="cs,en",
+        description="Wikipedia editions to try, in order, comma-separated; the first with an "
+        "article wins.",
+    )
+    wikimedia_timeout_seconds: float = Field(
+        default=5.0, gt=0, description="HTTP timeout for a single Wikidata or Wikipedia request."
+    )
+    wikimedia_min_interval_seconds: float = Field(
+        default=0.3,
+        ge=0,
+        description="Minimum delay between two Wikimedia requests (they ask for about 200 per "
+        "minute with a descriptive User-Agent). 0 disables the throttle.",
+    )
+    wikimedia_max_attempts: int = Field(
+        default=2,
+        ge=1,
+        le=5,
+        description="Attempts per Wikimedia request, including the first; 429 and 5xx are retried.",
+    )
+
     # --- LLM classifier for foreign issuers (build step 6) -------------------------------
     # Only the public issuer name, the web-derived description and codebook labels are ever
     # put in a prompt. Nothing retrieved from DWS may reach a model (hard rule in CLAUDE.md).
