@@ -166,8 +166,16 @@ FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept
 - **Wikipedia description** (`wikimedia.py`, E5.1, revived 24 Sept 2026): with no typed description
   and a LEI from GLEIF, the gatherer asks Wikidata for the item whose P1278 is the LEI, then the
   Wikipedia REST summary (`WIKIPEDIA_LANGUAGES`, `cs,en`), before any search provider.
-  * Matched on the **identifier, never the name**: a name-only lookup never reaches Wikimedia.
-    The item is sometimes the group or brand (BMW AG -> "BMW"), so the page always says to check.
+  * Matched on the **LEI first**; when no item carries it (or there is none), the **official
+    name** (`WIKIMEDIA_NAME_MATCH`, 24 Sept 2026): `wbsearchentities` label/alias hits count only
+    when the matched text *is* the name (`_fold`: case, diacritics, punctuation), the first
+    edition (en, then cs) with a hit decides, exactly one item may match, and an item carrying
+    another entity's LEI is refused - BMW Finance N.V. stays unmatched rather than becoming BMW.
+    Second try without the legal-form suffix; then a brand hit with a LEI is refused too.
+    Ties ("Bundesrepublik Deutschland", "European Union") are left alone. Measured on the 36
+    golden ISINs: 14 described by LEI, 6 by name, 16 none (vehicles, funds, tied names).
+    The item is sometimes the group or brand (BMW AG -> "BMW"), so the page always says to
+    check; a name match says "podle shody názvu, ne identifikátoru".
   * The description is the article's lead plus Wikidata's one-liner and P452 industry labels
     (cs with en in parentheses), so it counts as `WEB` evidence: the `source` column is unchanged.
   * Narrow calls only: the full item is 443 KB and industry items with claims 250 KB, so the

@@ -8,10 +8,14 @@ the well-known issuers that make up much of the work, Wikipedia already has it, 
         -> item labels, short descriptions, industries (P452), Wikipedia sitelinks
         -> Wikipedia REST summary of the article (cs first, then en)
 
-The match is on the **identifier**, never on the name: a name search could describe some other
-company that happens to share it, and a confident description of the wrong issuer is worse
-than none. An issuer Wikidata does not link to its LEI simply gets no description here - most
-financing vehicles and many funds - and the lookup goes on as before.
+The match is on the **identifier** first: a LEI finds exactly one item or none. Only when no
+item carries the LEI (or there is no LEI) is the **official name** tried, and then strictly:
+``wbsearchentities`` matches labels and aliases, and a hit counts only when the matched text
+*is* the name (case, diacritics and punctuation aside), exactly one item matches, and the item
+does not carry some other entity's LEI - which is what keeps "BMW Finance N.V." from being
+described as BMW, and "Amundi Funds" as the asset manager. A name that matches several items
+("Bundesrepublik Deutschland": Germany, West Germany, ...) is left alone. A description of the
+wrong issuer is worse than none, so every name match is flagged for the reviewer.
 
 Endpoints, verified live on 2026-09-23 with the repository's User-Agent (Wikimedia refuses one
 without contact information - see ``WEB_USER_AGENT``):
@@ -19,6 +23,9 @@ without contact information - see ``WEB_USER_AGENT``):
 * ``GET https://www.wikidata.org/w/api.php?action=query&list=search
   &srsearch=haswbstatement:P1278=<LEI>`` - the items carrying the LEI (Deutsche Bank
   ``7LTWFZYICNSX8D621K86`` -> ``Q66048``; the EIB and BMW Finance N.V. -> none).
+* ``action=wbsearchentities&search=<name>&language=en`` - label and alias matches with the
+  matched text (``match.text``), 3 KB for 7 hits; ``wbgetclaims&property=P1278`` on the one
+  chosen item, to see whose LEI it carries.
 * ``action=wbgetentities&ids=<Q>&props=labels|descriptions|sitelinks/urls`` - 0.6 KB. Asking
   for ``claims`` as well would bring the whole item, 443 KB for Deutsche Bank, which is why the
   industries come from:
@@ -31,7 +38,7 @@ without contact information - see ``WEB_USER_AGENT``):
   ``timestamp``; 404 for a missing article.
 
 Fail-soft contract, as in :mod:`core.sources.base`: ``None`` means Wikidata has no item for the
-LEI (or Wikipedia no article); :class:`~core.sources.base.SourceUnavailableError` means it could
+LEI or no unambiguous one for the name (or Wikipedia no article); :class:`~core.sources.base.SourceUnavailableError` means it could
 not be asked - including when the lookup deadline leaves no time for another request.
 """
 
@@ -40,6 +47,7 @@ from __future__ import annotations
 import logging
 import re
 import time
+import unicodedata
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -69,6 +77,33 @@ P_INDUSTRY: Final[str] = "P452"
 
 #: At most this many industries are named; a conglomerate lists a dozen.
 MAX_INDUSTRIES: Final[int] = 5
+#: Search hits read per name query; more only adds namesakes.
+NAME_SEARCH_LIMIT: Final[int] = 7
+#: Editions whose labels and aliases are searched, in order.
+NAME_SEARCH_LANGUAGES: Final[tuple[str, ...]] = ("en", "cs")
+
+#: Legal-form suffixes stripped for the second, looser name query ("Kommuninvest i Sverige AB"
+#: -> "Kommuninvest i Sverige"). Deliberately a list of *legal forms*, not of words.
+_LEGAL_FORM_RE: Final[re.Pattern[str]] = re.compile(
+    r"""(?:[\s,]+(?:AG|SE|SA|S\.A\.|SpA|S\.p\.A\.|N\.?V\.?|B\.?V\.?|AB|ASA|AS|A/S|Oyj|plc|
+    Ltd\.?|Limited|LLC|Inc\.?|Corp\.?|Corporation|GmbH|KGaA|S\.à\s?r\.l\.|Sàrl|S\.A\.S\.|SAS|
+    Aktiengesellschaft|Aktiebolag|Aktieselskab|Realkreditaktieselskab))+\s*$""",
+    re.IGNORECASE | re.VERBOSE,
+)
+#: Anything that is not a letter or digit, for name comparison.
+_NON_ALNUM_RE: Final[re.Pattern[str]] = re.compile(r"[^0-9a-z]+")
+#: Search hits with these words in the description are never issuers: a disambiguation page,
+#: a paper, or a name as such ("Generali" is also a family name).
+_NEVER_AN_ISSUER: Final[tuple[str, ...]] = (
+    "disambiguation",
+    "rozcestník",
+    "scholarly article",
+    "family name",
+    "given name",
+    "surname",
+    "příjmení",
+    "rodné jméno",
+)
 
 #: A LEI is 20 upper-case alphanumerics (ISO 17442). Anything else never reaches the search
 #: syntax, where it could widen the query.
@@ -118,6 +153,7 @@ class WikidataItem:
         sitelinks: Wikipedia articles in the configured languages, in their order.
         other_items: How many further items carry the same LEI (normally 0).
         provenance: ``WEB``, detail ``web:wikidata``.
+        matched_by: ``"lei"`` (the identifier) or ``"name"`` (an exact label or alias match).
     """
 
     qid: str
@@ -129,6 +165,7 @@ class WikidataItem:
     sitelinks: tuple[Sitelink, ...]
     provenance: Provenance
     other_items: int = 0
+    matched_by: str = "lei"
 
     @property
     def url(self) -> str:
@@ -320,15 +357,26 @@ class WikimediaSource:
 
     # -- public API --------------------------------------------------------------------
 
-    def describe(self, lei: str, *, deadline: float | None = None) -> WikiDescription | None:
-        """The item for ``lei`` and its first available article summary; ``None`` if no item.
+    def describe(
+        self,
+        lei: str | None = None,
+        *,
+        name: str | None = None,
+        deadline: float | None = None,
+    ) -> WikiDescription | None:
+        """The item for ``lei``, else the one item ``name`` exactly matches, with its summary.
+
+        ``None`` when neither finds an item. The name is tried only after the LEI missed (or
+        with no LEI at all), and only when :meth:`find_by_name` accepts the match.
 
         Raises:
             SourceUnavailableError, SourceResponseError: Wikidata could not be asked. A
                 Wikipedia failure after the item was found is a note, not an error - the item
                 alone is still a description.
         """
-        item = self.find_by_lei(lei, deadline=deadline)
+        item = self.find_by_lei(lei, deadline=deadline) if lei else None
+        if item is None and name and self._settings.wikimedia_name_match:
+            item = self.find_by_name(name, lei=lei, deadline=deadline)
         if item is None:
             return None
         notes: list[str] = []
@@ -369,7 +417,112 @@ class WikimediaSource:
         ]
         if not qids:
             return None
-        qid = qids[0]
+        return self._load_item(qids[0], deadline, other_items=len(qids) - 1)
+
+    def find_by_name(
+        self, name: str, *, lei: str | None = None, deadline: float | None = None
+    ) -> WikidataItem | None:
+        """The one item whose label or alias *is* ``name``; ``None`` unless the match is clean.
+
+        The exact name is searched first; if nothing matches, the name without its legal-form
+        suffix. A hit counts when the text Wikidata matched equals the query after
+        :func:`_fold` (case, diacritics, punctuation). Then:
+
+        * several matching items -> ``None`` (a namesake would be a wrong description);
+        * the item carries a LEI (P1278) other than ``lei`` -> ``None`` (another legal entity:
+          the group, the brand, the manager);
+        * the item carries a LEI, ``lei`` is unknown and only the suffix-stripped query matched
+          -> ``None`` (a brand match to *some* entity is not evidence it is this one).
+        """
+        query = _SPACE_RE.sub(" ", name).strip()
+        if len(_fold(query)) < 3:
+            return None
+        stripped = _LEGAL_FORM_RE.sub("", query).strip()
+        queries = [(True, query)]
+        if stripped and _fold(stripped) != _fold(query):
+            queries.append((False, stripped))
+        for exact, text in queries:
+            hits = self._search_names(text, deadline)
+            if len(hits) > 1:
+                LOGGER.info("Wikidata: %r matches %d items; none taken", text, len(hits))
+                return None
+            if not hits:
+                continue
+            qid = hits[0]
+            carried = self._lei_of(qid, deadline)
+            foreign = carried is not None and (
+                (lei is not None and carried != lei.strip().upper()) or (lei is None and not exact)
+            )
+            if foreign:
+                LOGGER.info(
+                    "Wikidata: %s matches %r but carries LEI %s; not taken", qid, text, carried
+                )
+                return None
+            return self._load_item(qid, deadline, matched_by="name")
+        return None
+
+    def _search_names(self, text: str, deadline: float | None) -> list[str]:
+        """Items whose matched label or alias equals ``text``, from the first edition with any.
+
+        The editions are asked in order and the first one with a match decides: a later
+        edition may add an item whose label *there* happens to be the name (the EIB's
+        building carries "European Investment Bank" as its Czech label) and turn a clean
+        match into a tie.
+        """
+        wanted = _fold(text)
+        found: dict[str, None] = {}
+        for language in NAME_SEARCH_LANGUAGES:
+            if found:
+                break
+            body = self._wikidata(
+                {
+                    "action": "wbsearchentities",
+                    "search": text,
+                    "language": language,
+                    "uselang": language,
+                    "type": "item",
+                    "limit": str(NAME_SEARCH_LIMIT),
+                },
+                deadline,
+            )
+            hits = body.get("search")
+            for hit in hits if isinstance(hits, list) else []:
+                hit = _mapping(hit)
+                qid = _text(hit.get("id"))
+                matched = _text(_mapping(hit.get("match")).get("text")) or _text(hit.get("label"))
+                about = (_text(hit.get("description")) or "").lower()
+                if not qid or not _QID_RE.fullmatch(qid) or not matched:
+                    continue
+                if _fold(matched) != wanted or any(word in about for word in _NEVER_AN_ISSUER):
+                    continue
+                found[qid] = None
+        return list(found)
+
+    def _lei_of(self, qid: str, deadline: float | None) -> str | None:
+        """The LEI the item states (P1278), or ``None``."""
+        claims = _mapping(
+            self._wikidata(
+                {"action": "wbgetclaims", "entity": qid, "property": P_LEI}, deadline
+            ).get("claims")
+        ).get(P_LEI)
+        for claim in claims if isinstance(claims, Sequence) else ():
+            claim = _mapping(claim)
+            if claim.get("rank") == "deprecated":
+                continue
+            value = _mapping(_mapping(claim.get("mainsnak")).get("datavalue")).get("value")
+            if isinstance(value, str) and _LEI_RE.fullmatch(value.strip().upper()):
+                return value.strip().upper()
+        return None
+
+    def _load_item(
+        self,
+        qid: str,
+        deadline: float | None,
+        *,
+        other_items: int = 0,
+        matched_by: str = "lei",
+    ) -> WikidataItem | None:
+        """Labels, descriptions, sitelinks and industries of ``qid``; ``None`` if it is missing."""
         retrieved_at = datetime.now(UTC)
         languages = self.languages
         entities = _mapping(
@@ -403,7 +556,8 @@ class WikimediaSource:
                 if (link := _mapping(sitelinks.get(f"{lang}wiki"))) and _text(link.get("title"))
             ),
             provenance=Provenance(source="WEB", retrieved_at=retrieved_at, detail="web:wikidata"),
-            other_items=len(qids) - 1,
+            other_items=other_items,
+            matched_by=matched_by,
         )
 
     def summary(
@@ -492,6 +646,13 @@ def _text(value: object) -> str | None:
 def _value(labels: Mapping[str, Any], lang: str) -> str | None:
     """``labels[lang]["value"]``, the shape of Wikidata labels and descriptions."""
     return _text(_mapping(labels.get(lang)).get("value"))
+
+
+def _fold(name: str) -> str:
+    """``"Assicurazioni Generali S.p.A."`` -> ``"assicurazionigeneralispa"``: the comparison key."""
+    decomposed = unicodedata.normalize("NFKD", name)
+    ascii_only = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return _NON_ALNUM_RE.sub("", ascii_only.lower())
 
 
 def _clean(extract: str) -> str:

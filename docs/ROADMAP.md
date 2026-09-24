@@ -69,10 +69,14 @@ optional.
    adapter). Still to record: `python -m core.classify --golden --model` against the rules.
 3b. **E5.1-lite: the description from Wikipedia (merged 24 Sept 2026, reversing the 23 Sept decision).**
    With no typed description, an ISIN's LEI finds the Wikidata item (P1278) and its Wikipedia lead (cs, then
-   en); Wikidata's one-liner and industry labels are appended. Identifier-matched only, so a name-only lookup
-   still needs a typed description. Live: `DE0005140008` alone yields Deutsche Bank's description with
-   both pages cited. Not done: industries' NACE codes (P4496, too heavy over the Action API), and no recall
-   figure yet for descriptions fetched this way instead of typed.
+   en); Wikidata's one-liner and industry labels are appended. LEI first, then the official name as an
+   exact, unique label/alias match that carries no other entity's LEI (`WIKIMEDIA_NAME_MATCH`) - so a
+   name-only lookup can get one too. Measured 24 Sept on the 36 golden ISINs by ISIN alone: 14 described
+   by LEI, 6 by name (Poland, EIB, EBRD, CEB, ESM, Generali), 16 none - financing vehicles and funds have no
+   item, and tied names (Germany, Austria, Paris, EU) are refused. Watch: a description pushes the model
+   from NACE 99 to 64 for the supranational banks (EIB, EBRD, CEB, ESM) although the GLEIF category says
+   international organisation - the register rule reaches the shortlist but not the model's weighing.
+   Not done: industries' NACE codes (P4496, too heavy over the Action API).
 4. **E5-lite: the FIRDS LEI fallback.** GLEIF maps 25 of 36 golden ISINs; the misses (Eurobond, LU/IE funds) include
    all four captive vehicles, the core ESA trap. ESMA FIRDS returns the issuer LEI for them; `/probe` already
    shows the host reachable from Vercel.

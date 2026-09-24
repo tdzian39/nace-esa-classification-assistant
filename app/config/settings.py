@@ -213,13 +213,19 @@ class Settings(BaseSettings):
     # --- Activity description from Wikidata / Wikipedia (roadmap E5) ---------------------
     # When MO types no description and GLEIF gave a LEI, the LEI finds the issuer's Wikidata
     # item (property P1278) and its Wikipedia article supplies the description. Free and
-    # keyless, and matched on an identifier rather than a name, so it cannot describe some
-    # other company that happens to share the name. Hosts: www.wikidata.org and
+    # keyless, and matched on the identifier first; the official name only as an exact label
+    # or alias match of a single item (WIKIMEDIA_NAME_MATCH), flagged for review. Hosts: www.wikidata.org and
     # {lang}.wikipedia.org. Wikimedia refuses a User-Agent without contact (WEB_USER_AGENT).
     wikimedia_enabled: bool = Field(
         default=True,
         description="Describe an issuer with a LEI from Wikidata and Wikipedia when no "
         "description was typed. Also off when WEB_ENABLED is false.",
+    )
+    wikimedia_name_match: bool = Field(
+        default=True,
+        description="When no Wikidata item carries the LEI (or there is none), accept the one "
+        "item whose label or alias exactly equals the official name and that carries no other "
+        "entity's LEI. Off: the identifier only.",
     )
     wikipedia_languages: str = Field(
         default="cs,en",
