@@ -103,8 +103,8 @@ class TestTheForm:
     ) -> None:
         assert "malými písmeny a bez diakritiky" in client.get("/login").text
 
-    def test_it_does_not_say_why(self, client: TestClient) -> None:
-        """The owner's call: the page asks for the spelling and does not mention recording."""
+    def test_it_asks_only_what_sign_in_needs(self, client: TestClient) -> None:
+        """The page is about signing in; the usage report is documented elsewhere."""
         text = client.get("/login").text.lower()
         for word in ("zaznamen", "ledger", "náklad", "útrat", "volání modelu"):
             assert word not in text
@@ -122,7 +122,7 @@ class TestSigningIn:
         assert page.status_code == 200
         assert "jan novak" in page.text and "Odhlásit" in page.text
 
-    def test_the_name_is_kept_the_way_the_ledger_keys_it(self, client: TestClient) -> None:
+    def test_the_name_is_normalised(self, client: TestClient) -> None:
         sign_in(client, name="  Jan  Novák ")
         chip = '<span class="who" title="Přihlášený uživatel">jan novak</span>'
         assert chip in client.get("/").text

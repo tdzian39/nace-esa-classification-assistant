@@ -251,8 +251,8 @@ and the FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub,
 - **Sign-in** (`core/auth.py`, roadmap E2/D5): optional — `APP_PASSWORD_HASH` set turns it on.
   **One shared password plus a self-declared name**; the hash comes from `--hash-password` (the
   repo is public, so never the password). `normalize_name()` makes the name lower case, without
-  diacritics, single-spaced — the ledger key; the page asks users to type it that way and
-  deliberately does not say why. The session is a cookie signed with `SESSION_SECRET` over
+  diacritics, single-spaced — so one person is one name everywhere; the page asks users to
+  type it that way. The session is a cookie signed with `SESSION_SECRET` over
   name, expiry and a fingerprint of the password hash (a new password ends every session). No
   server-side state. **It fails closed**: a hash without a secret, or an unreadable hash, lets
   nobody in. Middleware gates every path but `/login`, `/logout`, `/health`, `/api/version`;
