@@ -78,8 +78,9 @@ optional.
    international organisation - the register rule reaches the shortlist but not the model's weighing.
    Not done: industries' NACE codes (P4496, too heavy over the Action API).
 3d. **The central database (24 Sept 2026, D4 answered).** `core/db.py`: with `DATABASE_URL` the ledger, the cache,
-   the audit events and the error reports live in one Postgres. **Left: create it in Vercel** (Storage → Neon →
-   connect to the project → redeploy) and confirm `/health` shows `database`; first live run of the Postgres engine.
+   the audit events and the error reports live in one Postgres. **Created and connected the same day** (Neon
+   `nace-esa-db`, eu-central-1, `DATABASE_URL` on the project), verified live from a laptop. Left: merge, deploy,
+   confirm `/health` shows `database`, then raise `LLM_DAILY_TOKEN_BUDGET` above 0 in production if wanted.
 3c. **Error reports (24 Sept 2026).** One button on the result, "Nahlásit k prověření", with an optional note:
    the request, the result row and the note are stored (`core/reports.py`; `REPORTS_SOURCE=dir|blob|off`).
    **Vercel needs `REPORTS_SOURCE=blob`** (same token as the codebooks, prefix `reports/`), else the page warns
@@ -807,8 +808,11 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
   Neon via the Vercel Marketplace (free tier) is the intended store; any Postgres works. **Left to do in Vercel**
   (the project is in Jakub's team): Storage → Create Database → Neon → connect to `nace-esa-assistant` (sets
   `DATABASE_URL`), redeploy, check `/health` shows `database`. Then `LLM_DAILY_TOKEN_BUDGET` can be raised above 0
-  in production, because the ledger is measurable there. The Postgres engine has not run against a live server
-  yet (none on the development machine); the SQLite engine runs the same SQL in the tests.
+  in production, because the ledger is measurable there. **Created 24 Sept 2026**: Neon `nace-esa-db`, region
+  eu-central-1 (Frankfurt, next to `fra1`), free plan, Neon Auth off, connected to the project for Production and
+  Preview with `DATABASE_URL` as a Sensitive variable. Verified live from a laptop the same day: schema, a lookup,
+  a report, the shared cache, and the CLIs reading it back. Production writes to it from the first deployment
+  that carries this code.
 - **D5. Authentication.** OIDC with Microsoft Entra ID needs an app registration from IT (Q-A1). Is the interim
   password gate with a self-declared name acceptable for the pilot, and for how long? *E2.*
   **Answer:** 2026-09-22 — there will be **no Entra ID app registration** (Jakub). The E2.1 shared-password gate

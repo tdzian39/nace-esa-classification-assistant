@@ -303,10 +303,11 @@ FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept
   tests and on a laptop. A connection per operation (Neon's pooled URL), connect timeout 5 s,
   schema `CREATE TABLE IF NOT EXISTS` once per instance, no migration tool. Writes fail soft
   (a warning), reads are honest (`records()` raises). psycopg 3 with bundled libpq is a
-  runtime dependency, imported only when the URL is set. **Not verified against a live
-  Postgres** - there is none on this machine; the first deployment with the URL is the test:
-  `/health` shows `database`, then `python -m core.classify --usage` with the same URL shows
-  the lookup. `describe()` never includes the password.
+  runtime dependency, imported only when the URL is set. **Verified live on 24 Sept 2026**
+  against the Neon database `nace-esa-db` (eu-central-1, connected to the Vercel project):
+  schema created, a lookup wrote `audit_events`, `llm_usage` and `classifications`, a report
+  wrote `error_reports`, the report's re-run was served from the shared cache, and `--usage`
+  / `core.reports --list` read them back. `describe()` never includes the password.
 - **Error reports** (`core/reports.py`, `POST /report`, 24 Sept 2026): the result page has one
   button, "Nahlásit k prověření", with an optional note (`REPORTS_MAX_NOTE_CHARS`, 500). The
   lookup is **re-run like the download** (cached, so it is the result on screen) and the

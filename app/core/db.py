@@ -27,11 +27,10 @@ so nothing downstream knows where a row went. Design rules, the same as for the 
 * **One SQL, two engines.** The statements are written once with ``?`` placeholders and ISO
   8601 text timestamps (sortable, time-zone explicit, what the SQLite stores already use).
   Postgres gets ``%s`` and ``BIGSERIAL``; SQLite keeps ``?`` and ``AUTOINCREMENT``. The
-  SQLite engine exists so the tests, and a laptop, run the very same code path - there is
-  no Postgres on the machine this was written on, so the Postgres engine was checked
-  against psycopg's documented behaviour, not a live server. The first deployment with
-  ``DATABASE_URL`` is the live test: ``/health`` reports ``database`` and a lookup then
-  shows in ``python -m core.classify --usage`` run with the same URL.
+  SQLite engine exists so the tests, and a laptop, run the very same code path. The Postgres
+  engine was verified live on 24 Sept 2026 against the project's Neon database: schema
+  created, a lookup and a report written through the app, the shared cache hit, and the
+  CLIs reading everything back.
 
 Secrets: the URL carries the password. It is a ``SecretStr`` in settings, never logged
 (``describe()`` gives host and database only), and on Vercel a Sensitive variable.
