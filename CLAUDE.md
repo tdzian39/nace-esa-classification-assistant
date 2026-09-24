@@ -117,8 +117,9 @@ Production runs **with the model** since 23 Sept 2026 and **behind the app's own
 24 Sept 2026 (Vercel Authentication is **off**, so that login is the only gate and the only
 guard on the model's cost). Since the evening of 24 Sept 2026 (code at `main` `1ec4e7b`) it
 also has the Wikipedia description, the error reports and the central database: `/health`
-shows `database: postgres …` and `reports: db`. `ADMIN_PASSWORD_HASH` is not set there, so
-production's `/admin` is a 404. The deterministic result is still what a
+shows `database: postgres …` and `reports: db`. The developer page `/admin` is on there too,
+behind its own `ADMIN_PASSWORD_HASH` (Sensitive, Production; not MO's password). The
+deterministic result is still what a
 codebook shows whenever the model is off or declines — typically ESA when the evidence does not
 say who owns the issuer (the control axis, Q7): Deutsche Bank by ISIN alone gets the rules' tied
 bank family, and a one-line popis stating the ownership lets the model pick.

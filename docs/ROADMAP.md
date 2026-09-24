@@ -85,9 +85,10 @@ optional.
    `LLM_DAILY_TOKEN_BUDGET` above 0 — but only once an unreadable ledger refuses to spend: today both ledgers'
    `totals_since` return zero on a read error, so a database outage would let every call through.
 3e. **The developer page (24 Sept 2026).** `/admin`: the priced cost ledger and the complaints, behind its own
-   password (`ADMIN_PASSWORD_HASH`, on top of the MO sign-in). **Left: set `ADMIN_PASSWORD_HASH` on Vercel**
-   (Sensitive) - without it the page is a 404 and the link is hidden. Deployed 24 Sept 2026 (evening) without
-   it, so production's `/admin` is a 404 behind the MO sign-in until the variable is added and redeployed.
+   password (`ADMIN_PASSWORD_HASH`, on top of the MO sign-in). ~~**Left: set `ADMIN_PASSWORD_HASH` on
+   Vercel**~~ **On in production since 24 Sept 2026 (evening)**: the hash is a Sensitive, Production-only
+   variable - the owner typed the password into a local script that wrote only the hash; it is not MO's
+   password - then a redeploy. Without the variable the page is a 404 and the link is hidden.
 3c. **Error reports (24 Sept 2026).** One button on the result, "Nahlásit k prověření", with an optional note:
    the request, the result row and the note are stored (`core/reports.py`; `REPORTS_SOURCE=dir|blob|off`).
    ~~**Vercel needs `REPORTS_SOURCE=blob`**~~ *Superseded the same day by the central database (item 3d):
@@ -534,6 +535,8 @@ curl (Vercel Authentication is off): `/api/version` at `1ec4e7b`; `/health` ok w
 codebooks from Blob, `wikimedia_enabled: true`, `database: postgres …` (Neon, eu-central-1) and `reports: db`;
 `/` and `/admin` → 303 `/login`; `/api/suggest` without a session → 401; no errors in the runtime log. Not yet
 verified there: a signed-in lookup writing to the database (the deploying session holds no password).
+Later that evening `ADMIN_PASSWORD_HASH` was added (Sensitive, Production only) and `main` redeployed, so
+the developer page is on behind the MO sign-in, with its own password.
 **Depends on:** no epic (E0.2 was dropped, D2); D1 confirmed. Before real data: the four codebook files from the
 repository owner (perhaps in `tdzian39/rb_files`, where Jakub has a pending invite), uploaded with
 `vercel blob put` as in `app/README.md`.
