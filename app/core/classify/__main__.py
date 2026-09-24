@@ -187,9 +187,14 @@ def _export_usage(settings, target: str) -> int:
         print(f"error: could not write {out}: {exc} (is it open in Excel?)", file=sys.stderr)
         return EXIT_LOAD_FAILED
     print(
-        f"wrote {out.resolve()}: {report.calls} call(s), about ${report.cost:.4f} at the prices "
-        f"checked on {PRICES_CHECKED:%d %b %Y} - an upper bound, cached input is not recorded"
+        f"wrote {out.resolve()}: {report.calls} call(s), ${report.cost:.4f} at the prices "
+        f"checked on {PRICES_CHECKED:%d %b %Y}"
     )
+    if report.inexact_calls:
+        print(
+            f"{report.inexact_calls} call(s) were recorded without a cached-input count and are "
+            "priced as all uncached, so the total is an upper bound"
+        )
     if report.unpriced_models:
         print(
             f"no price for {', '.join(report.unpriced_models)}: their cost cells are empty; add "

@@ -190,6 +190,30 @@ class TestResponseReading:
         assert (response.prompt_tokens, response.completion_tokens) == expected
         assert response.total_tokens == sum(expected)
 
+    @pytest.mark.parametrize(
+        ("usage", "cached"),
+        [
+            (
+                {"prompt_tokens": 3000, "prompt_tokens_details": {"cached_tokens": 2048}},
+                2048,
+            ),
+            ({"input_tokens": 3000, "input_tokens_details": {"cached_tokens": 1024}}, 1024),
+            ({"prompt_tokens": 3000, "prompt_tokens_details": {"cached_tokens": 0}}, 0),
+            ({"prompt_tokens": 3000}, None),  # not reported is not "none cached"
+            ({"prompt_tokens": 3000, "prompt_tokens_details": {"cached_tokens": 9999}}, 3000),
+            ({"prompt_tokens_details": {"cached_tokens": 10}}, None),  # nothing to be part of
+        ],
+    )
+    def test_cached_input_is_read_under_either_naming(
+        self, usage: dict, cached: int | None
+    ) -> None:
+        """The cached part is billed at a tenth; it is clamped to the prompt count so a
+        malformed answer cannot price a call below what it cost."""
+        response = provider_with(
+            lambda r: httpx.Response(200, json=chat_response(usage=usage))
+        ).complete(prompt())
+        assert response.cached_prompt_tokens == cached
+
     def test_missing_usage_is_none_not_zero(self) -> None:
         response = provider_with(lambda r: httpx.Response(200, json=chat_response())).complete(
             prompt()

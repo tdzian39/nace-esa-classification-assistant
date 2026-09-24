@@ -728,8 +728,9 @@ stays (below).
    codebook and day, the Calls table and the Prices it used - OpenAI's standard prices,
    checked 23 Sept 2026; update `PRICES` in `core/classify/usage_report.py` when they change.
    Only calls made from this machine are in the ledger; production on Vercel keeps none, so
-   its spend is on the provider's usage page. The costs are an upper bound: cached input is
-   billed at a tenth, but the ledger does not record it.
+   its spend is on the provider's usage page. Input the provider served from its prompt
+   cache is priced at the cached rate, from the count it reported; calls recorded before the
+   ledger kept that count are priced as uncached, and the Summary says how many.
 
 Limits are already enforced (8,000 tokens/request, 200 calls/run, 500,000 tokens/day) and
 fail closed: an unenforceable daily cap refuses to spend rather than quietly disappearing.

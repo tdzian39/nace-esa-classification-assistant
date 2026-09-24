@@ -170,6 +170,45 @@ class TestLedger:
         totals = ledger.today()
         assert (totals.prompt_tokens, totals.completion_tokens) == (1234, 56)
 
+    def test_cached_input_is_recorded(self, tmp_path: Path) -> None:
+        ledger = SqliteLedger(tmp_path / "usage.sqlite3")
+        inner = StubLlmProvider(ANSWER, prompt_tokens=3000, cached_prompt_tokens=2048)
+        BudgetedProvider(inner, ledger=ledger).complete(prompt())
+        assert [r.cached_prompt_tokens for r in ledger.records()] == [2048]
+
+    def test_no_cached_count_is_recorded_next_to_an_estimate(self, tmp_path: Path) -> None:
+        """With no prompt count from the provider the ledger holds our estimate, and a cached
+        count beside an estimate would price tokens nobody measured."""
+        ledger = SqliteLedger(tmp_path / "usage.sqlite3")
+        inner = StubLlmProvider(ANSWER, prompt_tokens=None, cached_prompt_tokens=500)
+        BudgetedProvider(inner, ledger=ledger).complete(prompt())
+        assert [r.cached_prompt_tokens for r in ledger.records()] == [None]
+
+    def test_a_ledger_from_before_cached_counts_gains_the_column(self, tmp_path: Path) -> None:
+        """Its old rows read back as "not recorded", never as zero cached."""
+        import sqlite3
+
+        path = tmp_path / "usage.sqlite3"
+        with sqlite3.connect(path) as connection:
+            connection.executescript(
+                "CREATE TABLE usage (id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, "
+                "model TEXT NOT NULL, kind TEXT, prompt_tokens INTEGER NOT NULL DEFAULT 0, "
+                "completion_tokens INTEGER NOT NULL DEFAULT 0);"
+                "INSERT INTO usage (at, model, kind, prompt_tokens, completion_tokens) "
+                "VALUES ('2026-09-23T07:00:00+00:00', 'gpt-5.6-luna', 'NACE', 3000, 90);"
+            )
+        connection.close()
+        ledger = SqliteLedger(path)
+        assert ledger.usable
+        ledger.record(
+            model="gpt-5.6-luna",
+            kind="ESA",
+            prompt_tokens=1200,
+            completion_tokens=40,
+            cached_prompt_tokens=0,
+        )
+        assert [r.cached_prompt_tokens for r in ledger.records()] == [None, 0]
+
     def test_an_unusable_ledger_says_so(self, tmp_path: Path) -> None:
         blocker = tmp_path / "blocker"
         blocker.write_text("not a directory", encoding="utf-8")

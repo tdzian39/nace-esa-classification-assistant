@@ -223,8 +223,11 @@ and the FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub,
   * The cache is the real saving: a repeated issuer costs nothing.
   * `--usage-xlsx` (`usage_report.py`) writes the ledger as a workbook — Summary by model,
     codebook and day; Calls; Prices — priced at `PRICES` (OpenAI's standard prices, checked
-    23 Sept 2026). A model missing there gets empty cost cells, never a guess; costs are an
-    upper bound, since cached input is not recorded. It knows only this machine's calls:
+    23 Sept 2026). A model missing there gets empty cost cells, never a guess. The ledger
+    keeps the provider's cached-input count (`cached_prompt_tokens`, column added in place
+    to older ledgers), priced at the cached rate; a row without it (older, or an estimated
+    prompt count) is priced all-uncached and flagged as an upper bound — NULL is "not
+    recorded", never zero. It knows only this machine's calls:
     Vercel keeps no ledger, so production spend is on the provider's usage page.
 - **Golden set** (`tests/golden/`): a case counts only when `verified_by` is set; verified and
   provisional are scored separately and **no accuracy may be quoted from provisional cases**.

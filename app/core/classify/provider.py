@@ -67,6 +67,9 @@ class LlmResponse:
     model: str
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
+    #: The part of ``prompt_tokens`` the provider served from its prompt cache and bills at
+    #: the cached rate; ``None`` when it did not say, which is not the same as none cached.
+    cached_prompt_tokens: int | None = None
 
     @property
     def total_tokens(self) -> int | None:
@@ -128,11 +131,13 @@ class StubLlmProvider:
         model: str = "stub-model",
         prompt_tokens: int | None = 1000,
         completion_tokens: int | None = 80,
+        cached_prompt_tokens: int | None = None,
     ) -> None:
         self.model = model
         self._responses = responses
         self._prompt_tokens = prompt_tokens
         self._completion_tokens = completion_tokens
+        self._cached_prompt_tokens = cached_prompt_tokens
         self.calls: list[Prompt] = []
 
     def complete(self, prompt: Prompt) -> LlmResponse:
@@ -151,28 +156,42 @@ class StubLlmProvider:
             model=self.model,
             prompt_tokens=self._prompt_tokens,
             completion_tokens=self._completion_tokens,
+            cached_prompt_tokens=self._cached_prompt_tokens,
         )
 
 
-def _usage(payload: Mapping[str, Any]) -> tuple[int | None, int | None]:
-    """Read token counts, tolerating both namings.
+def _usage(payload: Mapping[str, Any]) -> tuple[int | None, int | None, int | None]:
+    """Read token counts - prompt, completion, cached prompt - tolerating both namings.
 
-    Chat Completions reports ``prompt_tokens``/``completion_tokens``; the Responses API and
-    parts of the docs use ``input_tokens``/``output_tokens``. Accept either rather than
-    silently reporting no cost.
+    Chat Completions reports ``prompt_tokens``/``completion_tokens`` and the cached part under
+    ``prompt_tokens_details.cached_tokens``; the Responses API and parts of the docs use
+    ``input_tokens``/``output_tokens`` and ``input_tokens_details``. Accept either rather than
+    silently reporting no cost. The cached count is clamped to the prompt count, so a
+    malformed answer cannot price a call below what it cost.
     """
     usage = payload.get("usage")
     if not isinstance(usage, Mapping):
-        return None, None
+        return None, None, None
 
-    def pick(*names: str) -> int | None:
+    def pick(source: Mapping[str, Any], *names: str) -> int | None:
         for name in names:
-            value = usage.get(name)
-            if isinstance(value, int):
+            value = source.get(name)
+            if isinstance(value, int) and not isinstance(value, bool):
                 return value
         return None
 
-    return pick("prompt_tokens", "input_tokens"), pick("completion_tokens", "output_tokens")
+    prompt = pick(usage, "prompt_tokens", "input_tokens")
+    completion = pick(usage, "completion_tokens", "output_tokens")
+    cached = None
+    for name in ("prompt_tokens_details", "input_tokens_details"):
+        details = usage.get(name)
+        if isinstance(details, Mapping):
+            cached = pick(details, "cached_tokens")
+            if cached is not None:
+                break
+    if cached is not None:
+        cached = max(0, min(cached, prompt)) if prompt is not None else None
+    return prompt, completion, cached
 
 
 class OpenAiProvider:
@@ -303,12 +322,13 @@ class OpenAiProvider:
                 raise LlmResponseError(f"model refused to answer: {refusal[:200]}")
             raise LlmResponseError("model response has no content")
 
-        prompt_tokens, completion_tokens = _usage(payload)
+        prompt_tokens, completion_tokens, cached_prompt_tokens = _usage(payload)
         return LlmResponse(
             content=content,
             model=str(payload.get("model") or self.model),
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            cached_prompt_tokens=cached_prompt_tokens,
         )
 
 

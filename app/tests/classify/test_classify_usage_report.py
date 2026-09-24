@@ -34,6 +34,7 @@ def record(
     prompt_tokens: int = 3_000,
     completion_tokens: int = 100,
     minutes: int = 0,
+    cached_prompt_tokens: int | None = None,
 ) -> UsageRecord:
     return UsageRecord(
         at=T0 + timedelta(minutes=minutes),
@@ -41,6 +42,7 @@ def record(
         kind=kind,
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
+        cached_prompt_tokens=cached_prompt_tokens,
     )
 
 
@@ -131,7 +133,8 @@ class TestWorkbook:
     def test_an_unknown_model_gets_empty_costs_and_is_named(self, out: Path) -> None:
         report = write_usage_workbook([record(), record(model="mystery-model", minutes=1)], out)
 
-        assert load_workbook(out)[CALLS_SHEET].cell(row=3, column=10).value is None
+        cost_column = CALL_COLUMNS.index("Cost (USD)") + 1
+        assert load_workbook(out)[CALLS_SHEET].cell(row=3, column=cost_column).value is None
         assert report.unpriced_models == ("mystery-model",)
         assert report.cost == pytest.approx(ONE_LUNA_CALL)  # the priced call still counts
         assert any(
@@ -139,11 +142,30 @@ class TestWorkbook:
         )
 
     def test_the_summary_says_what_the_total_is_not(self, out: Path) -> None:
-        """Production keeps no ledger and cached input is not recorded: the total is not the bill."""
-        write_usage_workbook([record()], out)
+        """Production keeps no ledger, and a call with no cached count is an upper bound."""
+        report = write_usage_workbook([record()], out)
         text = " ".join(str(value) for value in sheet_text(out, SUMMARY_SHEET))
         assert "Production" in text and "NOT here" in text
-        assert "upper bound" in text
+        assert "1 call(s) have no cached-input count" in text
+        assert report.inexact_calls == 1
+
+    def test_cached_input_is_priced_at_the_cached_rate(self, out: Path) -> None:
+        report = write_usage_workbook([record(cached_prompt_tokens=2_000)], out)
+
+        exact = (1_000 * 0.20 + 2_000 * 0.02 + 100 * 1.20) / 1_000_000
+        assert report.cost == pytest.approx(exact)
+        assert report.inexact_calls == 0
+        sheet = load_workbook(out)[CALLS_SHEET]
+        row = {name: cell.value for name, cell in zip(CALL_COLUMNS, sheet[2], strict=True)}
+        assert row["Cached input tokens"] == 2_000
+        assert row["Cost (USD)"] == pytest.approx(exact)
+        text = " ".join(str(value) for value in sheet_text(out, SUMMARY_SHEET))
+        assert "no cached-input count" not in text
+
+    def test_zero_cached_is_exact_at_the_full_rate(self, out: Path) -> None:
+        report = write_usage_workbook([record(cached_prompt_tokens=0)], out)
+        assert report.cost == pytest.approx(ONE_LUNA_CALL)
+        assert report.inexact_calls == 0
 
     def test_the_prices_sheet_lists_every_price_and_its_source(self, out: Path) -> None:
         write_usage_workbook([record()], out)
