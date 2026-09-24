@@ -107,14 +107,15 @@ synthetic fixtures via `tests/codebooks/conftest.py`.
 resolves every CTS ID up front, shows the shortlist on the page and in the xlsx
 (`NACE_candidates`, `ESA_candidates`), and says it did not choose, and why.
 
-Production runs **with the model** since 23 Sept 2026. The deterministic result is still what a
+Production runs **with the model** since 23 Sept 2026 and **behind the app's own login** since
+24 Sept 2026 (`main` `8b1fc9c`; Vercel Authentication still in front). The deterministic result is still what a
 codebook shows whenever the model is off or declines — typically ESA when the evidence does not
 say who owns the issuer (the control axis, Q7): Deutsche Bank by ISIN alone gets the rules' tied
 bank family, and a one-line popis stating the ownership lets the model pick.
 
 Figures are **provisional** (no case is `verified_by`-confirmed) and must not be quoted as
-accuracy. Next steps are `docs/ROADMAP.md` §0: E2 (login + audit, needs D4) once MO is let in,
-and the FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept 2026).
+accuracy. Next steps are `docs/ROADMAP.md` §0: audit persistence (D4) once MO is let in, and the
+FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept 2026).
 
 ## Architecture notes
 
@@ -248,7 +249,9 @@ and the FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub,
   point: a malformed IČO is looked up **as given** rather than falling back to the name column (a
   wrong IČO must surface, not silently return another company), and with no recognised header,
   row 1 is data.
-- **Sign-in** (`core/auth.py`, roadmap E2/D5): optional — `APP_PASSWORD_HASH` set turns it on.
+- **Sign-in** (`core/auth.py`, roadmap E2/D5): optional — `APP_PASSWORD_HASH` set turns it on;
+  **on in production since 24 Sept 2026** (both variables Sensitive, Production only; rollback:
+  delete the hash and redeploy).
   **One shared password plus a self-declared name**; the hash comes from `--hash-password` (the
   repo is public, so never the password). `normalize_name()` makes the name lower case, without
   diacritics, single-spaced — so one person is one name everywhere; the page asks users to

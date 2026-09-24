@@ -21,16 +21,18 @@ shortlists — NACE and ESA, every candidate with its CTS ID — come out, and t
 **navrhovaný kód** when the model chose it (with a confidence and a one-sentence reason) or, where the model is
 off or declines, when a rule decided it (a GLEIF category or a keyword); a person confirms. It runs on
 Vercel (production behind Vercel Authentication, the real codebooks in the private Blob store, `DE0005140008` end
-to end in about 12 s with the model; `main` at `ee410e2` is deployed). It is not gold-plated, and
+to end in about 12 s with the model; `main` at `8b1fc9c` is deployed and the app's own login is on since
+24 Sept 2026). It is not gold-plated, and
 should not be: what follows is the short list that separates "works for Jakub" from "MO uses it", then what is
 optional.
 
 **Needed before MO uses it**
 
-1. **E2 — the login (S–M).** **Login built (24 Sept 2026):** D5's shared password plus a self-declared
-   name (`APP_PASSWORD_HASH`, `SESSION_SECRET`; see E2 item 1), off until configured; audit persistence (D4)
-   is still open. Vercel Authentication on Hobby admits the owner plus one external user, so MO cannot
-   get in yet. Build the shared-password gate with a self-declared name (D5) and the untrusted-header rule. The
+1. **E2 — the login (S–M).** **Login live in production (24 Sept 2026):** D5's shared password plus a
+   self-declared name (`APP_PASSWORD_HASH` and `SESSION_SECRET` set as Sensitive Production variables; see E2
+   item 1), `main` at `8b1fc9c`; audit persistence (D4) is still open. Vercel Authentication on Hobby admits the
+   owner plus one external user, so MO cannot get in yet. Left of E2: the untrusted-header rule for an open app
+   (item 3) and the audit sink (item 4). The
    hard rule "log every lookup with its user" needs somewhere to keep the log — Vercel keeps runtime logs 1 hour
    on Hobby — so **decide D4** (a Neon Postgres free tier via the Vercel Marketplace, one `audit_events` table,
    is the smallest honest answer). **Not now (Jakub, 23 Sept 2026):** the site stays behind Vercel
@@ -104,6 +106,7 @@ Q15 (a listed parent's NACE), D4 (database, for the audit), Q10 (volume; a free 
 | 2026-09-23 | **Navrhovaný kód in deterministic mode** (the brief's wording): the first candidate is labelled as the proposal when a rule decided it (GLEIF category or keyword), marked as the rules' and without a confidence; no proposal on text similarity alone or on a tie between rules for different codes (PR #8). | Jakub |
 | 2026-09-22 | **Q8 / E8 — the golden set is built without MO.** Claude builds ~30 real issuers from the E8 seed list, mixing banks, corporates, funds, governments, supranationals and financing vehicles, from ISINs and public sources. `verified_by` stays empty on every case until someone checks it against CTS; codes worked out this way stay provisional and no accuracy is quoted from them. | Jakub |
 | 2026-09-23 | **No Vercel Pro — the project stays on Hobby. No app login for now** (§0 item 1): the site stays behind Vercel Authentication (all deployments) until Jakub opens it to MO. The OpenAI key has **no monthly spending limit**, so that login is the only guard on the model's cost. MO is not asked about Q7/Q15 and nothing is checked in CTS (§0 item 5); MO tests the tool in use. | Jakub |
+| 2026-09-24 | **The app's login is on in production** (`main` `8b1fc9c`, the morning's second redeploy): `APP_PASSWORD_HASH` and `SESSION_SECRET` are Sensitive Production variables on Vercel; the shared password is held by the owners and is never in the repo. Vercel Authentication stays in front until Jakub opens the site to MO. Rollback is deleting the hash and a redeploy. | Timotej |
 | 2026-09-24 | **E2 login built as D5 says: one shared password, and everybody types their name.** The password is configured only as a hash (`APP_PASSWORD_HASH`; the repo is public), the session is a signed cookie, sign-in stays off until configured. The name is normalised (lower case, no diacritics) and users are asked to type it that way. Model spend is recorded per name, calls from before as `unknown` — which production does not keep (D4). | Timotej |
 
 ---
@@ -163,6 +166,11 @@ not an oracle: **a human confirms every code**.
   wrong, so htmx never loaded) (23 Sept 2026). Against `main`.
 - #10 → `3b1fa7b` (merge commit, 23 Sept 2026); `main` = `3b1fa7b`, deployed to production the same morning (E1
   below).
+- **PR #19** `feat/cached-input-tokens` — the usage ledger records the provider's cached input tokens, so
+  `--usage-xlsx` prices them exactly (24 Sept 2026). **PR #20** `feat/login` — the E2 login (shared password +
+  typed name) and spend per user in the ledger; stacked on #19, retargeted to `main` once #19 had merged.
+- #19 → `17aeb50` (merge commit), #20 → `8b1fc9c` (squash, 24 Sept 2026 morning); `main` = `8b1fc9c`, deployed to
+  production the same morning with the login switched on (E1 below).
 
 ### Where the next session starts: §0 above
 
@@ -475,6 +483,14 @@ every production row carried "model call failed: … cannot be enforced", even w
 connection points at the fork `jaeksrampota/nace-esa-classification-assistant`, which is still at the first commit:
 a push to this repository deploys nothing, and a push to the fork or a Redeploy of its build would put that first
 commit back into production. Deploys are therefore made on request, from this repository's `main`.
+**Redeployed twice on 24 Sept 2026 (morning)**, `main` at `8b1fc9c` (PRs #19 and #20), through the Vercel API from
+this repository's `main`: first as is (the login code dormant, the app unchanged in behaviour), then after
+`APP_PASSWORD_HASH` and `SESSION_SECRET` had been added as Sensitive, Production-only variables — **the app's own
+login is on since then.** Verified on the production domain: `/api/version` at `8b1fc9c`; `/health` ok with the
+model configured; `/` → 303 `/login?next=%2F`; a wrong password → 401 "Nesprávné heslo."; sign-in sets the
+session cookie; `/api/suggest` for `DE0005140008` → NACE `64` by the model, ESA the rules' tied bank family.
+Vercel Authentication stays in front (§1, 23 Sept 2026). Rollback: delete `APP_PASSWORD_HASH` and redeploy (the
+login turns off; nothing else changes). A Vercel share link stops working after a redeploy — fetch a new one.
 **Depends on:** no epic (E0.2 was dropped, D2); D1 confirmed. Before real data: the four codebook files from the
 repository owner (perhaps in `tdzian39/rb_files`, where Jakub has a pending invite), uploaded with
 `vercel blob put` as in `app/README.md`.
@@ -483,7 +499,7 @@ repository owner (perhaps in `tdzian39/rb_files`, where Jakub has a pending invi
 
 **Goal:** only MO can open it, and every lookup is attributed to a named person (self-declared, D5) and kept.
 **Work:**
-1. **The login — permanent (D5, 22 Sept 2026); done 24 Sept 2026.** Middleware requiring one shared password,
+1. **The login — permanent (D5, 22 Sept 2026); done and live in production 24 Sept 2026.** Middleware requiring one shared password,
    Czech login page, signed session cookie, a *self-declared* name stored in the cookie. `/health` and
    `/api/version` exempt. Honest and cheap; not an identity. Rotating the password is the way to revoke access.
    As built: the password is configured as a hash (`APP_PASSWORD_HASH`), the cookie is signed with
