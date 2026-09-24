@@ -94,6 +94,7 @@ framework. No pandas; numpy is a dev extra only (tests feed numpy scalars to the
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .
 ../.venv/Scripts/python.exe -m core.codebooks [--no-strict --json --dir PATH]
 ../.venv/Scripts/python.exe -m core.reports --list [--dir PATH] [--xlsx PATH]   # the error reports
+../.venv/Scripts/python.exe set_admin_password.py   # asks twice; one hash into .env as APP_ and ADMIN_PASSWORD_HASH
 ```
 
 The venv is Anaconda 3.13.9 (no 3.12 on this machine) but `requires-python >= 3.12`, so stay

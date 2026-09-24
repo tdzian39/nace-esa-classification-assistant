@@ -343,7 +343,12 @@ the page asks users to type it that way every time.
 
 ```bash
 ../.venv/Scripts/python.exe -m core.classify --hash-password     # asks twice, prints a hash
+../.venv/Scripts/python.exe set_admin_password.py                # asks twice, writes it to .env
 ```
+
+For a local setup, `set_admin_password.py` writes the one hash into `app/.env` as both
+`APP_PASSWORD_HASH` and `ADMIN_PASSWORD_HASH` (the same password for the sign-in and for
+`/admin`), single-quoted; restart the app afterwards.
 
 Put the hash in `APP_PASSWORD_HASH` (single-quote it in `.env`: it contains `$`) and set
 `SESSION_SECRET` to a long random string; without the secret nobody can sign in. The

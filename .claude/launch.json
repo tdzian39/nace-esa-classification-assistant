@@ -7,6 +7,13 @@
       "runtimeArgs": ["-m", "uvicorn", "api.main:app", "--port", "8099"],
       "port": 8099,
       "cwd": "app"
+    },
+    {
+      "name": "naceesa-alt",
+      "runtimeExecutable": "../.venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "api.main:app", "--port", "8098", "--reload"],
+      "port": 8098,
+      "cwd": "app"
     }
   ]
 }
