@@ -22,8 +22,8 @@ shortlists — NACE and ESA, every candidate with its CTS ID — come out, and t
 off or declines, when a rule decided it (a GLEIF category or a keyword); a person confirms. It runs on
 Vercel (the production domain public since 24 Sept 2026, gated by the app's own login; the real codebooks in the
 private Blob store, `DE0005140008` end
-to end in about 12 s with the model; `main` at `8b1fc9c` is deployed and the app's own login is on since
-24 Sept 2026). It is not gold-plated, and
+to end in about 12 s with the model; `main` at `1ec4e7b` is deployed since the evening of 24 Sept 2026, with
+the central database, and the app's own login is on since that morning). It is not gold-plated, and
 should not be: what follows is the short list that separates "works for Jakub" from "MO uses it", then what is
 optional.
 
@@ -31,13 +31,13 @@ optional.
 
 1. **E2 — the login (S–M).** **Login live in production (24 Sept 2026):** D5's shared password plus a
    self-declared name (`APP_PASSWORD_HASH` and `SESSION_SECRET` set as Sensitive Production variables; see E2
-   item 1), `main` at `8b1fc9c`; audit persistence (D4) is still open. **Vercel Authentication was switched off
+   item 1), `main` at `8b1fc9c`; audit persistence (D4) followed that evening (item 3d). **Vercel Authentication was switched off
    the same day** (Timotej), so the domain is public and the shared password is the only gate — and the only
    guard on the model's cost, as the OpenAI key has no monthly limit; set a spending cap in the provider's
    dashboard. Left of E2: the untrusted-header rule for an open app (item 3) and the audit sink (item 4). The
    hard rule "log every lookup with its user" needs somewhere to keep the log — Vercel keeps runtime logs 1 hour
    on Hobby — so **decide D4** (a Neon Postgres free tier via the Vercel Marketplace, one `audit_events` table,
-   is the smallest honest answer). ~~**Not now (Jakub, 23 Sept 2026):** the site stays behind Vercel
+   is the smallest honest answer) — *decided and deployed 24 Sept 2026, item 3d*. ~~**Not now (Jakub, 23 Sept 2026):** the site stays behind Vercel
    Authentication (all deployments) until he opens it to MO.~~ *Superseded 24 Sept 2026: Vercel Authentication
    is off, the app's login gates the site (§1).*
 
@@ -79,17 +79,23 @@ optional.
    Not done: industries' NACE codes (P4496, too heavy over the Action API).
 3d. **The central database (24 Sept 2026, D4 answered).** `core/db.py`: with `DATABASE_URL` the ledger, the cache,
    the audit events and the error reports live in one Postgres. **Created and connected the same day** (Neon
-   `nace-esa-db`, eu-central-1, `DATABASE_URL` on the project), verified live from a laptop. Left: merge, deploy,
-   confirm `/health` shows `database`, then raise `LLM_DAILY_TOKEN_BUDGET` above 0 in production if wanted.
+   `nace-esa-db`, eu-central-1, `DATABASE_URL` on the project), verified live from a laptop. **Deployed the same
+   evening** (`main` `1ec4e7b`): production's `/health` shows `database: postgres …` (the Neon pooler) and
+   `reports: db`. Left: a signed-in production lookup to confirm the rows arrive. Then, if wanted, raise
+   `LLM_DAILY_TOKEN_BUDGET` above 0 — but only once an unreadable ledger refuses to spend: today both ledgers'
+   `totals_since` return zero on a read error, so a database outage would let every call through.
 3e. **The developer page (24 Sept 2026).** `/admin`: the priced cost ledger and the complaints, behind its own
    password (`ADMIN_PASSWORD_HASH`, on top of the MO sign-in). **Left: set `ADMIN_PASSWORD_HASH` on Vercel**
-   (Sensitive) - without it the page is a 404 and the link is hidden.
+   (Sensitive) - without it the page is a 404 and the link is hidden. Deployed 24 Sept 2026 (evening) without
+   it, so production's `/admin` is a 404 behind the MO sign-in until the variable is added and redeployed.
 3c. **Error reports (24 Sept 2026).** One button on the result, "Nahlásit k prověření", with an optional note:
    the request, the result row and the note are stored (`core/reports.py`; `REPORTS_SOURCE=dir|blob|off`).
-   **Vercel needs `REPORTS_SOURCE=blob`** (same token as the codebooks, prefix `reports/`), else the page warns
-   that reports land in `/tmp` and vanish. Reports are content: never in git, never in a log line; the audit log
-   records only who reported which identifier. Review with `python -m core.reports --list|--xlsx` (a directory
-   store) or the Blob dashboard. This is the first piece of D4 that MO can act on.
+   ~~**Vercel needs `REPORTS_SOURCE=blob`**~~ *Superseded the same day by the central database (item 3d):
+   `REPORTS_SOURCE=auto`, the default, stores them there when `DATABASE_URL` is set - as in production since
+   24 Sept 2026 evening (`/health`: `reports: db`); `blob` stays an option.* Without either, the page warns that
+   reports land in `/tmp` and vanish. Reports are content: never in git, never in a log line; the audit log
+   records only who reported which identifier. Review with `python -m core.reports --list|--xlsx` (the database
+   when `DATABASE_URL` is set) or `/admin`. This is the first piece of D4 that MO can act on.
 4. **E5-lite: the FIRDS LEI fallback.** GLEIF maps 25 of 36 golden ISINs; the misses (Eurobond, LU/IE funds) include
    all four captive vehicles, the core ESA trap. ESMA FIRDS returns the issuer LEI for them; `/probe` already
    shows the host reachable from Vercel.
@@ -522,6 +528,12 @@ Later that morning Vercel Authentication was switched off on the project (§1), 
 app's login is the only gate. Rollback: delete `APP_PASSWORD_HASH` and redeploy (the login turns off; nothing
 else changes) — but then turn Vercel Authentication back on first, or the site is open to everyone. A Vercel
 share link stops working after a redeploy — fetch a new one.
+**Redeployed on 24 Sept 2026 (evening)**, code at `main` `1ec4e7b` (PRs #21 and #22 plus the local password
+helper), through the Vercel API from this repository's `main`. Verified on the production domain with plain
+curl (Vercel Authentication is off): `/api/version` at `1ec4e7b`; `/health` ok with the model configured, the
+codebooks from Blob, `wikimedia_enabled: true`, `database: postgres …` (Neon, eu-central-1) and `reports: db`;
+`/` and `/admin` → 303 `/login`; `/api/suggest` without a session → 401; no errors in the runtime log. Not yet
+verified there: a signed-in lookup writing to the database (the deploying session holds no password).
 **Depends on:** no epic (E0.2 was dropped, D2); D1 confirmed. Before real data: the four codebook files from the
 repository owner (perhaps in `tdzian39/rb_files`, where Jakub has a pending invite), uploaded with
 `vercel blob put` as in `app/README.md`.
@@ -815,7 +827,8 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
   eu-central-1 (Frankfurt, next to `fra1`), free plan, Neon Auth off, connected to the project for Production and
   Preview with `DATABASE_URL` as a Sensitive variable. Verified live from a laptop the same day: schema, a lookup,
   a report, the shared cache, and the CLIs reading it back. Production writes to it from the first deployment
-  that carries this code.
+  that carries this code: **deployed 24 Sept 2026 (evening), `main` `1ec4e7b`**; `/health` shows `database:
+  postgres …` and `reports: db`.
 - **D5. Authentication.** OIDC with Microsoft Entra ID needs an app registration from IT (Q-A1). Is the interim
   password gate with a self-declared name acceptable for the pilot, and for how long? *E2.*
   **Answer:** 2026-09-22 — there will be **no Entra ID app registration** (Jakub). The E2.1 shared-password gate

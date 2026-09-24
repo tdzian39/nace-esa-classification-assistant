@@ -114,15 +114,19 @@ resolves every CTS ID up front, shows the shortlist on the page and in the xlsx
 (`NACE_candidates`, `ESA_candidates`), and says it did not choose, and why.
 
 Production runs **with the model** since 23 Sept 2026 and **behind the app's own login** since
-24 Sept 2026 (`main` `8b1fc9c`; Vercel Authentication is **off**, so that login is the only gate
-and the only guard on the model's cost). The deterministic result is still what a
+24 Sept 2026 (Vercel Authentication is **off**, so that login is the only gate and the only
+guard on the model's cost). Since the evening of 24 Sept 2026 (code at `main` `1ec4e7b`) it
+also has the Wikipedia description, the error reports and the central database: `/health`
+shows `database: postgres …` and `reports: db`. `ADMIN_PASSWORD_HASH` is not set there, so
+production's `/admin` is a 404. The deterministic result is still what a
 codebook shows whenever the model is off or declines — typically ESA when the evidence does not
 say who owns the issuer (the control axis, Q7): Deutsche Bank by ISIN alone gets the rules' tied
 bank family, and a one-line popis stating the ownership lets the model pick.
 
 Figures are **provisional** (no case is `verified_by`-confirmed) and must not be quoted as
-accuracy. Next steps are `docs/ROADMAP.md` §0: audit persistence (D4) once MO is let in, and the
-FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept 2026).
+accuracy. Next steps are `docs/ROADMAP.md` §0: a signed-in production lookup confirming the
+database rows, and the FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub,
+23 Sept 2026).
 
 ## Architecture notes
 
@@ -258,8 +262,13 @@ FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept
     keeps the provider's cached-input count (`cached_prompt_tokens`, column added in place
     to older ledgers), priced at the cached rate; a row without it (older, or an estimated
     prompt count) is priced all-uncached and flagged as an upper bound — NULL is "not
-    recorded", never zero. It knows only this machine's calls:
-    Vercel keeps no ledger, so production spend is on the provider's usage page.
+    recorded", never zero. Without `DATABASE_URL` it knows only this machine's calls; with it,
+    every device's, production's included (since 24 Sept 2026). Before that, production spend
+    is only on the provider's usage page.
+  * **A daily budget fails open on a read error**: both ledgers' `totals_since` return zero
+    spend when the read fails, so with `LLM_DAILY_TOKEN_BUDGET > 0` a database outage lets
+    every call through (only a ledger unusable from startup refuses). Fix before raising the
+    budget above 0 in production.
 - **Golden set** (`tests/golden/`): a case counts only when `verified_by` is set; verified and
   provisional are scored separately and **no accuracy may be quoted from provisional cases**.
   All are provisional: 10 fictional traps plus 36 real issuers built from public sources (Q8).
@@ -345,8 +354,8 @@ FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept
   variable `BudgetedProvider` reads when it records a call, so the pipeline carries no name.
   The ledger's `user` column was added in place; rows from before it are `unknown`, as is
   any call made outside `spending_as`. `--golden --model` is charged to the OS account.
-  `--usage-xlsx` has a By user block and a User column. **Production records none of it**:
-  Vercel keeps no ledger (D4).
+  `--usage-xlsx` has a By user block and a User column. Production records it in the central
+  database (D4) since 24 Sept 2026 (evening); before that, Vercel kept no ledger.
 - **API/UI**: codebooks load **once per process** (lifespan or first lookup, under a lock) and an
   inconsistent or missing set never serves a suggestion — those answer 503 with the reason, the
   page keeps the input, `/health` turns 503, retried after 30 s. It must not raise: on Vercel a

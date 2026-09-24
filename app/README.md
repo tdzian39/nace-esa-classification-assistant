@@ -357,8 +357,9 @@ password itself is never configured or committed. The session is a signed cookie
 access is revoked. On Vercel both variables are Sensitive.
 
 Model calls are recorded per user in the usage ledger (`--usage-xlsx` totals them by user);
-calls recorded before users were kept are `unknown`. Vercel keeps no ledger, so production
-spend per user is not recorded anywhere yet (roadmap D4).
+calls recorded before users were kept are `unknown`. With `DATABASE_URL` the ledger is the
+central database (roadmap D4), so production spend per user is recorded there since
+24 Sept 2026 (evening); before that, Vercel kept no ledger.
 
 ## Batch xlsx in/out (`core/batch`, `core/export`)
 
