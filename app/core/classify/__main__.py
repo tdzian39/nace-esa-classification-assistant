@@ -6,6 +6,11 @@ These modes call no model and need no API key:
     python -m core.classify --golden                              # recall over the golden set
     python -m core.classify "..." --estimate                      # prompt size before paying
     python -m core.classify --golden-capture                      # re-record the register answers
+    python -m core.classify --usage-xlsx [PATH]                   # the usage ledger as Excel
+
+``--usage-xlsx`` writes every recorded model call with its tokens and cost (Summary, Calls and
+Prices sheets) to PATH, by default next to the ledger (``LLM_USAGE_PATH`` with ``.xlsx``). It
+needs neither the codebooks nor a key; see core/classify/usage_report.py for what it cannot show.
 
 One does, and refuses to start without a configured model (LLM_API_KEY):
 
@@ -23,17 +28,20 @@ Recall is the pre-filter's grade: the share of golden cases whose correct code m
 the shortlist at all. A code the filter never offers is one the classifier can never return,
 so this number is the ceiling on everything downstream.
 
-Exit codes: 0 fine, 1 a golden case's correct code was missed, 2 the codebooks or the golden
-file could not be loaded, 3 ``--model`` without a model that can be called.
+Exit codes: 0 fine, 1 a golden case's correct code was missed, 2 the codebooks, the golden
+file or the usage ledger could not be loaded (or the workbook not written), 3 ``--model``
+without a model that can be called.
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
+import sqlite3
 import sys
 from collections.abc import Sequence
 from datetime import date
+from pathlib import Path
 
 from config.settings import get_settings
 from core.classify.candidates import (
@@ -93,6 +101,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="report the configured spending limits and what has been spent today",
     )
     parser.add_argument(
+        "--usage-xlsx",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="PATH",
+        help="write every recorded model call with its tokens and cost to an Excel workbook "
+        "(default: next to the usage ledger)",
+    )
+    parser.add_argument(
         "--estimate",
         action="store_true",
         help="report the prompt size the classifier would send (no model call)",
@@ -138,6 +155,47 @@ def _print_usage(settings) -> None:
     if budget.daily_token_budget > 0:
         left = max(0, budget.daily_token_budget - today.total_tokens)
         print(f"left  : {left:,} tokens (~{left // 3400} more uncached issuers)")
+
+
+def _export_usage(settings, target: str) -> int:
+    """Write the usage ledger as a workbook; loads no codebooks and calls no model."""
+    from core.classify.budget import SqliteLedger
+    from core.classify.usage_report import PRICES_CHECKED, write_usage_workbook
+
+    ledger_path = settings.llm_usage_path
+    if ledger_path is None:
+        print(
+            "error: usage recording is off (LLM_USAGE_PATH is empty), so there is nothing to "
+            "export. On Vercel that is by design; the provider's usage page has those calls.",
+            file=sys.stderr,
+        )
+        return EXIT_LOAD_FAILED
+    if not ledger_path.exists():
+        print(f"nothing recorded yet: {ledger_path} does not exist, no model call was made here")
+        return EXIT_OK
+    ledger = SqliteLedger(ledger_path)
+    if not ledger.usable:
+        print(f"error: the usage ledger {ledger_path} cannot be opened", file=sys.stderr)
+        return EXIT_LOAD_FAILED
+    out = Path(target) if target else ledger_path.with_suffix(".xlsx")
+    try:
+        report = write_usage_workbook(ledger.records(), out, source=ledger_path.name)
+    except sqlite3.Error as exc:
+        print(f"error: the usage ledger {ledger_path} cannot be read: {exc}", file=sys.stderr)
+        return EXIT_LOAD_FAILED
+    except OSError as exc:
+        print(f"error: could not write {out}: {exc} (is it open in Excel?)", file=sys.stderr)
+        return EXIT_LOAD_FAILED
+    print(
+        f"wrote {out.resolve()}: {report.calls} call(s), about ${report.cost:.4f} at the prices "
+        f"checked on {PRICES_CHECKED:%d %b %Y} - an upper bound, cached input is not recorded"
+    )
+    if report.unpriced_models:
+        print(
+            f"no price for {', '.join(report.unpriced_models)}: their cost cells are empty; add "
+            "the price to PRICES in core/classify/usage_report.py"
+        )
+    return EXIT_OK
 
 
 def _print_estimate(nace: CandidateSet, esa: CandidateSet, description: str) -> None:
@@ -336,6 +394,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             return EXIT_LOAD_FAILED
         print(f"recorded {recorded} register answer(s) in tests/golden/identity.json")
         return EXIT_OK
+
+    if args.usage_xlsx is not None:
+        return _export_usage(settings, args.usage_xlsx)
 
     if args.model:
         # Refuse before loading anything: a run that cannot call the model must not look

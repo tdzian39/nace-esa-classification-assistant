@@ -82,6 +82,7 @@ app/
                     nace_en.py (English division titles), proposal.py (navrhovaný kód)      [E4-lite]
                     golden_fixtures.py (recorded register answers for the golden run)       [E8]
                     prompts.py, provider.py, llm.py, cache.py (the model call)               [step 6]
+                    budget.py (limits, usage ledger), usage_report.py (ledger as Excel)       [E9]
     export/         columns.py (the suggestion row), xlsx.py (Subjects + Run sheets)        [step 3]
     batch/          reader.py (messy xlsx in; roadmap E6 reuses it)                         [step 3]
   api/              FastAPI: GET /, POST /suggest, POST /api/suggest, /suggest.xlsx         [step 4]
@@ -719,7 +720,16 @@ stays (below).
 5. Watch the spend:
    ```bash
    python -m core.classify --usage
+   python -m core.classify --usage-xlsx
    ```
+   `--usage` prints the limits and today's total. `--usage-xlsx` writes every recorded call
+   with its tokens and cost to an Excel workbook next to the ledger
+   (`data/cache/llm_usage.xlsx` by default, git-ignored; or give a path): a Summary by model,
+   codebook and day, the Calls table and the Prices it used - OpenAI's standard prices,
+   checked 23 Sept 2026; update `PRICES` in `core/classify/usage_report.py` when they change.
+   Only calls made from this machine are in the ledger; production on Vercel keeps none, so
+   its spend is on the provider's usage page. The costs are an upper bound: cached input is
+   billed at a tenth, but the ledger does not record it.
 
 Limits are already enforced (8,000 tokens/request, 200 calls/run, 500,000 tokens/day) and
 fail closed: an unenforceable daily cap refuses to spend rather than quietly disappearing.

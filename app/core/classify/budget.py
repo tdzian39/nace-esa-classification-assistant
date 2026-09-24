@@ -77,6 +77,21 @@ class UsageTotals:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class UsageRecord:
+    """One model call as the ledger recorded it; ``at`` is timezone-aware UTC."""
+
+    at: datetime
+    model: str
+    kind: str
+    prompt_tokens: int
+    completion_tokens: int
+
+    @property
+    def total_tokens(self) -> int:
+        return self.prompt_tokens + self.completion_tokens
+
+
 class UsageRecorder(Protocol):
     """Where usage is written and read back."""
 
@@ -177,6 +192,33 @@ class SqliteLedger:
         """Usage since midnight UTC."""
         start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         return self.totals_since(start)
+
+    def records(self) -> list[UsageRecord]:
+        """Every recorded call, oldest first - what the usage workbook is made of.
+
+        Unlike :meth:`totals_since`, a read error is raised rather than logged: a report that
+        quietly came back empty would say that nothing was spent.
+        """
+        if not self.usable:
+            return []
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT at, model, kind, prompt_tokens, completion_tokens FROM usage "
+                "ORDER BY at, id"
+            ).fetchall()
+        records = []
+        for at, model, kind, prompt_tokens, completion_tokens in rows:
+            when = datetime.fromisoformat(at)
+            records.append(
+                UsageRecord(
+                    at=when if when.tzinfo is not None else when.replace(tzinfo=UTC),
+                    model=model,
+                    kind=kind or "",
+                    prompt_tokens=int(prompt_tokens),
+                    completion_tokens=int(completion_tokens),
+                )
+            )
+        return records
 
 
 @dataclass(frozen=True, slots=True)
@@ -311,6 +353,7 @@ __all__ = [
     "BudgetedProvider",
     "NullLedger",
     "SqliteLedger",
+    "UsageRecord",
     "UsageRecorder",
     "UsageTotals",
     "build_budget",
