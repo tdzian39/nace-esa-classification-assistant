@@ -81,6 +81,9 @@ optional.
    the audit events and the error reports live in one Postgres. **Created and connected the same day** (Neon
    `nace-esa-db`, eu-central-1, `DATABASE_URL` on the project), verified live from a laptop. Left: merge, deploy,
    confirm `/health` shows `database`, then raise `LLM_DAILY_TOKEN_BUDGET` above 0 in production if wanted.
+3e. **The developer page (24 Sept 2026).** `/admin`: the priced cost ledger and the complaints, behind its own
+   password (`ADMIN_PASSWORD_HASH`, on top of the MO sign-in). **Left: set `ADMIN_PASSWORD_HASH` on Vercel**
+   (Sensitive) - without it the page is a 404 and the link is hidden.
 3c. **Error reports (24 Sept 2026).** One button on the result, "Nahlásit k prověření", with an optional note:
    the request, the result row and the note are stored (`core/reports.py`; `REPORTS_SOURCE=dir|blob|off`).
    **Vercel needs `REPORTS_SOURCE=blob`** (same token as the codebooks, prefix `reports/`), else the page warns

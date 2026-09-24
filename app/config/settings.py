@@ -403,6 +403,12 @@ class Settings(BaseSettings):
             "everybody out."
         ),
     )
+    admin_password_hash: SecretStr | None = Field(
+        default=None,
+        description="Hash of the developers' password for /admin (the cost ledger and MO's "
+        "complaints), from python -m core.classify --hash-password. Empty: /admin answers "
+        "404 and the page shows no link. Needs SESSION_SECRET.",
+    )
     session_hours: float = Field(
         default=12.0,
         gt=0,
@@ -478,6 +484,7 @@ class Settings(BaseSettings):
     @field_validator(
         "lookup_user",
         "app_password_hash",
+        "admin_password_hash",
         "session_secret",
         "llm_api_key",
         "openfigi_api_key",
