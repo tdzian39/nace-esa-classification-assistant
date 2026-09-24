@@ -58,7 +58,7 @@ from fastapi.responses import (
 from fastapi.templating import Jinja2Templates
 
 from config.settings import APP_ROOT, Settings, get_settings
-from core.audit import current_user, log_lookup
+from core.audit import current_user, log_lookup, log_report
 from core.auth import (
     SESSION_COOKIE,
     SessionSigner,
@@ -69,6 +69,13 @@ from core.auth import (
 from core.classify.budget import spending_as
 from core.codebooks.errors import CodebookError
 from core.codebooks.loaders import load_and_check
+from core.reports import (
+    ReportStore,
+    ReportStoreError,
+    build_report,
+    build_report_store,
+    reports_are_volatile,
+)
 from core.suggest import IssuerSuggestion, SuggestionRequest, SuggestionService, build_service
 
 LOGGER = logging.getLogger(__name__)
@@ -131,6 +138,15 @@ def _load_service(settings: Settings) -> SuggestionService:
         _state.pop("codebook_error_at", None)
         LOGGER.info("%s (loaded in %d ms)", codebooks.describe(), _state["codebook_loaded_ms"])
         return service
+
+
+def _report_store(settings: Settings) -> ReportStore:
+    """The error-report store, built once per process; tests put their own in ``_state``."""
+    store = _state.get("reports")
+    if store is None:
+        store = build_report_store(settings)
+        _state["reports"] = store
+    return store  # type: ignore[return-value]
 
 
 @asynccontextmanager
@@ -560,6 +576,83 @@ def suggest_form(
             "form": form,
             "warnings": _warnings(settings),
             "user": signed_in_user(request),
+            "reports_enabled": settings.reports_source != "off",
+        },
+    )
+
+
+@app.post("/report", response_class=HTMLResponse, include_in_schema=False)
+def report_form(
+    request: Request,
+    settings: SettingsDep,
+    isin: Annotated[str, Form()] = "",
+    name: Annotated[str, Form()] = "",
+    description: Annotated[str, Form()] = "",
+    note: Annotated[str, Form()] = "",
+) -> HTMLResponse:
+    """MO disagrees with a result, or is not sure of it: store the request with the result.
+
+    The lookup is re-run like the download is (the classifier caches, so the result is the
+    one on screen and it costs nothing), the report is written to the configured store, and
+    the same page comes back with the result and a line saying whether the report was kept.
+    A store failure is said on the page, never hidden - and never a 500.
+    """
+    payload = SuggestionRequest(isin=isin, name=name, description=description)
+    form = {"isin": isin, "name": name, "description": description}
+
+    def page_with(error: str, status_code: int = 200) -> HTMLResponse:
+        return TEMPLATES.TemplateResponse(
+            request=request,
+            name="suggest.html",
+            context={
+                "suggestion": None,
+                "form": form,
+                "error": error,
+                "warnings": _warnings(settings),
+                "user": signed_in_user(request),
+                "reports_enabled": settings.reports_source != "off",
+            },
+            status_code=status_code,
+        )
+
+    if payload.is_empty:
+        return page_with("Hlášení bez dotazu nelze uložit.")
+    try:
+        service = get_service()
+    except CodebooksUnavailableError as exc:
+        return page_with(f"Číselníky nejsou k dispozici, návrh teď nelze vytvořit: {exc}", 503)
+    suggestion = _run(service, settings, payload, request)
+    user = request_user(request, settings)
+    report = build_report(
+        suggestion,
+        note=note,
+        user=user,
+        max_note_chars=settings.reports_max_note_chars,
+        commit=os.environ.get("VERCEL_GIT_COMMIT_SHA") or None,
+    )
+    store_name = settings.reports_source
+    try:
+        store = _report_store(settings)
+        store_name = store.name
+        location = store.save(report)
+    except ReportStoreError as exc:
+        LOGGER.warning("error report %s not stored: %s", report.id, exc)
+        log_report(report.identifier, user=user, stored=False, store=store_name)
+        outcome = {"ok": False, "id": report.id, "message": str(exc)}
+    else:
+        LOGGER.info("error report %s stored at %s", report.id, location)
+        log_report(report.identifier, user=user, stored=True, store=store_name)
+        outcome = {"ok": True, "id": report.id, "message": ""}
+    return TEMPLATES.TemplateResponse(
+        request=request,
+        name="suggest.html",
+        context={
+            "suggestion": suggestion,
+            "form": form,
+            "warnings": _warnings(settings),
+            "user": signed_in_user(request),
+            "reports_enabled": settings.reports_source != "off",
+            "report": outcome,
         },
     )
 
@@ -757,5 +850,10 @@ def _warnings(settings: Settings) -> list[str]:
         warnings.append(
             "Dohledání emitenta podle ISIN je vypnuto (GLEIF_ENABLED, OPENFIGI_ENABLED); "
             "zadejte název emitenta nebo popis činnosti."
+        )
+    if reports_are_volatile(settings):
+        warnings.append(
+            "Hlášení chyb se ukládají do dočasného adresáře, který Vercel po chvíli zahodí "
+            "(REPORTS_SOURCE=dir); pro trvalé uložení nastavte REPORTS_SOURCE=blob."
         )
     return warnings

@@ -51,7 +51,8 @@ core/classify     candidates.py (pre-filter), hints.py, llm.py, proposal.py, gol
                   budget.py (limits, usage ledger), usage_report.py (the ledger as Excel)
 core/export       columns.py (the row), xlsx.py     core/batch reader.py (E6 reuses)
 core/probe.py     the /probe register checks     core/auth.py  sign-in (users, cookie)
-api/  GET / · POST /suggest · POST /api/suggest · GET /suggest.xlsx · /health · /probe
+core/reports.py   error reports (the button): request + result row + note, to a dir or Blob
+api/  GET / · POST /suggest · POST /report · POST /api/suggest · GET /suggest.xlsx · /health · /probe
       GET|POST /login · POST /logout
 ui/   suggest.html, login.html + prototype/suggest.html   tests/golden  cases.json, identity.json
 config/settings.py · .env.example · vercel.json · .python-version · pyproject.toml
@@ -90,6 +91,7 @@ framework. No pandas; numpy is a dev extra only (tests feed numpy scalars to the
 ../.venv/Scripts/python.exe -m pytest
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .
 ../.venv/Scripts/python.exe -m core.codebooks [--no-strict --json --dir PATH]
+../.venv/Scripts/python.exe -m core.reports --list [--dir PATH] [--xlsx PATH]   # the error reports
 ```
 
 The venv is Anaconda 3.13.9 (no 3.12 on this machine) but `requires-python >= 3.12`, so stay
@@ -287,6 +289,19 @@ FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept
   No rate limit — a serverless function keeps no counter — so the slow hash is the only brake.
   `tests/conftest.py` blanks `APP_PASSWORD_HASH`/`SESSION_SECRET` so a developer's `.env` cannot
   gate the page tests.
+- **Error reports** (`core/reports.py`, `POST /report`, 24 Sept 2026): the result page has one
+  button, "Nahlásit k prověření", with an optional note (`REPORTS_MAX_NOTE_CHARS`, 500). The
+  lookup is **re-run like the download** (cached, so it is the result on screen) and the
+  request, the output row (`json_row(suggestion_row())`), the lookup's notes, the user, the
+  time and the app facts (codebook version, model, prompt version, commit) are stored as one
+  JSON. `REPORTS_SOURCE`: `dir` (default; `REPORTS_DIR`, git-ignored, `<date>/<id>.json`,
+  atomic, never overwritten), `blob` (the Vercel setting: the SDK's `put` over httpx, `PUT
+  {REPORTS_BLOB_API_URL}/?pathname=`, `x-api-version 12`, `x-vercel-blob-access private`;
+  read back in the Vercel dashboard, no list call), `off` (no button). A store failure is
+  **said on the page**, never a 500; a `dir` store on Vercel gets a page warning because
+  `/tmp` does not outlive the instance. **A report is content**: never a log line - the audit
+  log gets `log_report()` (identifier, user, stored or not) only. Review: `python -m
+  core.reports --list | --xlsx`.
 - **Audit**: `request_user()` is the signed-in name when sign-in is on, and then
   `WEB_USER_HEADER` is ignored — a header a browser can send is not an identity. With sign-in
   off it reads `WEB_USER_HEADER` (default `X-Remote-User`) because in a server the OS account

@@ -77,6 +77,12 @@ optional.
    from NACE 99 to 64 for the supranational banks (EIB, EBRD, CEB, ESM) although the GLEIF category says
    international organisation - the register rule reaches the shortlist but not the model's weighing.
    Not done: industries' NACE codes (P4496, too heavy over the Action API).
+3c. **Error reports (24 Sept 2026).** One button on the result, "Nahlásit k prověření", with an optional note:
+   the request, the result row and the note are stored (`core/reports.py`; `REPORTS_SOURCE=dir|blob|off`).
+   **Vercel needs `REPORTS_SOURCE=blob`** (same token as the codebooks, prefix `reports/`), else the page warns
+   that reports land in `/tmp` and vanish. Reports are content: never in git, never in a log line; the audit log
+   records only who reported which identifier. Review with `python -m core.reports --list|--xlsx` (a directory
+   store) or the Blob dashboard. This is the first piece of D4 that MO can act on.
 4. **E5-lite: the FIRDS LEI fallback.** GLEIF maps 25 of 36 golden ISINs; the misses (Eurobond, LU/IE funds) include
    all four captive vehicles, the core ESA trap. ESMA FIRDS returns the issuer LEI for them; `/probe` already
    shows the host reachable from Vercel.

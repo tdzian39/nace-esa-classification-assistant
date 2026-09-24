@@ -410,6 +410,31 @@ class Settings(BaseSettings):
         description="How long a sign-in lasts before the name and password are asked again.",
     )
 
+    # --- Error reports (core/reports.py) ------------------------------------------------
+    # One button on the result: the request, the result row and MO's note are stored so the
+    # case can be replayed. Content, so it is kept like the codebooks: a directory that is
+    # git-ignored, or the private Blob store on Vercel - never a log line.
+    reports_source: Literal["dir", "blob", "off"] = Field(
+        default="dir",
+        description="'dir' writes one JSON file per report under REPORTS_DIR; 'blob' uploads "
+        "it to the private Vercel Blob store (the Vercel setting: /tmp does not outlive the "
+        "instance); 'off' hides the button.",
+    )
+    reports_dir: Path = Field(
+        default=APP_ROOT / "data" / "reports",
+        description="Where a 'dir' store keeps its files; relative to the app directory.",
+    )
+    reports_blob_prefix: str = Field(
+        default="reports/", description="Pathname prefix of the reports in the Blob store."
+    )
+    reports_blob_api_url: str = Field(
+        default="https://vercel.com/api/blob",
+        description="The Blob upload API (the SDK's VERCEL_BLOB_API_URL); change only if Vercel does.",
+    )
+    reports_max_note_chars: int = Field(
+        default=500, ge=1, le=5000, description="The note is cut at this many characters."
+    )
+
     # --- Logging ------------------------------------------------------------------------
     log_level: str = Field(default="INFO", description="Python logging level name.")
     probe_enabled: bool = Field(
@@ -418,7 +443,7 @@ class Settings(BaseSettings):
         "False answers 404.",
     )
 
-    @field_validator("codebook_dir", mode="after")
+    @field_validator("codebook_dir", "reports_dir", mode="after")
     @classmethod
     def _absolutize_codebook_dir(cls, value: Path) -> Path:
         """Relative directories are interpreted relative to ``APP_ROOT``, not the cwd."""

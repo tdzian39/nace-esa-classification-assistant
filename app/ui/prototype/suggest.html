@@ -297,6 +297,14 @@
   .notes { margin: 1rem 0 0; padding-left: 1.1rem; font-size: 0.82rem; color: var(--muted); }
   .notes li { margin-bottom: 0.2rem; }
   .downloads { display: flex; gap: 0.6rem; align-items: center; margin-top: 1.1rem; flex-wrap: wrap; }
+
+  /* ---- error report: one button, an optional note ---- */
+  details.report { margin-top: 1rem; padding: 0.9rem 1.1rem; }
+  details.report summary { cursor: pointer; font-weight: 650; font-size: 0.92rem; }
+  details.report form { margin-top: 0.8rem; }
+  details.report .report-hint { margin: 0 0 0.6rem; font-size: 0.82rem; color: var(--muted); }
+  details.report textarea { min-height: 3.2rem; }
+  .notice.report-done { border-left-color: var(--ok); margin-top: 1rem; }
   .foot {
     display: flex; gap: 0.5rem 1.4rem; flex-wrap: wrap; margin-top: 1.2rem; padding-top: 0.9rem;
     border-top: 1px solid var(--line); color: var(--faint); font: 0.72rem/1.5 var(--mono);

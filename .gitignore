@@ -35,6 +35,8 @@ Thumbs.db
 
 # Classification cache: holds issuer names and model answers, never committed.
 app/data/cache/
+# Error reports: requests, results and MO's notes, never committed.
+app/data/reports/
 *.sqlite3
 app/ui/prototype/preview_answered.html
 app/ui/prototype/preview_deterministic.html

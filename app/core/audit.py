@@ -96,6 +96,38 @@ class LookupEvent:
         return " ".join(parts)
 
 
+def log_report(
+    identifier: str,
+    *,
+    user: str,
+    stored: bool,
+    store: str,
+    logger: logging.Logger | None = None,
+) -> None:
+    """Record that an error report was made - never what it said.
+
+    The report itself (request, result, note) is content and goes to the report store
+    (:mod:`core.reports`); the audit trail keeps only who reported which identifier, and
+    whether the store took it. A failed store is a WARNING so an operator notices.
+    """
+    at = datetime.now(UTC)
+    outcome = "stored" if stored else "not_stored"
+    (logger or LOGGER).log(
+        logging.INFO if stored else logging.WARNING,
+        f"report identifier={identifier!r} user={user} outcome={outcome} store={store}",
+        extra={
+            "audit": {
+                "event": "report",
+                "identifier": identifier,
+                "user": user,
+                "at": at.isoformat(),
+                "outcome": outcome,
+                "store": store,
+            }
+        },
+    )
+
+
 def log_lookup(
     identifier: str,
     *,
