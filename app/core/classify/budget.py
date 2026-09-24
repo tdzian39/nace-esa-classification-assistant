@@ -44,10 +44,14 @@ CREATE TABLE IF NOT EXISTS usage (
     model             TEXT NOT NULL,
     kind              TEXT,
     prompt_tokens     INTEGER NOT NULL DEFAULT 0,
-    completion_tokens INTEGER NOT NULL DEFAULT 0
+    completion_tokens INTEGER NOT NULL DEFAULT 0,
+    cached_prompt_tokens INTEGER
 );
 CREATE INDEX IF NOT EXISTS usage_at ON usage (at);
 """
+
+#: Added after ledgers already existed; NULL in their rows means "not recorded", not zero.
+_CACHED_COLUMN = "cached_prompt_tokens"
 
 
 class BudgetExceededError(LlmError):
@@ -86,6 +90,9 @@ class UsageRecord:
     kind: str
     prompt_tokens: int
     completion_tokens: int
+    #: The part of ``prompt_tokens`` billed at the cached rate; ``None`` when the call was
+    #: recorded before this was kept, or the provider did not report it.
+    cached_prompt_tokens: int | None = None
 
     @property
     def total_tokens(self) -> int:
@@ -100,7 +107,13 @@ class UsageRecorder(Protocol):
     can_track: bool
 
     def record(
-        self, *, model: str, kind: str, prompt_tokens: int, completion_tokens: int
+        self,
+        *,
+        model: str,
+        kind: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        cached_prompt_tokens: int | None = None,
     ) -> None: ...
 
     def totals_since(self, since: datetime) -> UsageTotals: ...
@@ -111,7 +124,15 @@ class NullLedger:
 
     can_track = False
 
-    def record(self, *, model: str, kind: str, prompt_tokens: int, completion_tokens: int) -> None:
+    def record(
+        self,
+        *,
+        model: str,
+        kind: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        cached_prompt_tokens: int | None = None,
+    ) -> None:
         return None
 
     def totals_since(self, since: datetime) -> UsageTotals:
@@ -136,6 +157,9 @@ class SqliteLedger:
             path.parent.mkdir(parents=True, exist_ok=True)
             with self._connect() as connection:
                 connection.executescript(_SCHEMA)
+                columns = {row[1] for row in connection.execute("PRAGMA table_info(usage)")}
+                if _CACHED_COLUMN not in columns:
+                    connection.execute(f"ALTER TABLE usage ADD COLUMN {_CACHED_COLUMN} INTEGER")
         except (sqlite3.Error, OSError) as exc:
             LOGGER.warning(
                 "usage ledger is unusable (%s); the daily budget cannot be enforced", exc
@@ -152,20 +176,29 @@ class SqliteLedger:
         finally:
             connection.close()
 
-    def record(self, *, model: str, kind: str, prompt_tokens: int, completion_tokens: int) -> None:
+    def record(
+        self,
+        *,
+        model: str,
+        kind: str,
+        prompt_tokens: int,
+        completion_tokens: int,
+        cached_prompt_tokens: int | None = None,
+    ) -> None:
         if not self.usable:
             return
         try:
             with self._connect() as connection:
                 connection.execute(
-                    "INSERT INTO usage (at, model, kind, prompt_tokens, completion_tokens) "
-                    "VALUES (?, ?, ?, ?, ?)",
+                    "INSERT INTO usage (at, model, kind, prompt_tokens, completion_tokens, "
+                    f"{_CACHED_COLUMN}) VALUES (?, ?, ?, ?, ?, ?)",
                     (
                         datetime.now(UTC).isoformat(),
                         model,
                         kind,
                         int(prompt_tokens or 0),
                         int(completion_tokens or 0),
+                        None if cached_prompt_tokens is None else int(cached_prompt_tokens),
                     ),
                 )
         except sqlite3.Error as exc:
@@ -203,11 +236,11 @@ class SqliteLedger:
             return []
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT at, model, kind, prompt_tokens, completion_tokens FROM usage "
-                "ORDER BY at, id"
+                "SELECT at, model, kind, prompt_tokens, completion_tokens, "
+                f"{_CACHED_COLUMN} FROM usage ORDER BY at, id"
             ).fetchall()
         records = []
-        for at, model, kind, prompt_tokens, completion_tokens in rows:
+        for at, model, kind, prompt_tokens, completion_tokens, cached in rows:
             when = datetime.fromisoformat(at)
             records.append(
                 UsageRecord(
@@ -216,6 +249,7 @@ class SqliteLedger:
                     kind=kind or "",
                     prompt_tokens=int(prompt_tokens),
                     completion_tokens=int(completion_tokens),
+                    cached_prompt_tokens=None if cached is None else int(cached),
                 )
             )
         return records
@@ -315,12 +349,20 @@ class BudgetedProvider:
         self.calls_made += 1
         prompt_tokens = response.prompt_tokens or prompt.estimated_tokens
         completion_tokens = response.completion_tokens or 0
+        # A cached count only means something next to the provider's own prompt count, never
+        # next to our estimate.
+        cached_prompt_tokens = (
+            min(response.cached_prompt_tokens, prompt_tokens)
+            if response.prompt_tokens and response.cached_prompt_tokens is not None
+            else None
+        )
         self.tokens_used += prompt_tokens + completion_tokens
         self._ledger.record(
             model=response.model,
             kind=prompt.kind,
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
+            cached_prompt_tokens=cached_prompt_tokens,
         )
         return response
 

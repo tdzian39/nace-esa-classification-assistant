@@ -6,12 +6,13 @@
 * **Calls** - one row per model call, as an Excel table (filters; select a column to sum it);
 * **Prices** - the prices the costs were computed with, and where they came from.
 
-What it cannot show, and says so on the Summary sheet:
+Input the provider served from its prompt cache is priced at the cached rate, from the count
+it reported with the call. What it cannot show, and says so on the Summary sheet:
 
 * **production**: on Vercel the ledger is off (only ``/tmp`` is writable), so the deployed
   site's calls are in no ledger; the provider's usage page has them;
-* **cached input**: the provider bills cached input at a tenth, but the ledger records one
-  prompt-token count per call, so every cost here is an upper bound.
+* **calls without a cached count** - recorded before the ledger kept one, or answered by a
+  provider that does not report it - are priced as all uncached, an upper bound, and counted.
 
 Costs are computed here rather than as Excel formulas, so the file reads the same in any
 viewer. A model missing from :data:`PRICES` gets empty cost cells and is named on the Summary
@@ -64,6 +65,7 @@ CALL_COLUMNS: Final[tuple[str, ...]] = (
     "Model",
     "Codebook",
     "Input tokens",
+    "Cached input tokens",
     "Output tokens",
     "Total tokens",
     "Input cost (USD)",
@@ -116,11 +118,16 @@ def price_for(model: str) -> Price | None:
 
 @dataclass(frozen=True, slots=True)
 class CallCost:
-    """One call and what it cost; the costs are ``None`` when the model has no known price."""
+    """One call and what it cost; the costs are ``None`` when the model has no known price.
+
+    ``exact`` is False when the call has no cached count, so its input was priced as if none
+    of it had been cached: an upper bound rather than the bill.
+    """
 
     record: UsageRecord
     input_cost: float | None
     output_cost: float | None
+    exact: bool = True
 
     @property
     def cost(self) -> float | None:
@@ -130,14 +137,23 @@ class CallCost:
 
 
 def cost_of(record: UsageRecord) -> CallCost:
-    """Price one call at :data:`PRICES`, all input at the uncached rate."""
+    """Price one call at :data:`PRICES`, its cached input at the cached rate.
+
+    With no cached count every input token is priced at the uncached rate - the direction
+    that can only overstate the bill - and the call is marked inexact.
+    """
+    cached = record.cached_prompt_tokens
+    exact = cached is not None
     price = price_for(record.model)
     if price is None:
-        return CallCost(record, None, None)
+        return CallCost(record, None, None, exact=exact)
+    cached = min(max(cached or 0, 0), record.prompt_tokens)
+    uncached = record.prompt_tokens - cached
     return CallCost(
         record,
-        input_cost=record.prompt_tokens * price.input / 1_000_000,
+        input_cost=(uncached * price.input + cached * price.cached_input) / 1_000_000,
         output_cost=record.completion_tokens * price.output / 1_000_000,
+        exact=exact,
     )
 
 
@@ -149,6 +165,8 @@ class UsageReport:
     #: Of the priced calls only; see ``unpriced_models`` for the rest.
     cost: float
     unpriced_models: tuple[str, ...]
+    #: Calls with no cached count, priced as all uncached; 0 means the cost is exact.
+    inexact_calls: int = 0
 
 
 @dataclass(slots=True)
@@ -206,8 +224,9 @@ def _write_summary(
         "server, the command line, the golden run).",
         "Production (the site on Vercel) keeps no ledger, so its calls are NOT here; the "
         "provider's usage page has them.",
-        "Costs use the provider's standard prices (sheet Prices). Cached input is billed at a "
-        "tenth, but the ledger does not record it, so every cost is an upper bound.",
+        "Costs use the provider's standard prices (sheet Prices), cached input at the cached "
+        "price from the count the provider reported. A call recorded without that count is "
+        "priced as all uncached - an upper bound - and counted below.",
         f"Exported {_naive_utc(exported_at):%Y-%m-%d %H:%M} (UTC). All times are UTC.",
     )
     for row, note in enumerate(notes, start=2):
@@ -215,6 +234,7 @@ def _write_summary(
 
     total_cost = sum(item.cost for item in items if item.cost is not None)
     unpriced = tuple(sorted({item.record.model for item in items if item.cost is None}))
+    inexact = sum(1 for item in items if not item.exact)
     facts: list[tuple[str, object, str | None]] = [("Calls", len(items), _TOKENS)]
     if items:
         first, last = _naive_utc(items[0].record.at), _naive_utc(items[-1].record.at)
@@ -222,6 +242,11 @@ def _write_summary(
             ("Period (UTC)", f"{first:%Y-%m-%d %H:%M} - {last:%Y-%m-%d %H:%M}", None),
             ("Calls", len(items), _TOKENS),
             ("Input tokens", sum(item.record.prompt_tokens for item in items), _TOKENS),
+            (
+                "Cached input tokens",
+                sum(item.record.cached_prompt_tokens or 0 for item in items),
+                _TOKENS,
+            ),
             ("Output tokens", sum(item.record.completion_tokens for item in items), _TOKENS),
             ("Cost (USD)", total_cost, _COST_SUM),
         ]
@@ -234,6 +259,13 @@ def _write_summary(
         warning = f"No price known for {', '.join(unpriced)}: their cost cells are empty."
         sheet.cell(row=row, column=1, value=warning).font = _WARNING
         row += 1
+    if inexact:
+        warning = (
+            f"{inexact} call(s) have no cached-input count and are priced as all uncached, so "
+            "the cost is an upper bound."
+        )
+        sheet.cell(row=row, column=1, value=warning).font = _WARNING
+        row += 1
 
     blocks: tuple[tuple[str, str, Callable[[CallCost], str]], ...] = (
         ("By model", "Model", lambda item: item.record.model),
@@ -244,7 +276,9 @@ def _write_summary(
     for title, first_column, key in blocks:
         row = _write_group_block(sheet, row, title, first_column, _groups(items, key))
     _set_widths(sheet, (24, 26, 14, 14, 12, 18, 30))
-    return UsageReport(calls=len(items), cost=total_cost, unpriced_models=unpriced)
+    return UsageReport(
+        calls=len(items), cost=total_cost, unpriced_models=unpriced, inexact_calls=inexact
+    )
 
 
 def _groups(items: Sequence[CallCost], key: Callable[[CallCost], str]) -> list[tuple[str, _Group]]:
@@ -289,6 +323,7 @@ def _write_calls(sheet: Worksheet, items: Sequence[CallCost]) -> None:
         _TOKENS,
         _TOKENS,
         _TOKENS,
+        _TOKENS,
         _COST_CALL,
         _COST_CALL,
         _COST_CALL,
@@ -301,6 +336,7 @@ def _write_calls(sheet: Worksheet, items: Sequence[CallCost]) -> None:
             record.model,
             record.kind,
             record.prompt_tokens,
+            record.cached_prompt_tokens,
             record.completion_tokens,
             record.total_tokens,
             item.input_cost,
@@ -315,7 +351,7 @@ def _write_calls(sheet: Worksheet, items: Sequence[CallCost]) -> None:
         table.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True)
         sheet.add_table(table)
     sheet.freeze_panes = "A2"
-    _set_widths(sheet, (6, 20, 16, 11, 13, 14, 13, 16, 17, 12))
+    _set_widths(sheet, (6, 20, 16, 11, 13, 14, 14, 13, 16, 17, 12))
 
 
 def _write_prices(sheet: Worksheet) -> None:
