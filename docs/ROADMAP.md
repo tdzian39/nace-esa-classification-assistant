@@ -77,6 +77,9 @@ optional.
    from NACE 99 to 64 for the supranational banks (EIB, EBRD, CEB, ESM) although the GLEIF category says
    international organisation - the register rule reaches the shortlist but not the model's weighing.
    Not done: industries' NACE codes (P4496, too heavy over the Action API).
+3d. **The central database (24 Sept 2026, D4 answered).** `core/db.py`: with `DATABASE_URL` the ledger, the cache,
+   the audit events and the error reports live in one Postgres. **Left: create it in Vercel** (Storage → Neon →
+   connect to the project → redeploy) and confirm `/health` shows `database`; first live run of the Postgres engine.
 3c. **Error reports (24 Sept 2026).** One button on the result, "Nahlásit k prověření", with an optional note:
    the request, the result row and the note are stored (`core/reports.py`; `REPORTS_SOURCE=dir|blob|off`).
    **Vercel needs `REPORTS_SOURCE=blob`** (same token as the codebooks, prefix `reports/`), else the page warns
@@ -799,7 +802,13 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
   (Jakub).
 - **D4. Database.** Neon Postgres via the Vercel Marketplace (recommended: audit, confirmations, later the LLM
   cache and ledger in one place) vs Vercel KV. *E2/E7/E9.*
-  **Answer:**
+  **Answer:** 2026-09-24 — **Postgres, and the code is ready** (`core/db.py`): `DATABASE_URL` set = the usage
+  ledger, the answer cache, the audit events and the error reports in one database, from every device and user.
+  Neon via the Vercel Marketplace (free tier) is the intended store; any Postgres works. **Left to do in Vercel**
+  (the project is in Jakub's team): Storage → Create Database → Neon → connect to `nace-esa-assistant` (sets
+  `DATABASE_URL`), redeploy, check `/health` shows `database`. Then `LLM_DAILY_TOKEN_BUDGET` can be raised above 0
+  in production, because the ledger is measurable there. The Postgres engine has not run against a live server
+  yet (none on the development machine); the SQLite engine runs the same SQL in the tests.
 - **D5. Authentication.** OIDC with Microsoft Entra ID needs an app registration from IT (Q-A1). Is the interim
   password gate with a self-declared name acceptable for the pilot, and for how long? *E2.*
   **Answer:** 2026-09-22 — there will be **no Entra ID app registration** (Jakub). The E2.1 shared-password gate

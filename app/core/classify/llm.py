@@ -340,15 +340,17 @@ def build_classifier(
     from core.classify.budget import BudgetedProvider, build_budget, build_ledger
     from core.classify.cache import build_cache
     from core.classify.provider import build_provider, worst_case_call_seconds
+    from core.db import get_database
 
     resolved: Settings = settings if isinstance(settings, Settings) else get_settings()
+    database = get_database(resolved)
     # Every caller gets the limits, because they are applied here rather than at each call
     # site: a new entry point cannot forget them.
     inner = provider if provider is not None else build_provider(resolved)
     guarded = BudgetedProvider(
         inner,
         budget=build_budget(resolved),
-        ledger=build_ledger(resolved.llm_usage_path),
+        ledger=build_ledger(resolved.llm_usage_path, database),
     )
     # The null provider makes no call, so there is nothing to fit into the deadline - and
     # "no model configured" stays the reason the page shows.
@@ -356,7 +358,7 @@ def build_classifier(
     warn_if_unstartable(resolved, call_seconds)
     return LlmClassifier(
         guarded,
-        cache=build_cache(resolved.llm_cache_path),
+        cache=build_cache(resolved.llm_cache_path, database),
         codebook_version=codebook_version,
         max_suggestions=resolved.llm_max_suggestions,
         call_seconds=call_seconds,

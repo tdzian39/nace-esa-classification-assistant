@@ -58,7 +58,7 @@ from fastapi.responses import (
 from fastapi.templating import Jinja2Templates
 
 from config.settings import APP_ROOT, Settings, get_settings
-from core.audit import current_user, log_lookup, log_report
+from core.audit import current_user, log_lookup, log_report, set_audit_sink
 from core.auth import (
     SESSION_COOKIE,
     SessionSigner,
@@ -69,6 +69,7 @@ from core.auth import (
 from core.classify.budget import spending_as
 from core.codebooks.errors import CodebookError
 from core.codebooks.loaders import load_and_check
+from core.db import DatabaseAuditSink, get_database
 from core.reports import (
     ReportStore,
     ReportStoreError,
@@ -158,12 +159,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     _state["settings"] = settings
+    database = get_database(settings)
+    if database is not None:
+        # Every lookup and report is also kept in the central database (D4). Reachability is
+        # checked at the first write, not here: a database that is down must not stop the
+        # instance from serving.
+        set_audit_sink(DatabaseAuditSink(database))
+        LOGGER.info("central database: %s", database.describe())
     # A failure is already logged and remembered; suggestion requests answer 503 with it.
     with suppress(CodebooksUnavailableError):
         _load_service(settings)
     try:
         yield
     finally:
+        set_audit_sink(None)
         _state.clear()
 
 
@@ -367,6 +376,8 @@ def health(settings: SettingsDep) -> JSONResponse:
             "llm_configured": settings.llm_api_key is not None and settings.llm_enabled,
             "search_configured": bool(settings.web_search_url),
             "wikimedia_enabled": settings.web_enabled and settings.wikimedia_enabled,
+            "database": (database.describe() if (database := get_database(settings)) else None),
+            "reports": settings.effective_reports_source,
             "gleif_enabled": settings.gleif_enabled,
             "openfigi_enabled": settings.openfigi_enabled,
             "python": platform.python_version(),
@@ -576,7 +587,7 @@ def suggest_form(
             "form": form,
             "warnings": _warnings(settings),
             "user": signed_in_user(request),
-            "reports_enabled": settings.reports_source != "off",
+            "reports_enabled": settings.effective_reports_source != "off",
         },
     )
 
@@ -610,7 +621,7 @@ def report_form(
                 "error": error,
                 "warnings": _warnings(settings),
                 "user": signed_in_user(request),
-                "reports_enabled": settings.reports_source != "off",
+                "reports_enabled": settings.effective_reports_source != "off",
             },
             status_code=status_code,
         )
@@ -630,7 +641,7 @@ def report_form(
         max_note_chars=settings.reports_max_note_chars,
         commit=os.environ.get("VERCEL_GIT_COMMIT_SHA") or None,
     )
-    store_name = settings.reports_source
+    store_name = settings.effective_reports_source
     try:
         store = _report_store(settings)
         store_name = store.name
@@ -651,7 +662,7 @@ def report_form(
             "form": form,
             "warnings": _warnings(settings),
             "user": signed_in_user(request),
-            "reports_enabled": settings.reports_source != "off",
+            "reports_enabled": settings.effective_reports_source != "off",
             "report": outcome,
         },
     )

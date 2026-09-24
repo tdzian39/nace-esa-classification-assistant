@@ -224,8 +224,9 @@ def _write_summary(
     notes = (
         f"Every model call recorded in {source}: the calls made from this machine (the local "
         "server, the command line, the golden run).",
-        "Production (the site on Vercel) keeps no ledger, so its calls are NOT here; the "
-        "provider's usage page has them.",
+        "Production (the site on Vercel) keeps no ledger without DATABASE_URL, so its calls "
+        "are NOT here (the provider's usage page has them); with it, this is the shared "
+        "ledger of every device and user.",
         "Costs use the provider's standard prices (sheet Prices), cached input at the cached "
         "price from the count the provider reported. A call recorded without that count is "
         "priced as all uncached - an upper bound - and counted below.",

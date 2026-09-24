@@ -17,6 +17,9 @@ dependencies = [
   "jinja2>=3.1",
   "python-multipart>=0.0.9",
   "httpx>=0.27",
+  # The central database (roadmap D4): psycopg 3 with its bundled libpq, so DATABASE_URL
+  # needs no system library on Vercel. Imported only when DATABASE_URL is set.
+  "psycopg[binary]>=3.2",
 ]
 
 [project.optional-dependencies]

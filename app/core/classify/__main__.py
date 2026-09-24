@@ -155,11 +155,16 @@ def _print_set(candidate_set: CandidateSet, *, verbose: bool) -> None:
 def _print_usage(settings) -> None:
     """Show the limits and today's spend, so cost is answerable from the tool."""
     from core.classify.budget import build_budget, build_ledger
+    from core.db import get_database
 
     budget = build_budget(settings)
-    ledger = build_ledger(settings.llm_usage_path)
+    database = get_database(settings)
+    ledger = build_ledger(settings.llm_usage_path, database)
     print(budget.describe())
-    print(f"ledger: {settings.llm_usage_path or '(disabled)'}")
+    if database is not None:
+        print(f"ledger: the central database ({database.describe()})")
+    else:
+        print(f"ledger: {settings.llm_usage_path or '(disabled)'}")
     if not getattr(ledger, "can_track", False):
         print("WARNING: usage cannot be recorded, so the daily budget is NOT enforceable.")
         print("         Every model call will be refused until this is fixed, or until")
@@ -176,6 +181,24 @@ def _export_usage(settings, target: str) -> int:
     """Write the usage ledger as a workbook; loads no codebooks and calls no model."""
     from core.classify.budget import SqliteLedger
     from core.classify.usage_report import PRICES_CHECKED, write_usage_workbook
+    from core.db import DatabaseError, DatabaseLedger, get_database
+
+    database = get_database(settings)
+    if database is not None:
+        out = Path(target) if target else Path("llm_usage.xlsx")
+        try:
+            report = write_usage_workbook(
+                DatabaseLedger(database).records(),
+                out,
+                source=f"the central database ({database.describe()})",
+            )
+        except DatabaseError as exc:
+            print(f"error: the central database cannot be read: {exc}", file=sys.stderr)
+            return EXIT_LOAD_FAILED
+        print(
+            f"wrote {out}: {report.calls} call(s), ${report.cost_usd:.4f} at the prices checked on {PRICES_CHECKED:%d %b %Y}"
+        )
+        return EXIT_OK
 
     ledger_path = settings.llm_usage_path
     if ledger_path is None:
@@ -313,8 +336,10 @@ def _model_refusal(settings) -> str | None:
             "LLM_PROVIDER=openai and LLM_API_KEY (app/README.md -> 'Enabling the model'). "
             "Nothing was sent."
         )
+    from core.db import get_database
+
     if settings.llm_daily_token_budget > 0 and not getattr(
-        build_ledger(settings.llm_usage_path), "can_track", False
+        build_ledger(settings.llm_usage_path, get_database(settings)), "can_track", False
     ):
         return (
             "LLM_DAILY_TOKEN_BUDGET is set but LLM_USAGE_PATH records nothing, so every call "

@@ -12,7 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 #: The ``app/`` directory (repository layout root; ``/app`` inside the container).
@@ -410,15 +410,27 @@ class Settings(BaseSettings):
         description="How long a sign-in lasts before the name and password are asked again.",
     )
 
+    # --- The central database (core/db.py, roadmap D4) ---------------------------------
+    # One Postgres for what a serverless function cannot keep on disk: the usage ledger, the
+    # answer cache, the audit events and the error reports - from every device and user.
+    # The Vercel Marketplace integration (Neon) sets DATABASE_URL; POSTGRES_URL is read too.
+    database_url: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("DATABASE_URL", "POSTGRES_URL"),
+        description="postgresql://user:password@host/db?sslmode=require (Sensitive on Vercel). "
+        "Set: the ledger, the cache, the audit events and the error reports go there instead "
+        "of local files. Empty: local files as before.",
+    )
+
     # --- Error reports (core/reports.py) ------------------------------------------------
     # One button on the result: the request, the result row and MO's note are stored so the
     # case can be replayed. Content, so it is kept like the codebooks: a directory that is
     # git-ignored, or the private Blob store on Vercel - never a log line.
-    reports_source: Literal["dir", "blob", "off"] = Field(
-        default="dir",
-        description="'dir' writes one JSON file per report under REPORTS_DIR; 'blob' uploads "
-        "it to the private Vercel Blob store (the Vercel setting: /tmp does not outlive the "
-        "instance); 'off' hides the button.",
+    reports_source: Literal["auto", "db", "dir", "blob", "off"] = Field(
+        default="auto",
+        description="'auto' is 'db' with DATABASE_URL and 'dir' without; 'db' the central "
+        "database; 'dir' one JSON file per report under REPORTS_DIR; 'blob' the private "
+        "Vercel Blob store; 'off' hides the button.",
     )
     reports_dir: Path = Field(
         default=APP_ROOT / "data" / "reports",
@@ -443,6 +455,13 @@ class Settings(BaseSettings):
         "False answers 404.",
     )
 
+    @property
+    def effective_reports_source(self) -> str:
+        """``reports_source`` with ``auto`` resolved: the database when there is one."""
+        if self.reports_source != "auto":
+            return self.reports_source
+        return "db" if self.database_url and self.database_url.get_secret_value().strip() else "dir"
+
     @field_validator("codebook_dir", "reports_dir", mode="after")
     @classmethod
     def _absolutize_codebook_dir(cls, value: Path) -> Path:
@@ -462,6 +481,7 @@ class Settings(BaseSettings):
         "session_secret",
         "llm_api_key",
         "openfigi_api_key",
+        "database_url",
         "blob_read_write_token",
         "blob_store_id",
         "codebook_download_dir",

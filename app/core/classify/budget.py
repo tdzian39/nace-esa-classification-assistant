@@ -432,8 +432,13 @@ def build_budget(settings: object = None) -> Budget:
     )
 
 
-def build_ledger(path: Path | None) -> UsageRecorder:
-    """A SQLite ledger at ``path``, or a null one when usage tracking is switched off."""
+def build_ledger(path: Path | None, database: object = None) -> UsageRecorder:
+    """The central database's ledger when there is one (:mod:`core.db`), else a SQLite ledger
+    at ``path``, else a null one when usage tracking is switched off."""
+    if database is not None:
+        from core.db import DatabaseLedger
+
+        return DatabaseLedger(database)  # type: ignore[arg-type]
     return SqliteLedger(path) if path else NullLedger()
 
 

@@ -51,7 +51,8 @@ core/classify     candidates.py (pre-filter), hints.py, llm.py, proposal.py, gol
                   budget.py (limits, usage ledger), usage_report.py (the ledger as Excel)
 core/export       columns.py (the row), xlsx.py     core/batch reader.py (E6 reuses)
 core/probe.py     the /probe register checks     core/auth.py  sign-in (users, cookie)
-core/reports.py   error reports (the button): request + result row + note, to a dir or Blob
+core/reports.py   error reports (the button): request + result row + note, to the db, a dir or Blob
+core/db.py        the central Postgres (D4): ledger, cache, audit events, reports; SQLite engine for tests
 api/  GET / · POST /suggest · POST /report · POST /api/suggest · GET /suggest.xlsx · /health · /probe
       GET|POST /login · POST /logout
 ui/   suggest.html, login.html + prototype/suggest.html   tests/golden  cases.json, identity.json
@@ -289,6 +290,23 @@ FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept
   No rate limit — a serverless function keeps no counter — so the slow hash is the only brake.
   `tests/conftest.py` blanks `APP_PASSWORD_HASH`/`SESSION_SECRET` so a developer's `.env` cannot
   gate the page tests.
+- **The central database** (`core/db.py`, roadmap D4, 24 Sept 2026): `DATABASE_URL` (or
+  `POSTGRES_URL`, what the Vercel Marketplace's Neon integration sets) moves four things into
+  one Postgres, from every device and user: the usage ledger (`llm_usage`, so
+  `LLM_DAILY_TOKEN_BUDGET` is enforceable in production), the answer cache
+  (`classifications`, shared by every instance), the audit events (`audit_events`: lookups
+  and reports, identifier/user/outcome, **never content**) and the error reports
+  (`error_reports`). Same protocols as the SQLite and file stores, chosen in `build_ledger`
+  / `build_cache` / `build_report_store` (`REPORTS_SOURCE=auto` → `db`), and `set_audit_sink()`
+  at startup. **One SQL, two engines**: `?` placeholders and ISO-8601 text timestamps, Postgres
+  gets `%s` and `BIGSERIAL`; the SQLite engine (`sqlite:///path`) runs the same code in the
+  tests and on a laptop. A connection per operation (Neon's pooled URL), connect timeout 5 s,
+  schema `CREATE TABLE IF NOT EXISTS` once per instance, no migration tool. Writes fail soft
+  (a warning), reads are honest (`records()` raises). psycopg 3 with bundled libpq is a
+  runtime dependency, imported only when the URL is set. **Not verified against a live
+  Postgres** - there is none on this machine; the first deployment with the URL is the test:
+  `/health` shows `database`, then `python -m core.classify --usage` with the same URL shows
+  the lookup. `describe()` never includes the password.
 - **Error reports** (`core/reports.py`, `POST /report`, 24 Sept 2026): the result page has one
   button, "Nahlásit k prověření", with an optional note (`REPORTS_MAX_NOTE_CHARS`, 500). The
   lookup is **re-run like the download** (cached, so it is the result on screen) and the
@@ -301,7 +319,7 @@ FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept
   **said on the page**, never a 500; a `dir` store on Vercel gets a page warning because
   `/tmp` does not outlive the instance. **A report is content**: never a log line - the audit
   log gets `log_report()` (identifier, user, stored or not) only. Review: `python -m
-  core.reports --list | --xlsx`.
+  core.reports --list | --xlsx` (the database when `DATABASE_URL` is set).
 - **Audit**: `request_user()` is the signed-in name when sign-in is on, and then
   `WEB_USER_HEADER` is ignored — a header a browser can send is not an identity. With sign-in
   off it reads `WEB_USER_HEADER` (default `X-Remote-User`) because in a server the OS account

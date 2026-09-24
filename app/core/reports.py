@@ -21,6 +21,8 @@ Where a report goes is a deployment question, like the codebooks (roadmap D3/D4)
   ``x-content-type``, ``x-add-random-suffix: 0``, ``x-allow-overwrite: 0``. Reading the
   reports back is the Vercel dashboard or ``vercel blob`` - listing is a metered call the
   app never makes.
+* ``REPORTS_SOURCE=db`` keeps them in the central database (:mod:`core.db`, roadmap D4) -
+  the default whenever ``DATABASE_URL`` is set (``auto``).
 * ``REPORTS_SOURCE=off`` hides the button.
 
 A report is content - issuer names, descriptions, codes, MO's own words - so it is treated
@@ -28,8 +30,9 @@ like the codebooks: never in the repository (``app/data/reports/`` is git-ignore
 a log line. The audit log records only that a report was made, by whom, and whether it was
 stored (:func:`core.audit.log_report`).
 
-``python -m core.reports --list [--dir PATH]`` prints the reports of a directory store;
-``--xlsx PATH`` writes them as a workbook for whoever reviews them.
+``python -m core.reports --list [--dir PATH]`` prints the reports of the configured store
+(the database when ``DATABASE_URL`` is set, else the directory); ``--xlsx PATH`` writes them
+as a workbook for whoever reviews them.
 """
 
 from __future__ import annotations
@@ -318,10 +321,18 @@ class NullReportStore:
 def build_report_store(settings: Settings) -> ReportStore:
     """The store ``REPORTS_SOURCE`` names. Raises :class:`ReportStoreError` for a misconfigured
     blob store, so the fault shows at the first report, in words, rather than as a 500."""
-    if settings.reports_source == "off":
+    source = settings.effective_reports_source
+    if source == "off":
         return NullReportStore()
-    if settings.reports_source == "dir":
+    if source == "dir":
         return DirectoryReportStore(settings.reports_dir)
+    if source == "db":
+        from core.db import DatabaseReportStore, get_database
+
+        database = get_database(settings)
+        if database is None:
+            raise ReportStoreError("REPORTS_SOURCE=db but DATABASE_URL is not set")
+        return DatabaseReportStore(database)
     from core.codebooks.blob import blob_store_id
 
     token = (
@@ -347,7 +358,7 @@ def build_report_store(settings: Settings) -> ReportStore:
 def reports_are_volatile(settings: Settings, environ: Mapping[str, str] | None = None) -> bool:
     """True when a directory store would not outlive the instance (a Vercel function)."""
     environ = os.environ if environ is None else environ
-    return settings.reports_source == "dir" and bool(environ.get("VERCEL"))
+    return settings.effective_reports_source == "dir" and bool(environ.get("VERCEL"))
 
 
 # -- review ---------------------------------------------------------------------------------
@@ -392,8 +403,14 @@ def _main(argv: list[str] | None = None) -> int:
     if not (args.list or args.xlsx):
         parser.print_help()
         return 2
-    root = args.dir or get_settings().reports_dir
-    reports = list(DirectoryReportStore(root).load())
+    settings = get_settings()
+    if args.dir is None and settings.effective_reports_source == "db":
+        store = build_report_store(settings)
+        root = getattr(store, "database").describe()  # noqa: B009 - the db store only
+        reports = list(store.load())  # type: ignore[attr-defined]
+    else:
+        root = args.dir or settings.reports_dir
+        reports = list(DirectoryReportStore(root).load())
     if args.list:
         print(f"{len(reports)} report(s) in {root}")
         for report in reports:
