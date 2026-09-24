@@ -25,6 +25,11 @@ Design notes worth keeping:
   or shared URL behaves the same for everybody.
 * **Every lookup is audited** through :mod:`core.audit`, which records the identifier, the
   time and the user - never the retrieved content.
+* **Sign-in is optional and fails closed** (:mod:`core.auth`). With ``APP_PASSWORD_HASH`` set,
+  every page but ``/login``, ``/health`` and ``/api/version`` needs the signed session cookie:
+  the shared password plus a name, which is the audited user and the one model calls are
+  charged to. A hash that cannot be read, or no ``SESSION_SECRET``, means nobody gets in -
+  never everybody.
 """
 
 from __future__ import annotations
@@ -36,16 +41,32 @@ import threading
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Annotated, Final
 from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, Form, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.templating import Jinja2Templates
 
 from config.settings import APP_ROOT, Settings, get_settings
 from core.audit import current_user, log_lookup
+from core.auth import (
+    SESSION_COOKIE,
+    SessionSigner,
+    is_password_hash,
+    normalize_name,
+    verify_password,
+)
+from core.classify.budget import spending_as
 from core.codebooks.errors import CodebookError
 from core.codebooks.loaders import load_and_check
 from core.suggest import IssuerSuggestion, SuggestionRequest, SuggestionService, build_service
@@ -177,8 +198,94 @@ def codebook_status(settings: Settings) -> dict[str, object]:
     }
 
 
+# -- sign-in -----------------------------------------------------------------------------
+
+#: Reachable without signing in: the sign-in itself, and what Vercel and an operator poll.
+PUBLIC_PATHS: Final[frozenset[str]] = frozenset({"/login", "/logout", "/health", "/api/version"})
+
+#: Hosts a browser reaches over plain HTTP, where a ``Secure`` cookie would never come back.
+_PLAIN_HTTP_HOSTS: Final[frozenset[str]] = frozenset({"localhost", "127.0.0.1", "testserver"})
+
+
+@dataclass(frozen=True, slots=True)
+class SignIn:
+    """The sign-in configuration: the shared password and how sessions are signed.
+
+    ``problem`` is set when sign-in is configured but nobody can sign in - it is shown on
+    the sign-in page, and every protected page stays closed.
+    """
+
+    signer: SessionSigner | None = None
+    problem: str | None = None
+
+    def user_of(self, request: Request) -> str | None:
+        if self.signer is None:
+            return None
+        return self.signer.verify(request.cookies.get(SESSION_COOKIE))
+
+
+def sign_in_config(settings: Settings) -> SignIn | None:
+    """``None`` when sign-in is off (no ``APP_PASSWORD_HASH``); never raises."""
+    if settings.app_password_hash is None:
+        return None
+    password_hash = settings.app_password_hash.get_secret_value().strip()
+    if not is_password_hash(password_hash):
+        return SignIn(
+            problem="APP_PASSWORD_HASH není hash hesla; vytvořte ho příkazem "
+            "python -m core.classify --hash-password."
+        )
+    if settings.session_secret is None:
+        return SignIn(problem="Chybí SESSION_SECRET, přihlášení není možné.")
+    signer = SessionSigner(
+        secret=settings.session_secret.get_secret_value().encode("utf-8"),
+        max_age_seconds=round(settings.session_hours * 3600),
+        password_hash=password_hash,
+    )
+    return SignIn(signer=signer)
+
+
+def _safe_next(target: str | None) -> str:
+    """Where to go after signing in: a path on this site only, never another site."""
+    if target and target.startswith("/") and not target.startswith("//") and "\\" not in target:
+        return target
+    return "/"
+
+
+def _cookie_is_secure(request: Request) -> bool:
+    return request.url.hostname not in _PLAIN_HTTP_HOSTS
+
+
+@app.middleware("http")
+async def require_sign_in(request: Request, call_next):  # noqa: ANN001, ANN201 - Starlette's
+    """Let a request through only with a valid session, when sign-in is on."""
+    config = sign_in_config(get_app_settings())
+    if config is None or request.url.path in PUBLIC_PATHS:
+        return await call_next(request)
+    user = config.user_of(request)
+    if user is not None:
+        request.state.user = user
+        return await call_next(request)
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"detail": "sign-in required"}, status_code=401)
+    if request.headers.get("HX-Request"):
+        # htmx would swap the sign-in page into the result region; send the browser there.
+        return Response(status_code=401, headers={"HX-Redirect": "/login"})
+    if request.method != "GET":
+        return RedirectResponse("/login", status_code=303)
+    target = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+    return RedirectResponse(f"/login?next={quote(target, safe='')}", status_code=303)
+
+
+def signed_in_user(request: Request | None) -> str | None:
+    """The name the session cookie proved, once the middleware has checked it."""
+    return getattr(request.state, "user", None) if request is not None else None
+
+
 def request_user(http_request: Request | None, settings: Settings) -> str:
     """Who is asking.
+
+    With sign-in on, the signed-in name and nothing else: a header is anything a browser
+    chooses to send.
 
     In a server the OS account is the *service* account, so auditing it would record the
     same name for everybody and would not satisfy "log the requesting user". The signed-in
@@ -190,8 +297,11 @@ def request_user(http_request: Request | None, settings: Settings) -> str:
     Falls back to :func:`~core.audit.current_user` for local runs, where the OS account
     really is the person.
     """
+    user = signed_in_user(http_request)
+    if user is not None:
+        return user
     header = settings.web_user_header.strip()
-    if http_request is not None and header:
+    if http_request is not None and header and settings.app_password_hash is None:
         value = (http_request.headers.get(header) or "").strip()
         if value:
             return value[:120]
@@ -204,13 +314,15 @@ def _run(
     request: SuggestionRequest,
     http_request: Request | None = None,
 ) -> IssuerSuggestion:
-    """Run one lookup and audit it."""
+    """Run one lookup, audit it, and charge its model calls to whoever asked."""
     identifier = request.isin or request.name or (request.description or "")[:60]
-    suggestion = service.suggest(request)
+    user = request_user(http_request, settings)
+    with spending_as(user):
+        suggestion = service.suggest(request)
     log_lookup(
         identifier,
         outcome="found" if suggestion.answered else "not_found",
-        user=request_user(http_request, settings),
+        user=user,
         sources=suggestion.sources,
         detail=None if suggestion.answered else "abstained",
     )
@@ -296,6 +408,94 @@ def probe(
     )
 
 
+# -- sign-in pages -----------------------------------------------------------------------
+
+
+def _login_page(
+    request: Request,
+    *,
+    next_path: str,
+    name: str = "",
+    error: str | None = None,
+    status_code: int = 200,
+) -> HTMLResponse:
+    return TEMPLATES.TemplateResponse(
+        request=request,
+        name="login.html",
+        context={"next": next_path, "name": name, "error": error},
+        status_code=status_code,
+    )
+
+
+@app.get("/login", response_class=HTMLResponse, include_in_schema=False, response_model=None)
+def login_form(
+    request: Request,
+    settings: SettingsDep,
+    next: Annotated[str, Query()] = "/",  # noqa: A002 - the conventional parameter name
+) -> HTMLResponse | RedirectResponse:
+    """The sign-in form; straight on when sign-in is off or the session is still valid."""
+    config = sign_in_config(settings)
+    target = _safe_next(next)
+    if config is None or config.user_of(request) is not None:
+        return RedirectResponse(target, status_code=303)
+    return _login_page(request, next_path=target, error=config.problem)
+
+
+@app.post("/login", response_class=HTMLResponse, include_in_schema=False, response_model=None)
+def login_submit(
+    request: Request,
+    settings: SettingsDep,
+    name: Annotated[str, Form()] = "",
+    password: Annotated[str, Form()] = "",
+    next: Annotated[str, Form()] = "/",  # noqa: A002 - the conventional parameter name
+) -> HTMLResponse | RedirectResponse:
+    """Check the name and password; on success set the session cookie and go on."""
+    config = sign_in_config(settings)
+    target = _safe_next(next)
+    if config is None:
+        return RedirectResponse(target, status_code=303)
+    if config.signer is None:
+        return _login_page(
+            request, next_path=target, name=name, error=config.problem, status_code=503
+        )
+    user = normalize_name(name)
+    if user is None:
+        return _login_page(
+            request, next_path=target, name=name, error="Zadejte své jméno.", status_code=422
+        )
+    if not verify_password(password, config.signer.password_hash):
+        LOGGER.info("sign-in refused name=%r", user)
+        return _login_page(
+            request, next_path=target, name=name, error="Nesprávné heslo.", status_code=401
+        )
+    LOGGER.info("sign-in user=%r", user)
+    response = RedirectResponse(target, status_code=303)
+    response.set_cookie(
+        SESSION_COOKIE,
+        config.signer.issue(user),
+        max_age=config.signer.max_age_seconds,
+        httponly=True,
+        samesite="lax",
+        secure=_cookie_is_secure(request),
+        path="/",
+    )
+    return response
+
+
+@app.post("/logout", include_in_schema=False)
+def logout(request: Request) -> RedirectResponse:
+    """Forget the session in this browser."""
+    response = RedirectResponse("/login", status_code=303)
+    response.delete_cookie(
+        SESSION_COOKIE,
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=_cookie_is_secure(request),
+    )
+    return response
+
+
 # -- the page ----------------------------------------------------------------------------
 
 
@@ -305,7 +505,12 @@ def index(request: Request, settings: SettingsDep) -> HTMLResponse:
     return TEMPLATES.TemplateResponse(
         request=request,
         name="suggest.html",
-        context={"suggestion": None, "form": {}, "warnings": _warnings(settings)},
+        context={
+            "suggestion": None,
+            "form": {},
+            "warnings": _warnings(settings),
+            "user": signed_in_user(request),
+        },
     )
 
 
@@ -334,6 +539,7 @@ def suggest_form(
                 "form": form,
                 "error": error,
                 "warnings": _warnings(settings),
+                "user": signed_in_user(request),
             },
             status_code=status_code,
         )
@@ -348,7 +554,12 @@ def suggest_form(
     return TEMPLATES.TemplateResponse(
         request=request,
         name="suggest.html",
-        context={"suggestion": suggestion, "form": form, "warnings": _warnings(settings)},
+        context={
+            "suggestion": suggestion,
+            "form": form,
+            "warnings": _warnings(settings),
+            "user": signed_in_user(request),
+        },
     )
 
 

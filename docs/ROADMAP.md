@@ -27,7 +27,9 @@ optional.
 
 **Needed before MO uses it**
 
-1. **E2 — the login (S–M).** Vercel Authentication on Hobby admits the owner plus one external user, so MO cannot
+1. **E2 — the login (S–M).** **Login built (24 Sept 2026):** D5's shared password plus a self-declared
+   name (`APP_PASSWORD_HASH`, `SESSION_SECRET`; see E2 item 1), off until configured; audit persistence (D4)
+   is still open. Vercel Authentication on Hobby admits the owner plus one external user, so MO cannot
    get in yet. Build the shared-password gate with a self-declared name (D5) and the untrusted-header rule. The
    hard rule "log every lookup with its user" needs somewhere to keep the log — Vercel keeps runtime logs 1 hour
    on Hobby — so **decide D4** (a Neon Postgres free tier via the Vercel Marketplace, one `audit_events` table,
@@ -102,6 +104,7 @@ Q15 (a listed parent's NACE), D4 (database, for the audit), Q10 (volume; a free 
 | 2026-09-23 | **Navrhovaný kód in deterministic mode** (the brief's wording): the first candidate is labelled as the proposal when a rule decided it (GLEIF category or keyword), marked as the rules' and without a confidence; no proposal on text similarity alone or on a tie between rules for different codes (PR #8). | Jakub |
 | 2026-09-22 | **Q8 / E8 — the golden set is built without MO.** Claude builds ~30 real issuers from the E8 seed list, mixing banks, corporates, funds, governments, supranationals and financing vehicles, from ISINs and public sources. `verified_by` stays empty on every case until someone checks it against CTS; codes worked out this way stay provisional and no accuracy is quoted from them. | Jakub |
 | 2026-09-23 | **No Vercel Pro — the project stays on Hobby. No app login for now** (§0 item 1): the site stays behind Vercel Authentication (all deployments) until Jakub opens it to MO. The OpenAI key has **no monthly spending limit**, so that login is the only guard on the model's cost. MO is not asked about Q7/Q15 and nothing is checked in CTS (§0 item 5); MO tests the tool in use. | Jakub |
+| 2026-09-24 | **E2 login built as D5 says: one shared password, and everybody types their name.** The password is configured only as a hash (`APP_PASSWORD_HASH`; the repo is public), the session is a signed cookie, sign-in stays off until configured. The name is normalised (lower case, no diacritics) and users are asked to type it that way, without being told it keys the ledger. Model spend is recorded per name, calls from before as `unknown` — which production does not keep (D4). | Timotej |
 
 ---
 
@@ -480,13 +483,17 @@ repository owner (perhaps in `tdzian39/rb_files`, where Jakub has a pending invi
 
 **Goal:** only MO can open it, and every lookup is attributed to a named person (self-declared, D5) and kept.
 **Work:**
-1. **The login — permanent (D5, 22 Sept 2026):** middleware requiring a shared secret `APP_ACCESS_PASSWORD`
-   (env), Czech login page, signed session cookie (Starlette `itsdangerous`), a *self-declared* display name
-   stored in the cookie and written to the audit as `jmeno (self-declared)`. `/health` exempt. Honest and cheap;
-   not an identity, and the audit says so. Rotating the password is the way to revoke access.
+1. **The login — permanent (D5, 22 Sept 2026); done 24 Sept 2026.** Middleware requiring one shared password,
+   Czech login page, signed session cookie, a *self-declared* name stored in the cookie. `/health` and
+   `/api/version` exempt. Honest and cheap; not an identity. Rotating the password is the way to revoke access.
+   As built: the password is configured as a hash (`APP_PASSWORD_HASH`), the cookie is signed with
+   `SESSION_SECRET` by the standard library (no `itsdangerous`), and the name is normalised and written to the
+   audit and the usage ledger as typed-and-normalised — no "(self-declared)" suffix, since it keys the ledger.
 2. ~~OIDC with Microsoft Entra ID~~ — **dropped 22 Sept 2026 (D5):** there will be no Entra ID app
    registration (Q-A1 dropped with it), so item 1 is the login for good.
-3. **Untrusted header off:** `WEB_USER_HEADER` is only honoured when `TRUST_PROXY_USER_HEADER=true`; default
+3. **Untrusted header off — done for sign-in (24 Sept 2026):** with `APP_PASSWORD_HASH` set the header is
+   ignored.
+   Still to do for an open app: `WEB_USER_HEADER` is only honoured when `TRUST_PROXY_USER_HEADER=true`; default
    false; Vercel env leaves it false. A header a browser can set is not an identity.
 4. **Audit persistence:** `core/audit.py` gains a sink; `audit_events(id, at, user, identifier, isin, outcome,
    sources, detail)` in Postgres (D4); the log line stays. Retention: decide with MO (Q-A2); no retrieved content

@@ -22,6 +22,7 @@ from core.classify.budget import (
     SqliteLedger,
     UsageTotals,
     build_ledger,
+    spending_as,
 )
 from core.classify.llm import LlmClassifier, build_classifier
 from core.classify.prompts import build_prompt
@@ -208,6 +209,37 @@ class TestLedger:
             cached_prompt_tokens=0,
         )
         assert [r.cached_prompt_tokens for r in ledger.records()] == [None, 0]
+        # ...and every call made before users were kept is unknown's.
+        assert [r.user for r in ledger.records()] == ["unknown", "unknown"]
+
+    def test_each_call_is_charged_to_the_user_it_was_made_for(self, tmp_path: Path) -> None:
+        ledger = SqliteLedger(tmp_path / "usage.sqlite3")
+        provider = BudgetedProvider(StubLlmProvider(ANSWER), ledger=ledger)
+        with spending_as("Jana Nováková"):
+            provider.complete(prompt())
+            with spending_as("Petr"):
+                provider.complete(prompt())
+            provider.complete(prompt())
+        provider.complete(prompt())
+        assert [r.user for r in ledger.records()] == [
+            "Jana Nováková",
+            "Petr",
+            "Jana Nováková",
+            "unknown",
+        ]
+
+    def test_a_blank_user_is_unknown(self, tmp_path: Path) -> None:
+        ledger = SqliteLedger(tmp_path / "usage.sqlite3")
+        with spending_as("   "):
+            BudgetedProvider(StubLlmProvider(ANSWER), ledger=ledger).complete(prompt())
+        assert [r.user for r in ledger.records()] == ["unknown"]
+
+    def test_reopening_a_ledger_keeps_its_users(self, tmp_path: Path) -> None:
+        path = tmp_path / "usage.sqlite3"
+        SqliteLedger(path).record(
+            model="m", kind="NACE", prompt_tokens=1, completion_tokens=1, user="Jana"
+        )
+        assert [r.user for r in SqliteLedger(path).records()] == ["Jana"]
 
     def test_an_unusable_ledger_says_so(self, tmp_path: Path) -> None:
         blocker = tmp_path / "blocker"

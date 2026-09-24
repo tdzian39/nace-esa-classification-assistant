@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Přihlášení · ESA a NACE našeptávač</title>
+<script>
+  /* Theme: follows the system until the button picks one; the choice is kept per browser.
+     Registered on the document, so it survives htmx swapping the whole body. */
+  (function () {
+    try {
+      var saved = localStorage.getItem("nace-esa-theme");
+      if (saved === "light" || saved === "dark") {
+        document.documentElement.setAttribute("data-theme", saved);
+      }
+    } catch (e) {}
+    document.addEventListener("click", function (event) {
+      var button = event.target.closest ? event.target.closest("[data-theme-toggle]") : null;
+      if (!button) { return; }
+      var root = document.documentElement;
+      var current = root.getAttribute("data-theme") ||
+        (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      var next = current === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      try { localStorage.setItem("nace-esa-theme", next); } catch (e) {}
+    });
+    /* htmx does not swap 4xx/5xx answers by default, which would leave the page silent on
+       "Číselníky nejsou k dispozici" (503). The server renders the whole page for those too,
+       so show it - as a plain form post without htmx would. */
+    document.addEventListener("htmx:beforeSwap", function (event) {
+      if (event.detail.xhr && event.detail.xhr.status >= 400) {
+        event.detail.shouldSwap = true;
+        event.detail.isError = false;
+      }
+    });
+  })();
+</script>
+<style>
+  /* The look of the RB team gateway (anorfidien/finance_rb_cz, after the Raiffeisenbank brand
+     manual 2023): one yellow, a deliberately dim warm light theme, an Off Black dark theme,
+     system fonts only, monospace for codes and labels. Re-implemented here, nothing copied. */
+  :root {
+    color-scheme: light;
+    --bg: #e3ddd1;
+    --surface: #f1ede6;
+    --field: #faf8f4;
+    --fg: #2b2d33;
+    --muted: #646568;
+    --faint: #878789;
+    --line: #d3cec4;
+    --hairline: #e0dbd0;
+    --accent: #fee600;
+    --accent-fg: #2b2d33;
+    --tile: rgba(254, 230, 0, 0.22);
+    --focus: #6a4cad;
+    --good: #225b45;
+    --warn: #7a5200;
+    --bad: #a8412f;
+    --shadow: 0 6px 16px rgba(43, 45, 51, 0.09);
+    --topbar-bg: #fee600;
+    --topbar-fg: #2b2d33;
+    --topbar-muted: rgba(43, 45, 51, 0.7);
+    --topbar-line: rgba(43, 45, 51, 0.24);
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, "Liberation Mono", monospace;
+    --radius: 14px;
+    --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23fee600' stroke-opacity='0.4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l8 8-8 8'/%3E%3Cpath d='M41 38l8 8-8 8'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #2b2d33; --surface: #3b3d42; --field: #33353a; --fg: #f8f6f2; --muted: #b6b6b5;
+      --faint: #8d8e8f; --line: #505155; --hairline: #44454a; --tile: rgba(254, 230, 0, 0.14);
+      --focus: #9d88d9; --good: #67d0ab; --warn: #e8c25a; --bad: #ff8b6b;
+      --shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+      --topbar-bg: #2b2d33; --topbar-fg: #f8f6f2; --topbar-muted: rgba(248, 246, 242, 0.72);
+      --topbar-line: #505155;
+      --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23000000' stroke-opacity='0.22' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l8 8-8 8'/%3E%3Cpath d='M41 38l8 8-8 8'/%3E%3C/g%3E%3C/svg%3E");
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #2b2d33; --surface: #3b3d42; --field: #33353a; --fg: #f8f6f2; --muted: #b6b6b5;
+    --faint: #8d8e8f; --line: #505155; --hairline: #44454a; --tile: rgba(254, 230, 0, 0.14);
+    --focus: #9d88d9; --good: #67d0ab; --warn: #e8c25a; --bad: #ff8b6b;
+    --shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+    --topbar-bg: #2b2d33; --topbar-fg: #f8f6f2; --topbar-muted: rgba(248, 246, 242, 0.72);
+    --topbar-line: #505155;
+    --pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cg fill='none' stroke='%23000000' stroke-opacity='0.22' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 6l8 8-8 8'/%3E%3Cpath d='M41 38l8 8-8 8'/%3E%3C/g%3E%3C/svg%3E");
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background-color: var(--bg); background-image: var(--pattern);
+    color: var(--fg); font: 15px/1.5 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  ::selection { background: var(--accent); color: var(--accent-fg); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  /* ---- top bar ---- */
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    padding: 0.85rem 2rem;
+    background: var(--topbar-bg); color: var(--topbar-fg);
+    border-bottom: 1px solid var(--topbar-line);
+  }
+  .brand { display: flex; align-items: center; gap: 0.85rem; min-width: 0; }
+  .brand-divider { width: 1px; height: 2rem; flex: none; background: var(--topbar-line); }
+  .brand-name { font-size: 1rem; font-weight: 800; letter-spacing: -0.01em; white-space: nowrap; }
+  .brand-text small {
+    display: block; color: var(--topbar-muted);
+    font: 0.7rem/1.3 var(--mono); letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .theme-btn {
+    display: inline-grid; place-items: center; width: 2.1rem; height: 2.1rem; flex: none;
+    border: 1px solid var(--topbar-line); border-radius: 7px;
+    background: transparent; color: var(--topbar-fg); cursor: pointer;
+  }
+  .theme-btn:hover { border-color: var(--topbar-fg); }
+  .theme-btn svg { width: 1.05rem; height: 1.05rem; }
+  .icon-sun { display: none; }
+  :root[data-theme="dark"] .icon-sun { display: block; }
+  :root[data-theme="dark"] .icon-moon { display: none; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .icon-sun { display: block; }
+    :root:not([data-theme="light"]) .icon-moon { display: none; }
+  }
+
+  /* ---- page ---- */
+  .wrap { max-width: 76rem; margin: 0 auto; padding: 0 2rem 3.5rem; }
+  .masthead { padding: 3rem 0 1.6rem; }
+  .kicker {
+    display: block; margin-bottom: 0.9rem; color: var(--muted);
+    font: 0.72rem/1.4 var(--mono); letter-spacing: 0.16em; text-transform: uppercase;
+  }
+  h1 {
+    margin: 0; max-width: 24ch;
+    font-size: clamp(2.1rem, 1.4rem + 3vw, 3.25rem); font-weight: 400;
+    letter-spacing: -0.035em; line-height: 1.05;
+  }
+  h1 > span { display: block; }
+  h1 strong { font-weight: 800; }
+  .marker {
+    background-image: linear-gradient(var(--accent), var(--accent));
+    background-repeat: no-repeat; background-size: 100% 0.26em; background-position: 0 88%;
+    -webkit-box-decoration-break: clone; box-decoration-break: clone;
+  }
+  .hero-sub { margin: 1rem 0 0; max-width: 62ch; color: var(--muted); font-size: 1rem; }
+
+  .notice {
+    margin: 0 0 0.75rem; padding: 0.75rem 1rem;
+    background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    border-radius: 10px; font-size: 0.88rem;
+  }
+  .notice.error { border-left-color: var(--bad); }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 1.25rem;
+  }
+  .card + .card, .notice + .card { margin-top: 1rem; }
+
+  /* ---- input form ---- */
+  form .hint { color: var(--muted); font-size: 0.88rem; margin: 0 0 1rem; }
+  .fields { display: grid; grid-template-columns: 220px 1fr; gap: 0.9rem 1rem; }
+  .field label { display: block; font-size: 0.82rem; font-weight: 650; margin-bottom: 0.35rem; }
+  .field .note { font-weight: 400; color: var(--muted); }
+  input[type=text], textarea {
+    width: 100%; padding: 0.65rem 0.9rem; font: inherit; font-size: 0.94rem; color: var(--fg);
+    background: var(--field); border: 1px solid var(--line); border-radius: 10px;
+    transition: border-color 0.15s ease;
+  }
+  input[type=text]:hover, textarea:hover { border-color: var(--faint); }
+  input[type=text]:focus, textarea:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
+  textarea { min-height: 80px; resize: vertical; }
+  .full { grid-column: 1 / -1; }
+  .actions { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-top: 1rem; }
+  .btn {
+    display: inline-block; padding: 0.55rem 1.2rem; border-radius: 999px;
+    font: inherit; font-size: 0.9rem; line-height: 1.4; text-decoration: none; cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn-primary {
+    background: var(--accent); color: var(--accent-fg); border: 1px solid var(--accent); font-weight: 700;
+  }
+  .btn-primary:hover { box-shadow: var(--shadow); }
+  .btn-ghost { background: var(--surface); color: var(--muted); border: 1px solid var(--line); }
+  .btn-ghost:hover { border-color: var(--faint); color: var(--fg); }
+
+  /* ---- sign-in ---- */
+  .login { max-width: 26rem; }
+  .login .field + .field { margin-top: 0.9rem; }
+  .login .hint { margin: 0.4rem 0 0; color: var(--muted); font-size: 0.8rem; }
+  .login .hint code { font-family: var(--mono); }
+  input[type=password] {
+    width: 100%; padding: 0.65rem 0.9rem; font: inherit; font-size: 0.94rem; color: var(--fg);
+    background: var(--field); border: 1px solid var(--line); border-radius: 10px;
+    transition: border-color 0.15s ease;
+  }
+  input[type=password]:hover { border-color: var(--faint); }
+  input[type=password]:focus { outline: 2px solid var(--focus); outline-offset: 1px; }
+  @media (max-width: 760px) {
+    .topbar { padding: 0.7rem 1rem; }
+    .wrap { padding: 0 0.75rem 2.5rem; }
+    .masthead { padding: 1.8rem 0 1.2rem; }
+    .card { padding: 1rem; }
+  }
+  @media (max-width: 460px) {
+    .brand-divider, .brand-text small { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-name">ESA a NACE našeptávač</span>
+    <span class="brand-divider" aria-hidden="true"></span>
+    <span class="brand-text"><small>Middle Office treasury · návrh položek do CTS</small></span>
+  </div>
+  <button type="button" class="theme-btn" data-theme-toggle aria-label="Přepnout světlý a tmavý režim"
+          title="Přepnout světlý a tmavý režim">
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>
+    </svg>
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+    </svg>
+  </button>
+</header>
+
+<main class="wrap">
+
+  <section class="masthead">
+    <span class="kicker">Zahraniční emitenti · číselníky CTS</span>
+    <h1><span>Přihlášení</span> <strong class="marker">do našeptávače</strong></h1>
+    <p class="hero-sub">Přihlaste se svým jménem a společným heslem.</p>
+  </section>
+
+  {% if error %}<div class="notice error">{{ error }}</div>{% endif %}
+
+  <form class="card login" method="post" action="/login">
+    <input type="hidden" name="next" value="{{ next }}">
+    <div class="field">
+      <label for="name">Jméno a příjmení</label>
+      <input type="text" id="name" name="name" value="{{ name }}" autocomplete="username"
+             placeholder="jan novak" aria-describedby="name-hint" required autofocus>
+      <p class="hint" id="name-hint">Pište ho pokaždé stejně: malými písmeny a bez diakritiky,
+        např. <code>jan novak</code>.</p>
+    </div>
+    <div class="field">
+      <label for="password">Společné heslo</label>
+      <input type="password" id="password" name="password" autocomplete="current-password"
+             required>
+    </div>
+    <div class="actions">
+      <button type="submit" class="btn btn-primary">Přihlásit</button>
+    </div>
+  </form>
+
+</main>
+</body>
+</html>

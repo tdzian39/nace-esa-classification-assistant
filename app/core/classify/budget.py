@@ -18,6 +18,11 @@ Three independent limits, because they fail differently:
   change that inflated the prompt). Refused before it is sent.
 * ``max_calls_per_run`` - a loop that does not terminate. Bounded per process.
 * ``daily_token_budget`` - sustained overuse across runs. Bounded per day, from the ledger.
+
+Every call is recorded against the user it was made for - the signed-in name on the web,
+the OS account on the command line - set with :func:`spending_as` around the lookup. Calls
+made for nobody in particular, and every call recorded before users were kept, are
+``unknown``.
 """
 
 from __future__ import annotations
@@ -26,11 +31,13 @@ import logging
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
+from core.auth import UNKNOWN_USER
 from core.classify.errors import LlmError
 from core.classify.prompts import Prompt
 from core.classify.provider import LlmProvider, LlmResponse
@@ -45,13 +52,39 @@ CREATE TABLE IF NOT EXISTS usage (
     kind              TEXT,
     prompt_tokens     INTEGER NOT NULL DEFAULT 0,
     completion_tokens INTEGER NOT NULL DEFAULT 0,
-    cached_prompt_tokens INTEGER
+    cached_prompt_tokens INTEGER,
+    user              TEXT
 );
 CREATE INDEX IF NOT EXISTS usage_at ON usage (at);
 """
 
 #: Added after ledgers already existed; NULL in their rows means "not recorded", not zero.
 _CACHED_COLUMN = "cached_prompt_tokens"
+#: Added after ledgers already existed; their rows are filled with UNKNOWN_USER.
+_USER_COLUMN = "user"
+
+#: Who the model calls in this context are made for; see :func:`spending_as`.
+_SPENDER: ContextVar[str | None] = ContextVar("spender", default=None)
+
+
+@contextmanager
+def spending_as(user: str | None) -> Iterator[None]:
+    """Record every model call made inside the block against ``user``.
+
+    A context variable rather than a parameter, so the lookup pipeline between the request
+    and the ledger does not have to carry a name it has no other use for. Each request
+    thread, and each asyncio task, sees its own value.
+    """
+    token = _SPENDER.set((user or "").strip() or None)
+    try:
+        yield
+    finally:
+        _SPENDER.reset(token)
+
+
+def current_spender() -> str:
+    """The user calls are being recorded against now, or ``unknown``."""
+    return _SPENDER.get() or UNKNOWN_USER
 
 
 class BudgetExceededError(LlmError):
@@ -93,6 +126,8 @@ class UsageRecord:
     #: The part of ``prompt_tokens`` billed at the cached rate; ``None`` when the call was
     #: recorded before this was kept, or the provider did not report it.
     cached_prompt_tokens: int | None = None
+    #: Who the call was made for; ``unknown`` for calls recorded before users were kept.
+    user: str = UNKNOWN_USER
 
     @property
     def total_tokens(self) -> int:
@@ -114,6 +149,7 @@ class UsageRecorder(Protocol):
         prompt_tokens: int,
         completion_tokens: int,
         cached_prompt_tokens: int | None = None,
+        user: str | None = None,
     ) -> None: ...
 
     def totals_since(self, since: datetime) -> UsageTotals: ...
@@ -132,6 +168,7 @@ class NullLedger:
         prompt_tokens: int,
         completion_tokens: int,
         cached_prompt_tokens: int | None = None,
+        user: str | None = None,
     ) -> None:
         return None
 
@@ -160,6 +197,13 @@ class SqliteLedger:
                 columns = {row[1] for row in connection.execute("PRAGMA table_info(usage)")}
                 if _CACHED_COLUMN not in columns:
                     connection.execute(f"ALTER TABLE usage ADD COLUMN {_CACHED_COLUMN} INTEGER")
+                if _USER_COLUMN not in columns:
+                    connection.execute(f"ALTER TABLE usage ADD COLUMN {_USER_COLUMN} TEXT")
+                # Nobody was recorded before the column existed: those calls are unknown's.
+                connection.execute(
+                    f"UPDATE usage SET {_USER_COLUMN} = ? WHERE {_USER_COLUMN} IS NULL",
+                    (UNKNOWN_USER,),
+                )
         except (sqlite3.Error, OSError) as exc:
             LOGGER.warning(
                 "usage ledger is unusable (%s); the daily budget cannot be enforced", exc
@@ -184,6 +228,7 @@ class SqliteLedger:
         prompt_tokens: int,
         completion_tokens: int,
         cached_prompt_tokens: int | None = None,
+        user: str | None = None,
     ) -> None:
         if not self.usable:
             return
@@ -191,7 +236,7 @@ class SqliteLedger:
             with self._connect() as connection:
                 connection.execute(
                     "INSERT INTO usage (at, model, kind, prompt_tokens, completion_tokens, "
-                    f"{_CACHED_COLUMN}) VALUES (?, ?, ?, ?, ?, ?)",
+                    f"{_CACHED_COLUMN}, {_USER_COLUMN}) VALUES (?, ?, ?, ?, ?, ?, ?)",
                     (
                         datetime.now(UTC).isoformat(),
                         model,
@@ -199,6 +244,7 @@ class SqliteLedger:
                         int(prompt_tokens or 0),
                         int(completion_tokens or 0),
                         None if cached_prompt_tokens is None else int(cached_prompt_tokens),
+                        (user or "").strip() or UNKNOWN_USER,
                     ),
                 )
         except sqlite3.Error as exc:
@@ -237,10 +283,10 @@ class SqliteLedger:
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT at, model, kind, prompt_tokens, completion_tokens, "
-                f"{_CACHED_COLUMN} FROM usage ORDER BY at, id"
+                f"{_CACHED_COLUMN}, {_USER_COLUMN} FROM usage ORDER BY at, id"
             ).fetchall()
         records = []
-        for at, model, kind, prompt_tokens, completion_tokens, cached in rows:
+        for at, model, kind, prompt_tokens, completion_tokens, cached, user in rows:
             when = datetime.fromisoformat(at)
             records.append(
                 UsageRecord(
@@ -250,6 +296,7 @@ class SqliteLedger:
                     prompt_tokens=int(prompt_tokens),
                     completion_tokens=int(completion_tokens),
                     cached_prompt_tokens=None if cached is None else int(cached),
+                    user=user or UNKNOWN_USER,
                 )
             )
         return records
@@ -363,6 +410,7 @@ class BudgetedProvider:
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             cached_prompt_tokens=cached_prompt_tokens,
+            user=current_spender(),
         )
         return response
 
@@ -400,4 +448,6 @@ __all__ = [
     "UsageTotals",
     "build_budget",
     "build_ledger",
+    "current_spender",
+    "spending_as",
 ]
