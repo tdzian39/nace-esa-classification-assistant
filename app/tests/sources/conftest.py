@@ -300,3 +300,274 @@ def figi_client(
         return httpx.Response(200, json=copy.deepcopy(body))
 
     return make_client(handler, base_url="https://api.openfigi.com/v3")
+
+
+# -- Wikimedia payloads -----------------------------------------------------------------
+# Trimmed copies of live ``www.wikidata.org/w/api.php`` and ``{cs,en}.wikipedia.org`` REST
+# answers captured on 2026-09-23 for Deutsche Bank (LEI 7LTWFZYICNSX8D621K86 -> Q66048).
+# The P452 claims keep only mainsnak and rank; one deprecated claim is added to prove it is
+# dropped.
+
+WIKIDATA_DB_LEI = "7LTWFZYICNSX8D621K86"
+WIKIDATA_DB_SEARCH: dict[str, Any] = {
+    "batchcomplete": "",
+    "query": {"searchinfo": {"totalhits": 1}, "search": [{"ns": 0, "title": "Q66048"}]},
+}
+WIKIDATA_EMPTY_SEARCH: dict[str, Any] = {
+    "batchcomplete": "",
+    "query": {"searchinfo": {"totalhits": 0}, "search": []},
+}
+WIKIDATA_DB_ENTITY: dict[str, Any] = {
+    "entities": {
+        "Q66048": {
+            "type": "item",
+            "id": "Q66048",
+            "labels": {
+                "en": {"language": "en", "value": "Deutsche Bank"},
+                "cs": {"language": "cs", "value": "Deutsche Bank"},
+            },
+            "descriptions": {
+                "en": {
+                    "language": "en",
+                    "value": "German global banking and financial services company",
+                },
+                "cs": {"language": "cs", "value": "německá banka"},
+            },
+            "sitelinks": {
+                "cswiki": {
+                    "site": "cswiki",
+                    "title": "Deutsche Bank",
+                    "url": "https://cs.wikipedia.org/wiki/Deutsche_Bank",
+                },
+                "enwiki": {
+                    "site": "enwiki",
+                    "title": "Deutsche Bank",
+                    "url": "https://en.wikipedia.org/wiki/Deutsche_Bank",
+                },
+            },
+        }
+    },
+    "success": 1,
+}
+
+
+def _industry_claim(qid: str, rank: str = "normal") -> dict[str, Any]:
+    return {
+        "mainsnak": {
+            "snaktype": "value",
+            "property": "P452",
+            "datavalue": {
+                "value": {"entity-type": "item", "id": qid},
+                "type": "wikibase-entityid",
+            },
+        },
+        "type": "statement",
+        "rank": rank,
+    }
+
+
+WIKIDATA_DB_CLAIMS: dict[str, Any] = {
+    "claims": {
+        "P452": [
+            _industry_claim("Q837171"),
+            _industry_claim("Q29585689", "preferred"),
+            _industry_claim("Q29584334"),
+            _industry_claim("Q1", "deprecated"),
+        ]
+    }
+}
+WIKIDATA_DB_INDUSTRIES: dict[str, Any] = {
+    "entities": {
+        "Q837171": {
+            "labels": {
+                "en": {"language": "en", "value": "financial services"},
+                "cs": {"language": "cs", "value": "finanční služba"},
+            }
+        },
+        "Q29585689": {
+            "labels": {
+                "en": {"language": "en", "value": "other monetary intermediation"},
+                "cs": {"language": "cs", "value": "ostatní peněžní zprostředkování"},
+            }
+        },
+        "Q29584334": {
+            "labels": {
+                "en": {
+                    "language": "en",
+                    "value": "financial service activities, except insurance and pension funding",
+                }
+            }
+        },
+    },
+    "success": 1,
+}
+WIKIPEDIA_DB_CS: dict[str, Any] = {
+    "type": "standard",
+    "title": "Deutsche Bank",
+    "lang": "cs",
+    "timestamp": "2023-09-21T15:35:11Z",
+    "extract": (
+        "Deutsche Bank AG je největší německá banka se sídlem ve Frankfurtu nad Mohanem. "
+        "Založena byla v roce 1870.[kdy?]\nSídlí v dvojici mrakodrapů Deutsche-Bank-Hochhaus."
+    ),
+    "content_urls": {"desktop": {"page": "https://cs.wikipedia.org/wiki/Deutsche_Bank"}},
+}
+WIKIPEDIA_DB_EN: dict[str, Any] = {
+    "type": "standard",
+    "title": "Deutsche Bank",
+    "lang": "en",
+    "timestamp": "2026-09-13T22:12:37Z",
+    "extract": (
+        "Deutsche Bank AG is a German multinational investment bank and financial services "
+        "company headquartered in Frankfurt."
+    ),
+    "content_urls": {"desktop": {"page": "https://en.wikipedia.org/wiki/Deutsche_Bank"}},
+}
+WIKIPEDIA_DISAMBIGUATION: dict[str, Any] = {
+    "type": "disambiguation",
+    "title": "Mercury",
+    "extract": "Mercury most commonly refers to: Mercury (planet)",
+}
+
+
+def _name_hit(qid: str, label: str, description: str, matched: str | None = None) -> dict[str, Any]:
+    return {
+        "id": qid,
+        "title": qid,
+        "label": label,
+        "description": description,
+        "match": {"type": "alias" if matched else "label", "text": matched or label},
+    }
+
+
+#: ``wbsearchentities`` for "European Investment Bank" (live, 2026-09-24, trimmed): one item
+#: bears the name, the others only contain it - their ``match.text`` is longer.
+WIKIDATA_EIB_NAME_SEARCH: dict[str, Any] = {
+    "search": [
+        _name_hit(
+            "Q192247", "European Investment Bank", "body of the European Union providing funding"
+        ),
+        _name_hit("Q137669090", "European Investment Bank building", "building by Denys Lasdun"),
+        _name_hit("Q98088504", "European Investment Bank project", "funding project from the EIB"),
+    ],
+    "success": 1,
+}
+#: "Bundesrepublik Deutschland": three items answer to the alias - none may be taken.
+WIKIDATA_GERMANY_NAME_SEARCH: dict[str, Any] = {
+    "search": [
+        _name_hit(
+            "Q713750",
+            "West Germany",
+            "Federal Republic of Germany 1949-1990",
+            "Bundesrepublik Deutschland",
+        ),
+        _name_hit("Q183", "Germany", "country in Central Europe", "Bundesrepublik Deutschland"),
+        _name_hit(
+            "Q5551098",
+            "German Federal Republic",
+            "German state since 1990",
+            "Bundesrepublik Deutschland",
+        ),
+    ],
+    "success": 1,
+}
+#: "BMW Finance" (the suffix-stripped query): the group's item answers to the alias.
+WIKIDATA_BMW_NAME_SEARCH: dict[str, Any] = {
+    "search": [_name_hit("Q26678", "BMW", "German automotive manufacturer", "BMW Finance")],
+    "success": 1,
+}
+WIKIDATA_NO_NAME_HITS: dict[str, Any] = {"search": [], "success": 1}
+
+
+def lei_claims(lei: str | None) -> dict[str, Any]:
+    """A ``wbgetclaims`` answer for P1278: the item's LEI, or no claim at all."""
+    if lei is None:
+        return {"claims": {}}
+    return {
+        "claims": {
+            "P1278": [
+                {
+                    "mainsnak": {
+                        "snaktype": "value",
+                        "property": "P1278",
+                        "datavalue": {"value": lei, "type": "string"},
+                    },
+                    "type": "statement",
+                    "rank": "normal",
+                }
+            ]
+        }
+    }
+
+
+def _loose(text: str) -> str:
+    return "".join(ch for ch in text.lower() if ch.isalnum())
+
+
+def wikimedia_client(
+    *,
+    search: dict[str, Any] | None = None,
+    entity: dict[str, Any] | None = None,
+    claims: dict[str, Any] | None = None,
+    industries: dict[str, Any] | None = None,
+    summaries: dict[str, dict[str, Any] | int] | None = None,
+    wikidata_status: int = 200,
+    calls: list[httpx.Request] | None = None,
+    name_search: dict[str, dict[str, Any]] | None = None,
+    item_lei: dict[str, str | None] | None = None,
+) -> httpx.Client:
+    """Client answering the Wikidata Action API and the Wikipedia summaries.
+
+    Defaults are Deutsche Bank's live answers. ``summaries`` maps a language to a summary
+    body or to an HTTP status; a language not in it answers 404. ``wikidata_status`` other
+    than 200 makes every Wikidata answer that status. ``name_search`` maps a search text to
+    its ``wbsearchentities`` answer (anything else finds nothing); ``item_lei`` maps an item
+    to the LEI it carries (``None`` = no claim; an item not listed carries none).
+    """
+    summaries = {"cs": WIKIPEDIA_DB_CS, "en": WIKIPEDIA_DB_EN} if summaries is None else summaries
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if calls is not None:
+            calls.append(request)
+        host = request.url.host
+        if host == "www.wikidata.org":
+            if wikidata_status != 200:
+                return httpx.Response(wikidata_status, text="boom")
+            params = request.url.params
+            action = params.get("action")
+            if action == "query":
+                body = WIKIDATA_DB_SEARCH if search is None else search
+            elif action == "wbsearchentities":
+                # Wikidata's search is case- and punctuation-insensitive; so is the stand-in.
+                asked = _loose(params.get("search", ""))
+                body = next(
+                    (v for k, v in (name_search or {}).items() if _loose(k) == asked),
+                    WIKIDATA_NO_NAME_HITS,
+                )
+            elif action == "wbgetclaims" and params.get("property") == "P1278":
+                body = lei_claims((item_lei or {}).get(params.get("entity", "")))
+            elif action == "wbgetclaims":
+                body = WIKIDATA_DB_CLAIMS if claims is None else claims
+            elif action == "wbgetentities" and params.get("props") == "labels":
+                body = WIKIDATA_DB_INDUSTRIES if industries is None else industries
+            elif action == "wbgetentities":
+                body = WIKIDATA_DB_ENTITY if entity is None else entity
+                wanted = params.get("ids", "")
+                entities = body.get("entities", {})
+                if wanted and wanted not in entities and len(entities) == 1:
+                    # The canned item stands in for whichever item was found by name.
+                    (found,) = entities.values()
+                    body = {**body, "entities": {wanted: {**found, "id": wanted}}}
+            else:
+                return httpx.Response(400, text="unexpected action")
+            return httpx.Response(200, json=payload(body))
+        if host.endswith(".wikipedia.org"):
+            answer = summaries.get(host.split(".", 1)[0])
+            if answer is None:
+                return httpx.Response(404, json={"status": 404, "type": "Internal error"})
+            if isinstance(answer, int):
+                return httpx.Response(answer, text="boom")
+            return httpx.Response(200, json=payload(answer))
+        return httpx.Response(404, text="unknown host")
+
+    return httpx.Client(transport=httpx.MockTransport(handler))

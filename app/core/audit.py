@@ -17,12 +17,42 @@ import logging
 import os
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Literal, Protocol
 
 from config.settings import Settings
 
 #: Dedicated logger so the audit trail can be routed to its own handler/file.
 LOGGER = logging.getLogger("core.audit")
+
+
+class AuditSink(Protocol):
+    """Somewhere the events are kept beyond the log line - the central database (D4)."""
+
+    def write(self, event: dict[str, object]) -> None: ...
+
+
+_SINK: AuditSink | None = None
+
+
+def set_audit_sink(sink: AuditSink | None) -> None:
+    """Install (or remove) the sink every event is also written to. The log line stays."""
+    global _SINK
+    _SINK = sink
+
+
+def current_audit_sink() -> AuditSink | None:
+    return _SINK
+
+
+def _keep(event: dict[str, object]) -> None:
+    """Hand the event to the sink; a sink failure is logged and never fails the request."""
+    if _SINK is None:
+        return
+    try:
+        _SINK.write(event)
+    except Exception as exc:  # noqa: BLE001 - the audit line was already written
+        LOGGER.warning("audit sink failed: %s", exc)
+
 
 #: What happened to a lookup. ``error`` means the sources failed, not that the issuer is unknown.
 #: Tool 1 emits only ``found`` and ``not_found`` today. ``ambiguous``, ``invalid_input`` and
@@ -96,6 +126,38 @@ class LookupEvent:
         return " ".join(parts)
 
 
+def log_report(
+    identifier: str,
+    *,
+    user: str,
+    stored: bool,
+    store: str,
+    logger: logging.Logger | None = None,
+) -> None:
+    """Record that an error report was made - never what it said.
+
+    The report itself (request, result, note) is content and goes to the report store
+    (:mod:`core.reports`); the audit trail keeps only who reported which identifier, and
+    whether the store took it. A failed store is a WARNING so an operator notices.
+    """
+    at = datetime.now(UTC)
+    outcome = "stored" if stored else "not_stored"
+    event: dict[str, object] = {
+        "event": "report",
+        "identifier": identifier,
+        "user": user,
+        "at": at.isoformat(),
+        "outcome": outcome,
+        "store": store,
+    }
+    (logger or LOGGER).log(
+        logging.INFO if stored else logging.WARNING,
+        f"report identifier={identifier!r} user={user} outcome={outcome} store={store}",
+        extra={"audit": event},
+    )
+    _keep(event)
+
+
 def log_lookup(
     identifier: str,
     *,
@@ -122,5 +184,7 @@ def log_lookup(
         detail=detail,
     )
     level = logging.WARNING if outcome == "error" else logging.INFO
-    (logger or LOGGER).log(level, event.message(), extra={"audit": event.as_dict()})
+    data = {"event": "lookup", **event.as_dict()}
+    (logger or LOGGER).log(level, event.message(), extra={"audit": data})
+    _keep(data)
     return event

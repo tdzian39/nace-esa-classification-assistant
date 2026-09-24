@@ -201,8 +201,13 @@ class SqliteCache:
             return 0
 
 
-def build_cache(path: Path | None) -> ClassificationCache:
-    """A SQLite cache at ``path``, or :class:`NullCache` when caching is switched off."""
+def build_cache(path: Path | None, database: object = None) -> ClassificationCache:
+    """The central database's cache when there is one (:mod:`core.db`), else a SQLite cache
+    at ``path``, else :class:`NullCache` when caching is switched off."""
+    if database is not None:
+        from core.db import DatabaseCache
+
+        return DatabaseCache(database)  # type: ignore[arg-type]
     return SqliteCache(path) if path else NullCache()
 
 

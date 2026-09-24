@@ -67,6 +67,26 @@ optional.
    Rollback = `LLM_ENABLED=false` and redeploy. Should the endpoint approved on 24 Sept differ, switching is env
    vars plus a redeploy (`app/README.md` → "Enabling the model"; Azure classic and the Claude API need an
    adapter). Still to record: `python -m core.classify --golden --model` against the rules.
+3b. **E5.1-lite: the description from Wikipedia (merged 24 Sept 2026, reversing the 23 Sept decision).**
+   With no typed description, an ISIN's LEI finds the Wikidata item (P1278) and its Wikipedia lead (cs, then
+   en); Wikidata's one-liner and industry labels are appended. LEI first, then the official name as an
+   exact, unique label/alias match that carries no other entity's LEI (`WIKIMEDIA_NAME_MATCH`) - so a
+   name-only lookup can get one too. Measured 24 Sept on the 36 golden ISINs by ISIN alone: 14 described
+   by LEI, 6 by name (Poland, EIB, EBRD, CEB, ESM, Generali), 16 none - financing vehicles and funds have no
+   item, and tied names (Germany, Austria, Paris, EU) are refused. Watch: a description pushes the model
+   from NACE 99 to 64 for the supranational banks (EIB, EBRD, CEB, ESM) although the GLEIF category says
+   international organisation - the register rule reaches the shortlist but not the model's weighing.
+   Not done: industries' NACE codes (P4496, too heavy over the Action API).
+3d. **The central database (24 Sept 2026, D4 answered).** `core/db.py`: with `DATABASE_URL` the ledger, the cache,
+   the audit events and the error reports live in one Postgres. **Created and connected the same day** (Neon
+   `nace-esa-db`, eu-central-1, `DATABASE_URL` on the project), verified live from a laptop. Left: merge, deploy,
+   confirm `/health` shows `database`, then raise `LLM_DAILY_TOKEN_BUDGET` above 0 in production if wanted.
+3c. **Error reports (24 Sept 2026).** One button on the result, "Nahlásit k prověření", with an optional note:
+   the request, the result row and the note are stored (`core/reports.py`; `REPORTS_SOURCE=dir|blob|off`).
+   **Vercel needs `REPORTS_SOURCE=blob`** (same token as the codebooks, prefix `reports/`), else the page warns
+   that reports land in `/tmp` and vanish. Reports are content: never in git, never in a log line; the audit log
+   records only who reported which identifier. Review with `python -m core.reports --list|--xlsx` (a directory
+   store) or the Blob dashboard. This is the first piece of D4 that MO can act on.
 4. **E5-lite: the FIRDS LEI fallback.** GLEIF maps 25 of 36 golden ISINs; the misses (Eurobond, LU/IE funds) include
    all four captive vehicles, the core ESA trap. ESMA FIRDS returns the issuer LEI for them; `/probe` already
    shows the host reachable from Vercel.
@@ -91,6 +111,7 @@ Q15 (a listed parent's NACE), D4 (database, for the audit), Q10 (volume; a free 
 | Date | Decision | By |
 |---|---|---|
 | 2026-09-23 | **The model is on in production** — the owner's decision, superseding "the LLM stays off until an approved endpoint exists" (22 Sept): OpenAI `gpt-5.6-luna` with the owner's key (a Sensitive Vercel variable, Production only), `LLM_ENABLED=true`, `LLM_DAILY_TOKEN_BUDGET=0`. Rollback is `LLM_ENABLED=false` and a redeploy; another endpoint is env vars plus a redeploy (§0 item 3a). | tdzian39 |
+| 2026-09-24 | **Popis činnosti from Wikipedia is back on** — the 23 Sept decision below is reversed: with no typed description the tool describes an issuer from its Wikidata item (by LEI) and Wikipedia lead, so an ISIN alone yields a description for the issuers Wikidata knows. Branch `feat/e5-wikipedia-description` merged. | Timotej |
 | 2026-09-23 | **No automatic popis činnosti from Wikipedia.** MO types the description when they want NACE/ESA codes; an empty one is not filled in by the tool. The Wikidata/Wikipedia-by-LEI lookup (E5.1) was built and tested in PR #13, then closed unmerged; branch `feat/e5-wikipedia-description` keeps it if this is revisited. | Timotej |
 | 2026-09-22 | This repository is the **primary codebase of Tool 1** (the ESA/NACE suggester for foreign issuers). Jakub's earlier repo `jaeksrampota/esa-nace-naseptavac` (CodeNOW Flask scaffold + design docs) is the *design source*, not a parallel implementation any more. | Jakub |
 | 2026-09-22 | **Tool 2 (RES/OR lookup) is out of scope here** — it is built elsewhere (`jaeksrampota/res-or-lookup`). Its code in this repo is parked and will be removed (E0). | Jakub |
@@ -252,7 +273,8 @@ app/
    Result `IssuerIdentity` with `fact_sheet()` (Czech one-liners whose parentheses carry English hint words),
    citable record pages, sources that answered, notes for what is missing.
 3. `WebEvidenceGatherer.gather(name=typed or legal name, isin, description)` — a typed description wins and
-   skips the web; otherwise a pluggable `SearchProvider` (HTTP JSON, Brave-shaped defaults, **none configured**)
+   skips the web; otherwise, with a LEI, Wikidata -> Wikipedia (`core/sources/wikimedia.py`, E5.1), then a
+   pluggable `SearchProvider` (HTTP JSON, Brave-shaped defaults, **none configured**)
    + stdlib HTML text extraction. `apl.czso.cz` / `or.justice.cz` are refused in code.
 4. `classifier_text = description + "\n\n" + fact_sheet` → `NaceCandidateFilter` / `EsaCandidateFilter`
    (`limit=12`): keyword hints (`hints.py`, cs+en, +10 score), register rules (a GLEIF category in the fact
@@ -332,8 +354,9 @@ Sample ISINs for tests and demos: `DE0005140008` Deutsche Bank AG (GENERAL, no p
 
 - A **name-only** lookup never touches a register (E3). An ISIN with no web provider yields register facts only —
   that is the intended deterministic pilot mode.
-- The web search provider is **not configured** and is a procurement question; Wikipedia summaries (E5) give a
-  free description for well-known issuers and may make a paid provider unnecessary for the pilot.
+- The web search provider is **not configured** and is a procurement question; Wikipedia summaries (E5.1,
+  built) give a free description for issuers Wikidata links to their LEI - the big corporates and banks, not
+  the EIB or financing vehicles like BMW Finance N.V. - and may make a paid provider unnecessary.
 - `pandas` is gone (PR #5). `numpy` stays a **dev** extra only: the identifier and codebook tests feed numpy scalars
   (`np.int64`, a NaN `np.float64`) to the normalisers. Keep both out of the runtime dependencies.
 - `py -m pytest` from `app/` **without** `pip install -e .` fails to collect `tests/api` (the `tests/api` package
@@ -563,6 +586,10 @@ visible on the page.
 ### E5 — More sources: Wikidata/Wikipedia and FIRDS (M)
 
 **Goal:** a description without a paid search provider, and a structured NACE path for well-known issuers.
+**Status (24 Sept 2026):** item 1's description half is built (`core/sources/wikimedia.py`, called from
+`WebEvidenceGatherer` by LEI; `/probe` checks Wikidata and Wikipedia by default). Left: the P4496 NACE path
+(the industry items' claims are ~250 KB over the Action API - a WDQS SPARQL query or per-industry
+`wbgetclaims` would do it), and items 2-3.
 **Work:**
 1. `core/sources/wikidata.py`: LEI → item (`haswbstatement:P1278=`), `P452` industry → `P4496` NACE code →
    division candidates with evidence ("Wikidata: automotive industry → NACE 29"); description (cs/en) and
@@ -776,7 +803,16 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
   (Jakub).
 - **D4. Database.** Neon Postgres via the Vercel Marketplace (recommended: audit, confirmations, later the LLM
   cache and ledger in one place) vs Vercel KV. *E2/E7/E9.*
-  **Answer:**
+  **Answer:** 2026-09-24 — **Postgres, and the code is ready** (`core/db.py`): `DATABASE_URL` set = the usage
+  ledger, the answer cache, the audit events and the error reports in one database, from every device and user.
+  Neon via the Vercel Marketplace (free tier) is the intended store; any Postgres works. **Left to do in Vercel**
+  (the project is in Jakub's team): Storage → Create Database → Neon → connect to `nace-esa-assistant` (sets
+  `DATABASE_URL`), redeploy, check `/health` shows `database`. Then `LLM_DAILY_TOKEN_BUDGET` can be raised above 0
+  in production, because the ledger is measurable there. **Created 24 Sept 2026**: Neon `nace-esa-db`, region
+  eu-central-1 (Frankfurt, next to `fra1`), free plan, Neon Auth off, connected to the project for Production and
+  Preview with `DATABASE_URL` as a Sensitive variable. Verified live from a laptop the same day: schema, a lookup,
+  a report, the shared cache, and the CLIs reading it back. Production writes to it from the first deployment
+  that carries this code.
 - **D5. Authentication.** OIDC with Microsoft Entra ID needs an app registration from IT (Q-A1). Is the interim
   password gate with a self-declared name acceptable for the pilot, and for how long? *E2.*
   **Answer:** 2026-09-22 — there will be **no Entra ID app registration** (Jakub). The E2.1 shared-password gate

@@ -58,7 +58,7 @@ from fastapi.responses import (
 from fastapi.templating import Jinja2Templates
 
 from config.settings import APP_ROOT, Settings, get_settings
-from core.audit import current_user, log_lookup
+from core.audit import current_user, log_lookup, log_report, set_audit_sink
 from core.auth import (
     SESSION_COOKIE,
     SessionSigner,
@@ -69,6 +69,14 @@ from core.auth import (
 from core.classify.budget import spending_as
 from core.codebooks.errors import CodebookError
 from core.codebooks.loaders import load_and_check
+from core.db import DatabaseAuditSink, get_database
+from core.reports import (
+    ReportStore,
+    ReportStoreError,
+    build_report,
+    build_report_store,
+    reports_are_volatile,
+)
 from core.suggest import IssuerSuggestion, SuggestionRequest, SuggestionService, build_service
 
 LOGGER = logging.getLogger(__name__)
@@ -133,6 +141,15 @@ def _load_service(settings: Settings) -> SuggestionService:
         return service
 
 
+def _report_store(settings: Settings) -> ReportStore:
+    """The error-report store, built once per process; tests put their own in ``_state``."""
+    store = _state.get("reports")
+    if store is None:
+        store = build_report_store(settings)
+        _state["reports"] = store
+    return store  # type: ignore[return-value]
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Configure logging and warm the service. Never raises: see the module docstring."""
@@ -142,12 +159,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
     _state["settings"] = settings
+    database = get_database(settings)
+    if database is not None:
+        # Every lookup and report is also kept in the central database (D4). Reachability is
+        # checked at the first write, not here: a database that is down must not stop the
+        # instance from serving.
+        set_audit_sink(DatabaseAuditSink(database))
+        LOGGER.info("central database: %s", database.describe())
     # A failure is already logged and remembered; suggestion requests answer 503 with it.
     with suppress(CodebooksUnavailableError):
         _load_service(settings)
     try:
         yield
     finally:
+        set_audit_sink(None)
         _state.clear()
 
 
@@ -350,6 +375,9 @@ def health(settings: SettingsDep) -> JSONResponse:
             "model": settings.llm_model if settings.llm_api_key else None,
             "llm_configured": settings.llm_api_key is not None and settings.llm_enabled,
             "search_configured": bool(settings.web_search_url),
+            "wikimedia_enabled": settings.web_enabled and settings.wikimedia_enabled,
+            "database": (database.describe() if (database := get_database(settings)) else None),
+            "reports": settings.effective_reports_source,
             "gleif_enabled": settings.gleif_enabled,
             "openfigi_enabled": settings.openfigi_enabled,
             "python": platform.python_version(),
@@ -559,6 +587,83 @@ def suggest_form(
             "form": form,
             "warnings": _warnings(settings),
             "user": signed_in_user(request),
+            "reports_enabled": settings.effective_reports_source != "off",
+        },
+    )
+
+
+@app.post("/report", response_class=HTMLResponse, include_in_schema=False)
+def report_form(
+    request: Request,
+    settings: SettingsDep,
+    isin: Annotated[str, Form()] = "",
+    name: Annotated[str, Form()] = "",
+    description: Annotated[str, Form()] = "",
+    note: Annotated[str, Form()] = "",
+) -> HTMLResponse:
+    """MO disagrees with a result, or is not sure of it: store the request with the result.
+
+    The lookup is re-run like the download is (the classifier caches, so the result is the
+    one on screen and it costs nothing), the report is written to the configured store, and
+    the same page comes back with the result and a line saying whether the report was kept.
+    A store failure is said on the page, never hidden - and never a 500.
+    """
+    payload = SuggestionRequest(isin=isin, name=name, description=description)
+    form = {"isin": isin, "name": name, "description": description}
+
+    def page_with(error: str, status_code: int = 200) -> HTMLResponse:
+        return TEMPLATES.TemplateResponse(
+            request=request,
+            name="suggest.html",
+            context={
+                "suggestion": None,
+                "form": form,
+                "error": error,
+                "warnings": _warnings(settings),
+                "user": signed_in_user(request),
+                "reports_enabled": settings.effective_reports_source != "off",
+            },
+            status_code=status_code,
+        )
+
+    if payload.is_empty:
+        return page_with("Hlášení bez dotazu nelze uložit.")
+    try:
+        service = get_service()
+    except CodebooksUnavailableError as exc:
+        return page_with(f"Číselníky nejsou k dispozici, návrh teď nelze vytvořit: {exc}", 503)
+    suggestion = _run(service, settings, payload, request)
+    user = request_user(request, settings)
+    report = build_report(
+        suggestion,
+        note=note,
+        user=user,
+        max_note_chars=settings.reports_max_note_chars,
+        commit=os.environ.get("VERCEL_GIT_COMMIT_SHA") or None,
+    )
+    store_name = settings.effective_reports_source
+    try:
+        store = _report_store(settings)
+        store_name = store.name
+        location = store.save(report)
+    except ReportStoreError as exc:
+        LOGGER.warning("error report %s not stored: %s", report.id, exc)
+        log_report(report.identifier, user=user, stored=False, store=store_name)
+        outcome = {"ok": False, "id": report.id, "message": str(exc)}
+    else:
+        LOGGER.info("error report %s stored at %s", report.id, location)
+        log_report(report.identifier, user=user, stored=True, store=store_name)
+        outcome = {"ok": True, "id": report.id, "message": ""}
+    return TEMPLATES.TemplateResponse(
+        request=request,
+        name="suggest.html",
+        context={
+            "suggestion": suggestion,
+            "form": form,
+            "warnings": _warnings(settings),
+            "user": signed_in_user(request),
+            "reports_enabled": settings.effective_reports_source != "off",
+            "report": outcome,
         },
     )
 
@@ -742,7 +847,13 @@ def _warnings(settings: Settings) -> list[str]:
             "navrhne jen tam, kde rozhodlo pravidlo (kategorie v GLEIF nebo klíčové slovo); "
             "ověření a výběr jsou na vás. (Model se zapne po nastavení LLM_API_KEY.)"
         )
-    if not settings.web_search_url:
+    wikimedia = settings.web_enabled and settings.wikimedia_enabled
+    if not settings.web_search_url and wikimedia:
+        warnings.append(
+            "Popis činnosti se dohledá na Wikipedii podle LEI z registru GLEIF, tedy jen pro "
+            "emitenta zadaného ISIN; u ostatních (a kde Wikipedie nic nemá) jej zadejte ručně."
+        )
+    elif not settings.web_search_url:
         warnings.append(
             "Vyhledávání na webu není nastaveno (WEB_SEARCH_URL); zadejte popis činnosti ručně."
         )
@@ -750,5 +861,10 @@ def _warnings(settings: Settings) -> list[str]:
         warnings.append(
             "Dohledání emitenta podle ISIN je vypnuto (GLEIF_ENABLED, OPENFIGI_ENABLED); "
             "zadejte název emitenta nebo popis činnosti."
+        )
+    if reports_are_volatile(settings):
+        warnings.append(
+            "Hlášení chyb se ukládají do dočasného adresáře, který Vercel po chvíli zahodí "
+            "(REPORTS_SOURCE=dir); pro trvalé uložení nastavte REPORTS_SOURCE=blob."
         )
     return warnings

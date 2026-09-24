@@ -12,7 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 #: The ``app/`` directory (repository layout root; ``/app`` inside the container).
@@ -210,6 +210,44 @@ class Settings(BaseSettings):
         description="Attempts per OpenFIGI request, including the first; 429 and 5xx are retried.",
     )
 
+    # --- Activity description from Wikidata / Wikipedia (roadmap E5) ---------------------
+    # When MO types no description and GLEIF gave a LEI, the LEI finds the issuer's Wikidata
+    # item (property P1278) and its Wikipedia article supplies the description. Free and
+    # keyless, and matched on the identifier first; the official name only as an exact label
+    # or alias match of a single item (WIKIMEDIA_NAME_MATCH), flagged for review. Hosts: www.wikidata.org and
+    # {lang}.wikipedia.org. Wikimedia refuses a User-Agent without contact (WEB_USER_AGENT).
+    wikimedia_enabled: bool = Field(
+        default=True,
+        description="Describe an issuer with a LEI from Wikidata and Wikipedia when no "
+        "description was typed. Also off when WEB_ENABLED is false.",
+    )
+    wikimedia_name_match: bool = Field(
+        default=True,
+        description="When no Wikidata item carries the LEI (or there is none), accept the one "
+        "item whose label or alias exactly equals the official name and that carries no other "
+        "entity's LEI. Off: the identifier only.",
+    )
+    wikipedia_languages: str = Field(
+        default="cs,en",
+        description="Wikipedia editions to try, in order, comma-separated; the first with an "
+        "article wins.",
+    )
+    wikimedia_timeout_seconds: float = Field(
+        default=5.0, gt=0, description="HTTP timeout for a single Wikidata or Wikipedia request."
+    )
+    wikimedia_min_interval_seconds: float = Field(
+        default=0.3,
+        ge=0,
+        description="Minimum delay between two Wikimedia requests (they ask for about 200 per "
+        "minute with a descriptive User-Agent). 0 disables the throttle.",
+    )
+    wikimedia_max_attempts: int = Field(
+        default=2,
+        ge=1,
+        le=5,
+        description="Attempts per Wikimedia request, including the first; 429 and 5xx are retried.",
+    )
+
     # --- LLM classifier for foreign issuers (build step 6) -------------------------------
     # Only the public issuer name, the web-derived description and codebook labels are ever
     # put in a prompt. Nothing retrieved from DWS may reach a model (hard rule in CLAUDE.md).
@@ -372,6 +410,43 @@ class Settings(BaseSettings):
         description="How long a sign-in lasts before the name and password are asked again.",
     )
 
+    # --- The central database (core/db.py, roadmap D4) ---------------------------------
+    # One Postgres for what a serverless function cannot keep on disk: the usage ledger, the
+    # answer cache, the audit events and the error reports - from every device and user.
+    # The Vercel Marketplace integration (Neon) sets DATABASE_URL; POSTGRES_URL is read too.
+    database_url: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("DATABASE_URL", "POSTGRES_URL"),
+        description="postgresql://user:password@host/db?sslmode=require (Sensitive on Vercel). "
+        "Set: the ledger, the cache, the audit events and the error reports go there instead "
+        "of local files. Empty: local files as before.",
+    )
+
+    # --- Error reports (core/reports.py) ------------------------------------------------
+    # One button on the result: the request, the result row and MO's note are stored so the
+    # case can be replayed. Content, so it is kept like the codebooks: a directory that is
+    # git-ignored, or the private Blob store on Vercel - never a log line.
+    reports_source: Literal["auto", "db", "dir", "blob", "off"] = Field(
+        default="auto",
+        description="'auto' is 'db' with DATABASE_URL and 'dir' without; 'db' the central "
+        "database; 'dir' one JSON file per report under REPORTS_DIR; 'blob' the private "
+        "Vercel Blob store; 'off' hides the button.",
+    )
+    reports_dir: Path = Field(
+        default=APP_ROOT / "data" / "reports",
+        description="Where a 'dir' store keeps its files; relative to the app directory.",
+    )
+    reports_blob_prefix: str = Field(
+        default="reports/", description="Pathname prefix of the reports in the Blob store."
+    )
+    reports_blob_api_url: str = Field(
+        default="https://vercel.com/api/blob",
+        description="The Blob upload API (the SDK's VERCEL_BLOB_API_URL); change only if Vercel does.",
+    )
+    reports_max_note_chars: int = Field(
+        default=500, ge=1, le=5000, description="The note is cut at this many characters."
+    )
+
     # --- Logging ------------------------------------------------------------------------
     log_level: str = Field(default="INFO", description="Python logging level name.")
     probe_enabled: bool = Field(
@@ -380,7 +455,14 @@ class Settings(BaseSettings):
         "False answers 404.",
     )
 
-    @field_validator("codebook_dir", mode="after")
+    @property
+    def effective_reports_source(self) -> str:
+        """``reports_source`` with ``auto`` resolved: the database when there is one."""
+        if self.reports_source != "auto":
+            return self.reports_source
+        return "db" if self.database_url and self.database_url.get_secret_value().strip() else "dir"
+
+    @field_validator("codebook_dir", "reports_dir", mode="after")
     @classmethod
     def _absolutize_codebook_dir(cls, value: Path) -> Path:
         """Relative directories are interpreted relative to ``APP_ROOT``, not the cwd."""
@@ -399,6 +481,7 @@ class Settings(BaseSettings):
         "session_secret",
         "llm_api_key",
         "openfigi_api_key",
+        "database_url",
         "blob_read_write_token",
         "blob_store_id",
         "codebook_download_dir",

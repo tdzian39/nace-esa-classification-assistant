@@ -9,7 +9,7 @@ a napíše proč. Nic víc.
 
 1. **Zadáte ISIN** (nebo název či popis činnosti).
 2. **Nástroj bez AI sesbírá fakta:** kdo emitent je (registry GLEIF a OpenFIGI) a čím se živí
-   (popis činnosti, který jste napsali vy).
+   (Wikipedie, nebo popis, který jste napsali vy).
 3. **Nástroj bez AI zúží číselníky:** z 87 kódů NACE a 56 sektorů ESA nechá zhruba 12 + 12
    kandidátů, každého rovnou s jeho CTS ID.
 4. **Teprve teď přijde na řadu model.** Dostane popis a těch 12 kandidátů a vybere
@@ -76,7 +76,7 @@ níže nestojí jinak.
 | Hosting na Vercelu, plán Hobby (dnes) | 0 – ale jen pro osobní, nekomerční použití |
 | Nasazení nové verze | 0 |
 | Uložení číselníků ve Vercel Blob | 0 v rámci limitu, který plán obsahuje (soubory mají pár set kB) |
-| Registry GLEIF a OpenFIGI | 0 – veřejné a zdarma |
+| Registry GLEIF, OpenFIGI, Wikipedie, Wikidata | 0 – veřejné a zdarma |
 | GitHub (repozitář, pull requesty) | 0 |
 | Zapnout placené vyhledávání na webu (Brave, Bing, Google) | **placené za každé hledání** podle ceníku poskytovatele – dnes vypnuto |
 | Vyměnit model za dražší | cena za emitenta se změní, např. Claude Sonnet 5 ≈ **0,011 USD** (asi 10× víc) |

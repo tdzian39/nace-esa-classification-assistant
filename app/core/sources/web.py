@@ -41,7 +41,13 @@ from urllib.parse import urlparse
 import httpx
 
 from config.settings import Settings
-from core.sources.base import Provenance, SourceResponseError, SourceUnavailableError
+from core.sources.base import (
+    Provenance,
+    SourceError,
+    SourceResponseError,
+    SourceUnavailableError,
+)
+from core.sources.wikimedia import WikiDescription, WikimediaSource
 
 LOGGER = logging.getLogger(__name__)
 
@@ -322,6 +328,8 @@ class WebEvidenceGatherer:
     Args:
         settings: Limits, throttling and the search configuration.
         provider: Search provider; defaults to HTTP when a URL is configured, else none.
+        wikimedia: Wikidata/Wikipedia client, asked by LEI before the search provider; built
+            lazily when ``WIKIMEDIA_ENABLED``.
         client: Injected for tests, used for page fetches.
         sleep, monotonic: Injected so throttling can be asserted without spending time.
     """
@@ -333,6 +341,7 @@ class WebEvidenceGatherer:
         settings: Settings,
         *,
         provider: SearchProvider | None = None,
+        wikimedia: WikimediaSource | None = None,
         client: httpx.Client | None = None,
         sleep: Callable[[float], None] = time.sleep,
         monotonic: Callable[[], float] = time.monotonic,
@@ -341,6 +350,7 @@ class WebEvidenceGatherer:
         self._provider = provider or (
             HttpSearchProvider(settings) if settings.web_search_url else NullSearchProvider()
         )
+        self._wikimedia = wikimedia
         self._client = client
         self._owns_client = client is None
         self._sleep = sleep
@@ -377,6 +387,8 @@ class WebEvidenceGatherer:
         close = getattr(self._provider, "close", None)
         if callable(close):
             close()
+        if self._wikimedia is not None:
+            self._wikimedia.close()
 
     def __enter__(self) -> WebEvidenceGatherer:
         return self
@@ -392,11 +404,17 @@ class WebEvidenceGatherer:
         name: str | None = None,
         isin: str | None = None,
         description: str | None = None,
+        lei: str | None = None,
+        deadline: float | None = None,
     ) -> IssuerEvidence:
         """Assemble evidence about one foreign issuer.
 
         A description the user typed is authoritative and is used as-is; the web is only
-        consulted to fill a gap. Nothing here raises on a thin result - an issuer the web
+        consulted to fill a gap - first Wikidata/Wikipedia by ``lei`` (free, matched on the
+        identifier), else by the official ``name`` when exactly one item bears it and it is
+        not some other entity's, then the search provider. ``deadline`` is a
+        :func:`time.monotonic` value no Wikimedia request may run past.
+        Nothing here raises on a thin result - an issuer the web
         cannot describe must reach the classifier as "no evidence", which makes it abstain,
         rather than as an exception that loses the row.
         """
@@ -416,7 +434,7 @@ class WebEvidenceGatherer:
                 notes=("description supplied by the user; the web was not consulted",),
             )
 
-        if not query:
+        if not query and not lei:
             return IssuerEvidence(query="", provenance=provenance, notes=("nothing to search for",))
         if not self._settings.web_enabled:
             return IssuerEvidence(
@@ -424,13 +442,20 @@ class WebEvidenceGatherer:
             )
 
         notes: list[str] = []
+        official = (name or "").strip() or None
+        if (lei or official) and self._settings.wikimedia_enabled:
+            wiki = self._from_wikimedia(lei, official, deadline, notes)
+            if wiki is not None:
+                return self._wiki_evidence(wiki, query=query or lei or "", name=name, notes=notes)
+        if not query:
+            return IssuerEvidence(query=lei or "", provenance=provenance, notes=tuple(notes))
+
         try:
             hits = self._provider.search(query, limit=self._settings.web_max_results)
         except (SourceUnavailableError, SourceResponseError) as exc:
             LOGGER.warning("web search failed for %r: %s", query, exc)
-            return IssuerEvidence(
-                query=query, provenance=provenance, notes=(f"search failed: {exc}",)
-            )
+            notes.append(f"search failed: {exc}")
+            return IssuerEvidence(query=query, provenance=provenance, notes=tuple(notes))
 
         usable = [hit for hit in hits if not is_blocked(hit.url)]
         if len(usable) < len(hits):
@@ -478,6 +503,80 @@ class WebEvidenceGatherer:
         )
 
     # -- internals ---------------------------------------------------------------------
+
+    def _wikimedia_source(self) -> WikimediaSource:
+        if self._wikimedia is None:
+            self._wikimedia = WikimediaSource(self._settings)
+        return self._wikimedia
+
+    def _from_wikimedia(
+        self, lei: str | None, name: str | None, deadline: float | None, notes: list[str]
+    ) -> WikiDescription | None:
+        """Ask Wikidata by ``lei``, then ``name``; a failure or a miss is a note, never raised."""
+        try:
+            wiki = self._wikimedia_source().describe(lei, name=name, deadline=deadline)
+        except SourceError as exc:
+            LOGGER.warning("Wikidata lookup failed for %s: %s", lei or name, exc)
+            notes.append(f"Wikidata: zdroj se nepodařilo dotázat ({exc})")
+            return None
+        if wiki is None:
+            by_name = bool(name) and self._settings.wikimedia_name_match
+            if lei and by_name:
+                notes.append("Wikidata nemá položku s tímto LEI ani jedinou položku s tímto názvem")
+            elif lei:
+                notes.append("Wikidata nemá položku s tímto LEI")
+            else:
+                notes.append("Wikidata nemá jedinou položku s tímto názvem")
+            return None
+        notes.extend(wiki.notes)
+        if not wiki.paragraphs:
+            notes.append(f"Wikidata {wiki.item.qid} emitenta nepopisuje")
+            return None
+        return wiki
+
+    def _wiki_evidence(
+        self, wiki: WikiDescription, *, query: str, name: str | None, notes: list[str]
+    ) -> IssuerEvidence:
+        """Evidence from Wikimedia: the article's lead and Wikidata's lines, both cited."""
+        item, summary = wiki.item, wiki.summary
+        sources = [
+            EvidenceSource(
+                url=item.url,
+                title=f"Wikidata – {item.qid} {item.label or ''}".rstrip(),
+                snippet=item.description_cs or item.description_en or "",
+                fetched=True,
+                retrieved_at=item.provenance.retrieved_at,
+            )
+        ]
+        if summary is not None:
+            sources.append(
+                EvidenceSource(
+                    url=summary.url,
+                    title=f"Wikipedie ({summary.lang}) – {summary.title}",
+                    snippet=summary.extract[:200],
+                    fetched=True,
+                    retrieved_at=summary.provenance.retrieved_at,
+                )
+            )
+        origin = f"Wikipedie ({summary.lang})" if summary is not None else "Wikidat"
+        # Wikidata links the LEI to an item, and an item is sometimes the group or the brand
+        # rather than the legal entity (BMW AG -> "BMW"): a reviewer has to know to check. A
+        # name match is weaker still - the same words, not the same identifier.
+        how = "podle shody názvu, ne identifikátoru" if item.matched_by == "name" else "podle LEI"
+        notes.append(
+            f"popis převzat z {origin} přes Wikidata {item.qid} {how} – "
+            "ověřte, že popisuje právě tohoto emitenta"
+        )
+        if item.other_items:
+            notes.append(f"Wikidata má s tímto LEI ještě {item.other_items} další položku/y")
+        return IssuerEvidence(
+            query=query,
+            issuer_name=(name or "").strip() or item.label,
+            description=self._assemble(wiki.paragraphs) or None,
+            sources=tuple(sources),
+            provenance=(summary or item).provenance,
+            notes=tuple(notes),
+        )
 
     def _read(self, url: str) -> tuple[str, str | None]:
         """Fetch one page and extract its text. Returns ``(text, error note)``."""

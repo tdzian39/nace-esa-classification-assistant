@@ -16,7 +16,8 @@ taking DWS and ARES with it — nothing here reads them. **The plan, every decis
 open question live in `docs/ROADMAP.md`: read it after this file and keep both in step.**
 
 Sources, in order: **GLEIF** (`api.gleif.org`) + **OpenFIGI** (`api.openfigi.com`) for an
-issuer given by ISIN; **web search** for activity descriptions of foreign issuers only.
+issuer given by ISIN; **Wikidata/Wikipedia by that LEI**, then **web search**, for activity
+descriptions of foreign issuers only.
 Never scrape `apl.czso.cz` or `or.justice.cz`.
 
 ## Codebooks (xlsx; from a private Vercel Blob store in deployment, roadmap D3)
@@ -44,13 +45,15 @@ Never scrape `apl.czso.cz` or `or.justice.cz`.
 
 ```
 core/identifiers  ico.py (mod-11; batch reader only), isin.py
-core/sources      base.py, gleif.py, openfigi.py, identity.py (ISIN -> issuer), web.py
+core/sources      base.py, gleif.py, openfigi.py, identity.py (ISIN -> issuer), web.py, wikimedia.py
 core/codebooks    loaders, versioning, consistency; blob.py (private Vercel Blob)
 core/classify     candidates.py (pre-filter), hints.py, llm.py, proposal.py, golden.py,
                   budget.py (limits, usage ledger), usage_report.py (the ledger as Excel)
 core/export       columns.py (the row), xlsx.py     core/batch reader.py (E6 reuses)
 core/probe.py     the /probe register checks     core/auth.py  sign-in (users, cookie)
-api/  GET / · POST /suggest · POST /api/suggest · GET /suggest.xlsx · /health · /probe
+core/reports.py   error reports (the button): request + result row + note, to the db, a dir or Blob
+core/db.py        the central Postgres (D4): ledger, cache, audit events, reports; SQLite engine for tests
+api/  GET / · POST /suggest · POST /report · POST /api/suggest · GET /suggest.xlsx · /health · /probe
       GET|POST /login · POST /logout
 ui/   suggest.html, login.html + prototype/suggest.html   tests/golden  cases.json, identity.json
 config/settings.py · .env.example · vercel.json · .python-version · pyproject.toml
@@ -89,6 +92,7 @@ framework. No pandas; numpy is a dev extra only (tests feed numpy scalars to the
 ../.venv/Scripts/python.exe -m pytest
 ../.venv/Scripts/ruff.exe check . && ../.venv/Scripts/ruff.exe format --check .
 ../.venv/Scripts/python.exe -m core.codebooks [--no-strict --json --dir PATH]
+../.venv/Scripts/python.exe -m core.reports --list [--dir PATH] [--xlsx PATH]   # the error reports
 ```
 
 The venv is Anaconda 3.13.9 (no 3.12 on this machine) but `requires-python >= 3.12`, so stay
@@ -162,6 +166,28 @@ FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept
   and skips the web. Every thin result (no provider, search down, 404, PDF, all blocked) returns
   evidence with no description, which must make the classifier **abstain rather than guess from
   the name**. The provider is a Protocol — which search API a bank may call is procurement.
+- **Wikipedia description** (`wikimedia.py`, E5.1, revived 24 Sept 2026): with no typed description
+  and a LEI from GLEIF, the gatherer asks Wikidata for the item whose P1278 is the LEI, then the
+  Wikipedia REST summary (`WIKIPEDIA_LANGUAGES`, `cs,en`), before any search provider.
+  * Matched on the **LEI first**; when no item carries it (or there is none), the **official
+    name** (`WIKIMEDIA_NAME_MATCH`, 24 Sept 2026): `wbsearchentities` label/alias hits count only
+    when the matched text *is* the name (`_fold`: case, diacritics, punctuation), the first
+    edition (en, then cs) with a hit decides, exactly one item may match, and an item carrying
+    another entity's LEI is refused - BMW Finance N.V. stays unmatched rather than becoming BMW.
+    Second try without the legal-form suffix; then a brand hit with a LEI is refused too.
+    Ties ("Bundesrepublik Deutschland", "European Union") are left alone. Measured on the 36
+    golden ISINs: 14 described by LEI, 6 by name, 16 none (vehicles, funds, tied names).
+    The item is sometimes the group or brand (BMW AG -> "BMW"), so the page always says to
+    check; a name match says "podle shody názvu, ne identifikátoru".
+  * The description is the article's lead plus Wikidata's one-liner and P452 industry labels
+    (cs with en in parentheses), so it counts as `WEB` evidence: the `source` column is unchanged.
+  * Narrow calls only: the full item is 443 KB and industry items with claims 250 KB, so the
+    industries' NACE codes (P4496) are **not** read; the labels usually are NACE titles.
+  * Up to 5 requests; `WIKIMEDIA_TIMEOUT_SECONDS` 5, and none starts that could outlive the lookup
+    deadline (a `SourceUnavailableError`, noted, never "not found"). Hosts `www.wikidata.org`,
+    `{cs,en}.wikipedia.org`, in `/probe`'s default set while `WIKIMEDIA_ENABLED`.
+  * Test helpers not about it set `wikimedia_enabled=False`, or a LEI in a fixture reaches the
+    real Wikimedia.
 - **Candidate pre-filter** (`candidates.py`): narrows to ~12 per codebook, each already carrying
   its CTS ID, so a returned code cannot be one CTS does not know. It optimises **recall**: a code
   the filter omits is one the model can never return. Mechanisms: the reviewable keyword table
@@ -264,6 +290,37 @@ FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub, 23 Sept
   No rate limit — a serverless function keeps no counter — so the slow hash is the only brake.
   `tests/conftest.py` blanks `APP_PASSWORD_HASH`/`SESSION_SECRET` so a developer's `.env` cannot
   gate the page tests.
+- **The central database** (`core/db.py`, roadmap D4, 24 Sept 2026): `DATABASE_URL` (or
+  `POSTGRES_URL`, what the Vercel Marketplace's Neon integration sets) moves four things into
+  one Postgres, from every device and user: the usage ledger (`llm_usage`, so
+  `LLM_DAILY_TOKEN_BUDGET` is enforceable in production), the answer cache
+  (`classifications`, shared by every instance), the audit events (`audit_events`: lookups
+  and reports, identifier/user/outcome, **never content**) and the error reports
+  (`error_reports`). Same protocols as the SQLite and file stores, chosen in `build_ledger`
+  / `build_cache` / `build_report_store` (`REPORTS_SOURCE=auto` → `db`), and `set_audit_sink()`
+  at startup. **One SQL, two engines**: `?` placeholders and ISO-8601 text timestamps, Postgres
+  gets `%s` and `BIGSERIAL`; the SQLite engine (`sqlite:///path`) runs the same code in the
+  tests and on a laptop. A connection per operation (Neon's pooled URL), connect timeout 5 s,
+  schema `CREATE TABLE IF NOT EXISTS` once per instance, no migration tool. Writes fail soft
+  (a warning), reads are honest (`records()` raises). psycopg 3 with bundled libpq is a
+  runtime dependency, imported only when the URL is set. **Verified live on 24 Sept 2026**
+  against the Neon database `nace-esa-db` (eu-central-1, connected to the Vercel project):
+  schema created, a lookup wrote `audit_events`, `llm_usage` and `classifications`, a report
+  wrote `error_reports`, the report's re-run was served from the shared cache, and `--usage`
+  / `core.reports --list` read them back. `describe()` never includes the password.
+- **Error reports** (`core/reports.py`, `POST /report`, 24 Sept 2026): the result page has one
+  button, "Nahlásit k prověření", with an optional note (`REPORTS_MAX_NOTE_CHARS`, 500). The
+  lookup is **re-run like the download** (cached, so it is the result on screen) and the
+  request, the output row (`json_row(suggestion_row())`), the lookup's notes, the user, the
+  time and the app facts (codebook version, model, prompt version, commit) are stored as one
+  JSON. `REPORTS_SOURCE`: `dir` (default; `REPORTS_DIR`, git-ignored, `<date>/<id>.json`,
+  atomic, never overwritten), `blob` (the Vercel setting: the SDK's `put` over httpx, `PUT
+  {REPORTS_BLOB_API_URL}/?pathname=`, `x-api-version 12`, `x-vercel-blob-access private`;
+  read back in the Vercel dashboard, no list call), `off` (no button). A store failure is
+  **said on the page**, never a 500; a `dir` store on Vercel gets a page warning because
+  `/tmp` does not outlive the instance. **A report is content**: never a log line - the audit
+  log gets `log_report()` (identifier, user, stored or not) only. Review: `python -m
+  core.reports --list | --xlsx` (the database when `DATABASE_URL` is set).
 - **Audit**: `request_user()` is the signed-in name when sign-in is on, and then
   `WEB_USER_HEADER` is ignored — a header a browser can send is not an identity. With sign-in
   off it reads `WEB_USER_HEADER` (default `X-Remote-User`) because in a server the OS account

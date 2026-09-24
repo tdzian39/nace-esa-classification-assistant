@@ -19,8 +19,10 @@ from core.sources.base import Provenance
 from core.sources.gleif import LeiRecord, ParentEntity
 from core.sources.identity import NO_IDENTITY, IssuerIdentity
 from core.sources.web import EvidenceSource, SearchHit, StaticSearchProvider, WebEvidenceGatherer
+from core.sources.wikimedia import WikimediaSource
 from core.suggest import SuggestionRequest, SuggestionService
 from tests.classify.conftest import build_codebooks
+from tests.sources.conftest import wikimedia_client
 
 ISIN = "FR0129895324"
 LEI = "5299006ZHG3IXU0PNJ56"
@@ -94,7 +96,12 @@ def service(
     hits: dict[str, tuple[SearchHit, ...]] | None = None,
     identifier: FakeIdentifier | None = None,
 ) -> tuple[SuggestionService, FakeIdentifier, StubLlmProvider]:
-    settings = Settings(web_min_interval_seconds=0.0, llm_cache_path=None, llm_api_key=None)
+    settings = Settings(
+        web_min_interval_seconds=0.0,
+        llm_cache_path=None,
+        llm_api_key=None,
+        wikimedia_enabled=False,
+    )
     client = httpx.Client(
         transport=httpx.MockTransport(
             lambda request: httpx.Response(200, text=PAGE, headers={"content-type": "text/html"})
@@ -197,8 +204,44 @@ class TestPrecedence:
         assert suggestion.identity is NO_IDENTITY
         assert suggestion.source_label == "WEB"
 
+    def test_the_register_lei_finds_the_description_on_wikipedia(self) -> None:
+        settings = Settings(
+            web_min_interval_seconds=0.0,
+            llm_cache_path=None,
+            llm_api_key=None,
+            wikimedia_min_interval_seconds=0.0,
+        )
+        calls: list[httpx.Request] = []
+        svc = SuggestionService(
+            build_codebooks(),
+            gatherer=WebEvidenceGatherer(
+                settings,
+                provider=StaticSearchProvider(()),
+                wikimedia=WikimediaSource(
+                    settings, client=wikimedia_client(calls=calls), sleep=lambda _: None
+                ),
+                sleep=lambda _: None,
+            ),
+            classifier=LlmClassifier(NullLlmProvider()),
+            identifier=FakeIdentifier(BMW_IDENTITY),  # type: ignore[arg-type]
+        )
+        suggestion = svc.suggest(SuggestionRequest(isin=ISIN))
+        assert calls[0].url.params["srsearch"] == f"haswbstatement:P1278={LEI}"
+        # The canned answer is Deutsche Bank's; what matters is that it became the description.
+        assert suggestion.description.startswith("Deutsche Bank AG je největší")
+        assert suggestion.classifier_text.endswith(BMW_IDENTITY.fact_sheet())
+        assert suggestion.source_label == "GLEIF+OPENFIGI+WEB"
+        assert "https://cs.wikipedia.org/wiki/Deutsche_Bank" in [
+            source.url for source in suggestion.evidence_sources
+        ]
+
     def test_a_service_without_an_identifier_behaves_as_before(self) -> None:
-        settings = Settings(web_min_interval_seconds=0.0, llm_cache_path=None, llm_api_key=None)
+        settings = Settings(
+            web_min_interval_seconds=0.0,
+            llm_cache_path=None,
+            llm_api_key=None,
+            wikimedia_enabled=False,
+        )
         svc = SuggestionService(
             build_codebooks(),
             gatherer=WebEvidenceGatherer(
