@@ -124,5 +124,19 @@ def test_an_unknown_codebook_source_is_refused(monkeypatch: pytest.MonkeyPatch) 
 def test_the_blob_token_is_never_shown(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("BLOB_READ_WRITE_TOKEN", "vercel_blob_rw_Store1_secret")
     settings = Settings(_env_file=None)
-    assert "secret" not in repr(settings)
+    assert "Store1_secret" not in repr(settings)
     assert settings.blob_read_write_token.get_secret_value().endswith("secret")
+
+
+def test_the_sign_in_secrets_are_never_shown() -> None:
+    settings = Settings(
+        _env_file=None,
+        app_password_hash="pbkdf2_sha256$1$c2FsdA$aGFzaA",
+        session_secret="s3kr1t-value",
+    )
+    assert "s3kr1t-value" not in repr(settings) and "aGFzaA" not in repr(settings)
+
+
+def test_blank_sign_in_settings_mean_sign_in_is_off() -> None:
+    settings = Settings(_env_file=None, app_password_hash="  ", session_secret="")
+    assert settings.app_password_hash is None and settings.session_secret is None

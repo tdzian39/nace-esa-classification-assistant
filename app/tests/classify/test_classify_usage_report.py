@@ -35,6 +35,7 @@ def record(
     completion_tokens: int = 100,
     minutes: int = 0,
     cached_prompt_tokens: int | None = None,
+    user: str = "unknown",
 ) -> UsageRecord:
     return UsageRecord(
         at=T0 + timedelta(minutes=minutes),
@@ -43,6 +44,7 @@ def record(
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
         cached_prompt_tokens=cached_prompt_tokens,
+        user=user,
     )
 
 
@@ -114,7 +116,8 @@ class TestWorkbook:
     def test_calls_are_listed_in_time_order(self, out: Path) -> None:
         write_usage_workbook([record(kind="ESA", minutes=5), record(kind="NACE")], out)
         sheet = load_workbook(out)[CALLS_SHEET]
-        assert [sheet.cell(row=r, column=4).value for r in (2, 3)] == ["NACE", "ESA"]
+        column = CALL_COLUMNS.index("Codebook") + 1
+        assert [sheet.cell(row=r, column=column).value for r in (2, 3)] == ["NACE", "ESA"]
 
     def test_totals_by_model_codebook_and_day(self, out: Path) -> None:
         records = [
@@ -161,6 +164,29 @@ class TestWorkbook:
         assert row["Cost (USD)"] == pytest.approx(exact)
         text = " ".join(str(value) for value in sheet_text(out, SUMMARY_SHEET))
         assert "no cached-input count" not in text
+
+    def test_spend_is_totalled_by_user(self, out: Path) -> None:
+        records = [
+            record(user="Jana Nováková"),
+            record(user="Jana Nováková", minutes=1),
+            record(minutes=2),  # recorded before users were kept
+        ]
+        write_usage_workbook(records, out)
+
+        sheet = load_workbook(out)[SUMMARY_SHEET]
+        rows = [[cell.value for cell in row] for row in sheet.iter_rows()]
+        title = next(i for i, row in enumerate(rows) if row[0] == "By user")
+        assert rows[title + 1][:2] == ["User", "Calls"]
+        by_user = {row[0]: row for row in rows[title + 2 : title + 4]}
+        assert by_user["Jana Nováková"][1] == 2
+        assert by_user["Jana Nováková"][4] == pytest.approx(2 * ONE_LUNA_CALL)
+        assert by_user["unknown"][1] == 1
+
+    def test_each_call_names_its_user(self, out: Path) -> None:
+        write_usage_workbook([record(user="Petr")], out)
+        sheet = load_workbook(out)[CALLS_SHEET]
+        row = {name: cell.value for name, cell in zip(CALL_COLUMNS, sheet[2], strict=True)}
+        assert row["User"] == "Petr"
 
     def test_zero_cached_is_exact_at_the_full_rate(self, out: Path) -> None:
         report = write_usage_workbook([record(cached_prompt_tokens=0)], out)

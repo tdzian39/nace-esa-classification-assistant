@@ -333,6 +333,28 @@ user, sources consulted and outcome - as a message and as structured fields in
 the question and the outcome, never the answer, so it can be kept and shipped without
 carrying client data.
 
+### Sign-in (`core/auth.py`)
+
+Off until `APP_PASSWORD_HASH` is set; then every page but `/login`, `/health` and
+`/api/version` asks for a name and the one shared password (roadmap D5). The name is
+self-declared and is the user in the audit trail and in the usage ledger. It is normalised -
+lower case, no diacritics, single spaces - so `Jan Novák` and `jan novak` are one person;
+the page asks users to type it that way every time.
+
+```bash
+../.venv/Scripts/python.exe -m core.classify --hash-password     # asks twice, prints a hash
+```
+
+Put the hash in `APP_PASSWORD_HASH` (single-quote it in `.env`: it contains `$`) and set
+`SESSION_SECRET` to a long random string; without the secret nobody can sign in. The
+password itself is never configured or committed. The session is a signed cookie lasting
+`SESSION_HOURS` (12); a new password hash or a new secret signs everybody out, which is how
+access is revoked. On Vercel both variables are Sensitive.
+
+Model calls are recorded per user in the usage ledger (`--usage-xlsx` totals them by user);
+calls recorded before users were kept are `unknown`. Vercel keeps no ledger, so production
+spend per user is not recorded anywhere yet (roadmap D4).
+
 ## Batch xlsx in/out (`core/batch`, `core/export`)
 
 Two halves outlived the Tool 2 batch runner (removed in PR #5): the reader, which roadmap

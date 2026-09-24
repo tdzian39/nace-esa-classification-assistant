@@ -2,7 +2,8 @@
 
 ``python -m core.classify --usage-xlsx [PATH]`` writes it. Three sheets:
 
-* **Summary** - the period, the totals, and the same figures by model, by codebook and by day;
+* **Summary** - the period, the totals, and the same figures by user, by model, by codebook
+  and by day (calls recorded before users were kept are ``unknown``'s);
 * **Calls** - one row per model call, as an Excel table (filters; select a column to sum it);
 * **Prices** - the prices the costs were computed with, and where they came from.
 
@@ -62,6 +63,7 @@ PRICES_SHEET: Final[str] = "Prices"
 CALL_COLUMNS: Final[tuple[str, ...]] = (
     "#",
     "Time (UTC)",
+    "User",
     "Model",
     "Codebook",
     "Input tokens",
@@ -227,6 +229,8 @@ def _write_summary(
         "Costs use the provider's standard prices (sheet Prices), cached input at the cached "
         "price from the count the provider reported. A call recorded without that count is "
         "priced as all uncached - an upper bound - and counted below.",
+        "User is who the call was made for: the signed-in name on the web, the OS account on "
+        "the command line; calls recorded before users were kept are 'unknown'.",
         f"Exported {_naive_utc(exported_at):%Y-%m-%d %H:%M} (UTC). All times are UTC.",
     )
     for row, note in enumerate(notes, start=2):
@@ -268,6 +272,7 @@ def _write_summary(
         row += 1
 
     blocks: tuple[tuple[str, str, Callable[[CallCost], str]], ...] = (
+        ("By user", "User", lambda item: item.record.user),
         ("By model", "Model", lambda item: item.record.model),
         ("By codebook", "Codebook", lambda item: item.record.kind or "-"),
         ("By day", "Date (UTC)", lambda item: f"{_naive_utc(item.record.at):%Y-%m-%d}"),
@@ -320,6 +325,7 @@ def _write_calls(sheet: Worksheet, items: Sequence[CallCost]) -> None:
         _DATETIME_FORMAT,
         None,
         None,
+        None,
         _TOKENS,
         _TOKENS,
         _TOKENS,
@@ -333,6 +339,7 @@ def _write_calls(sheet: Worksheet, items: Sequence[CallCost]) -> None:
         values = (
             number,
             _naive_utc(record.at),
+            record.user,
             record.model,
             record.kind,
             record.prompt_tokens,
@@ -351,7 +358,7 @@ def _write_calls(sheet: Worksheet, items: Sequence[CallCost]) -> None:
         table.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True)
         sheet.add_table(table)
     sheet.freeze_panes = "A2"
-    _set_widths(sheet, (6, 20, 16, 11, 13, 14, 14, 13, 16, 17, 12))
+    _set_widths(sheet, (6, 20, 18, 16, 11, 13, 14, 14, 13, 16, 17, 12))
 
 
 def _write_prices(sheet: Worksheet) -> None:

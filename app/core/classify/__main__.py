@@ -7,14 +7,20 @@ These modes call no model and need no API key:
     python -m core.classify "..." --estimate                      # prompt size before paying
     python -m core.classify --golden-capture                      # re-record the register answers
     python -m core.classify --usage-xlsx [PATH]                   # the usage ledger as Excel
+    python -m core.classify --hash-password                       # the hash for APP_PASSWORD_HASH
 
 ``--usage-xlsx`` writes every recorded model call with its tokens and cost (Summary, Calls and
 Prices sheets) to PATH, by default next to the ledger (``LLM_USAGE_PATH`` with ``.xlsx``). It
 needs neither the codebooks nor a key; see core/classify/usage_report.py for what it cannot show.
 
+``--hash-password`` asks for a password twice (it is not echoed) and prints the hash to put
+in ``APP_PASSWORD_HASH``, the one password everybody signs in with; see core/auth.py.
+
 One does, and refuses to start without a configured model (LLM_API_KEY):
 
     python -m core.classify --golden --model   # the model's top-1 next to the rules', tokens used
+
+Its calls are recorded in the usage ledger against the OS account (or ``LOOKUP_USER``).
 
 It sends every golden case to the configured endpoint - two calls per case, about 3,400
 input tokens per issuer - so it costs money; answers are cached like any other lookup.
@@ -36,6 +42,7 @@ without a model that can be called.
 from __future__ import annotations
 
 import argparse
+import getpass
 import logging
 import sqlite3
 import sys
@@ -44,6 +51,9 @@ from datetime import date
 from pathlib import Path
 
 from config.settings import get_settings
+from core.audit import current_user
+from core.auth import hash_password
+from core.classify.budget import spending_as
 from core.classify.candidates import (
     DEFAULT_LIMIT,
     EsaCandidateFilter,
@@ -99,6 +109,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--usage",
         action="store_true",
         help="report the configured spending limits and what has been spent today",
+    )
+    parser.add_argument(
+        "--hash-password",
+        action="store_true",
+        help="ask for the shared sign-in password and print its hash for APP_PASSWORD_HASH",
     )
     parser.add_argument(
         "--usage-xlsx",
@@ -380,6 +395,25 @@ def _run_golden_model(
     return EXIT_OK
 
 
+def _hash_password(ask=getpass.getpass) -> int:
+    """Ask twice, print the hash. The password itself is never printed or stored."""
+    try:
+        password = ask("password: ")
+        again = ask("again: ")
+    except (EOFError, KeyboardInterrupt):
+        print("error: no password given", file=sys.stderr)
+        return EXIT_LOAD_FAILED
+    if not password:
+        print("error: an empty password cannot be used", file=sys.stderr)
+        return EXIT_LOAD_FAILED
+    if password != again:
+        print("error: the two passwords differ", file=sys.stderr)
+        return EXIT_LOAD_FAILED
+    print(hash_password(password))
+    print("put it in APP_PASSWORD_HASH (in .env, in single quotes)", file=sys.stderr)
+    return EXIT_OK
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI; returns the process exit code."""
     args = _build_parser().parse_args(argv)
@@ -390,6 +424,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     stdout = sys.stdout
     if hasattr(stdout, "reconfigure"):  # never crash on a console that cannot show Czech letters
         stdout.reconfigure(errors="backslashreplace")
+
+    if args.hash_password:
+        return _hash_password()
 
     if args.golden_capture:
         try:
@@ -427,7 +464,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.golden:
         try:
             if args.model:
-                return _run_golden_model(codebooks, args.limit, args.resident, settings)
+                with spending_as(current_user(settings)):
+                    return _run_golden_model(codebooks, args.limit, args.resident, settings)
             return _run_golden(codebooks, args.limit, args.resident, settings)
         except GoldenError as exc:
             print(f"error: {exc}", file=sys.stderr)

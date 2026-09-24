@@ -344,6 +344,34 @@ class Settings(BaseSettings):
         description="Requesting user recorded in the lookup audit log. Defaults to the OS user.",
     )
 
+    # --- Sign-in ------------------------------------------------------------------------
+    app_password_hash: SecretStr | None = Field(
+        default=None,
+        description=(
+            "Hash of the one password everybody signs in with (from "
+            "'python -m core.classify --hash-password'; never the password itself). Set "
+            "means every page except /health and /api/version needs a sign-in with that "
+            "password and a name, and the name - not WEB_USER_HEADER - is the user audited "
+            "and charged for model calls. Changing it signs everybody out. Empty leaves the "
+            "app open, as before."
+        ),
+    )
+    session_secret: SecretStr | None = Field(
+        default=None,
+        description=(
+            "Key that signs the sign-in cookie; a long random string (e.g. "
+            'python -c "import secrets; print(secrets.token_urlsafe(32))"). Required when '
+            "APP_PASSWORD_HASH is set - without it nobody can sign in. Changing it signs "
+            "everybody out."
+        ),
+    )
+    session_hours: float = Field(
+        default=12.0,
+        gt=0,
+        le=24 * 30,
+        description="How long a sign-in lasts before the name and password are asked again.",
+    )
+
     # --- Logging ------------------------------------------------------------------------
     log_level: str = Field(default="INFO", description="Python logging level name.")
     probe_enabled: bool = Field(
@@ -367,6 +395,8 @@ class Settings(BaseSettings):
 
     @field_validator(
         "lookup_user",
+        "app_password_hash",
+        "session_secret",
         "llm_api_key",
         "openfigi_api_key",
         "blob_read_write_token",

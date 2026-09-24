@@ -194,3 +194,23 @@ class TestGoldenThroughTheModel:
         calls = len(seen)
         assert f"{calls * 1000:,} in + {calls * 50:,} out" in out
         assert f"in {calls} call(s) to fake-model" in out
+
+
+class TestHashPassword:
+    def test_it_prints_a_hash_that_verifies_and_never_the_password(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from core.auth import verify_password
+
+        assert cli._hash_password(ask=lambda _: "heslo-jany") == cli.EXIT_OK
+        out = capsys.readouterr().out.strip()
+        assert out.startswith("pbkdf2_sha256$") and "heslo-jany" not in out
+        assert verify_password("heslo-jany", out)
+
+    def test_two_different_passwords_are_refused(self, capsys: pytest.CaptureFixture[str]) -> None:
+        answers = iter(["one", "two"])
+        assert cli._hash_password(ask=lambda _: next(answers)) == cli.EXIT_LOAD_FAILED
+        assert "differ" in capsys.readouterr().err
+
+    def test_an_empty_password_is_refused(self) -> None:
+        assert cli._hash_password(ask=lambda _: "") == cli.EXIT_LOAD_FAILED

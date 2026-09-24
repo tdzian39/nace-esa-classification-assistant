@@ -49,9 +49,10 @@ core/codebooks    loaders, versioning, consistency; blob.py (private Vercel Blob
 core/classify     candidates.py (pre-filter), hints.py, llm.py, proposal.py, golden.py,
                   budget.py (limits, usage ledger), usage_report.py (the ledger as Excel)
 core/export       columns.py (the row), xlsx.py     core/batch reader.py (E6 reuses)
-core/probe.py     the /probe register checks
+core/probe.py     the /probe register checks     core/auth.py  sign-in (users, cookie)
 api/  GET / · POST /suggest · POST /api/suggest · GET /suggest.xlsx · /health · /probe
-ui/   suggest.html + prototype/suggest.html      tests/golden  cases.json, identity.json
+      GET|POST /login · POST /logout
+ui/   suggest.html, login.html + prototype/suggest.html   tests/golden  cases.json, identity.json
 config/settings.py · .env.example · vercel.json · .python-version · pyproject.toml
 ```
 
@@ -247,10 +248,30 @@ and the FIRDS LEI fallback. No Vercel Pro; nothing can be checked in CTS (Jakub,
   point: a malformed IČO is looked up **as given** rather than falling back to the name column (a
   wrong IČO must surface, not silently return another company), and with no recognised header,
   row 1 is data.
-- **Audit**: `request_user()` reads `WEB_USER_HEADER` (default `X-Remote-User`) because in a
-  server the OS account is the *service* account. **The proxy must strip any client-supplied
-  copy.** `core/audit.py` logs identifier, timestamp, user, sources and outcome — **never
-  retrieved content**, so the log can ship without carrying client data.
+- **Sign-in** (`core/auth.py`, roadmap E2/D5): optional — `APP_PASSWORD_HASH` set turns it on.
+  **One shared password plus a self-declared name**; the hash comes from `--hash-password` (the
+  repo is public, so never the password). `normalize_name()` makes the name lower case, without
+  diacritics, single-spaced — so one person is one name everywhere; the page asks users to
+  type it that way. The session is a cookie signed with `SESSION_SECRET` over
+  name, expiry and a fingerprint of the password hash (a new password ends every session). No
+  server-side state. **It fails closed**: a hash without a secret, or an unreadable hash, lets
+  nobody in. Middleware gates every path but `/login`, `/logout`, `/health`, `/api/version`;
+  `/api/*` gets 401, htmx gets 401 + `HX-Redirect`, a GET a 303 with `next` (same-site only).
+  No rate limit — a serverless function keeps no counter — so the slow hash is the only brake.
+  `tests/conftest.py` blanks `APP_PASSWORD_HASH`/`SESSION_SECRET` so a developer's `.env` cannot
+  gate the page tests.
+- **Audit**: `request_user()` is the signed-in name when sign-in is on, and then
+  `WEB_USER_HEADER` is ignored — a header a browser can send is not an identity. With sign-in
+  off it reads `WEB_USER_HEADER` (default `X-Remote-User`) because in a server the OS account
+  is the *service* account; **the proxy must strip any client-supplied copy.**
+  `core/audit.py` logs identifier, timestamp, user, sources and outcome — **never retrieved
+  content**, so the log can ship without carrying client data.
+- **Spend per user**: `api._run` wraps the lookup in `budget.spending_as(user)`, a context
+  variable `BudgetedProvider` reads when it records a call, so the pipeline carries no name.
+  The ledger's `user` column was added in place; rows from before it are `unknown`, as is
+  any call made outside `spending_as`. `--golden --model` is charged to the OS account.
+  `--usage-xlsx` has a By user block and a User column. **Production records none of it**:
+  Vercel keeps no ledger (D4).
 - **API/UI**: codebooks load **once per process** (lifespan or first lookup, under a lock) and an
   inconsistent or missing set never serves a suggestion — those answer 503 with the reason, the
   page keeps the input, `/health` turns 503, retried after 30 s. It must not raise: on Vercel a
