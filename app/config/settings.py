@@ -232,6 +232,44 @@ class Settings(BaseSettings):
         description="Attempts per OpenFIGI request, including the first; 429 and 5xx are retried.",
     )
 
+    # --- RES through ARES: Czech (resident) issuers (2 Oct 2026) ------------------------
+    # A Czech issuer's prevailing NACE and institutional sector are on record in RES, the ČSÚ
+    # register, which the Ministry of Finance publishes keyless through ARES. Host the runtime
+    # must reach: ares.gov.cz. Never apl.czso.cz / or.justice.cz - ARES is the official API.
+    ares_enabled: bool = Field(
+        default=True,
+        description=(
+            "For a Czech issuer (GLEIF's legal seat CZ, or an IČO typed), ask RES through the "
+            "ARES REST API for its prevailing NACE and institutional sector; they become the "
+            "proposed codes. Off: residents get the classifier on the resident ESA block."
+        ),
+    )
+    ares_base_url: str = Field(
+        default="https://ares.gov.cz", description="Base URL of the public ARES REST API."
+    )
+    ares_timeout_seconds: float = Field(
+        default=5.0,
+        gt=0,
+        description=(
+            "HTTP timeout for one ARES request. RES answered in 40-110 ms on 2 Oct 2026; 5 s "
+            "with 2 attempts keeps the worst case near 11 s with no Vercel variable set."
+        ),
+    )
+    ares_min_interval_seconds: float = Field(
+        default=0.25,
+        ge=0,
+        description=(
+            "Minimum delay between two ARES requests (the Ministry may block more than 500 a "
+            "minute). 0 disables the throttle."
+        ),
+    )
+    ares_max_attempts: int = Field(
+        default=2,
+        ge=1,
+        le=5,
+        description="Attempts per ARES request, including the first; 429 and 5xx are retried.",
+    )
+
     # --- Activity description from Wikidata / Wikipedia (roadmap E5) ---------------------
     # When MO types no description and GLEIF gave a LEI, the LEI finds the issuer's Wikidata
     # item (property P1278) and its Wikipedia article supplies the description. Free and

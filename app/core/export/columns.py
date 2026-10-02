@@ -172,7 +172,8 @@ def suggestion_row(suggestion: object) -> dict[str, object]:
     row.update(
         {
             "IN_isin": request.isin,
-            "IN_name": request.name,
+            # An IČO is typed into the name field (2 Oct 2026); echo it where it was typed.
+            "IN_name": request.name or request.ico,
             "issuer_name": suggestion.issuer_name,  # type: ignore[attr-defined]
             "issuer_lei": suggestion.identity.lei,  # type: ignore[attr-defined]
             "issuer_country": suggestion.identity.country,  # type: ignore[attr-defined]

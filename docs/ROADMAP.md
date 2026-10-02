@@ -128,6 +128,22 @@ optional.
    **Deployed 30 Sept 2026** (PR #24, `main` `7fbf8cd`) and checked live: the web search answers
    (iShares, Kongsberg, Deutsche Bank), and it found Kongsberg's 50 % state ownership, so ESA
    came out "veřejné" with high confidence - Q7 answered from the web for the first time.
+3h. **Czech (resident) issuers take NACE and ESA from RES (2 Oct 2026, PR #26 - not merged or
+   deployed yet).** MO asked through Reporting that an ISIN or a Czech subject give the codes from
+   RES/OR, so they need not care who is resident; Jakub decided (§1). A resident is GLEIF's seat
+   CZ, or an IČO typed into the name field. RES (through the ARES REST API) settles NACE from the
+   prevailing CZ-NACE code and ESA from the institutional sector through the reviewable table
+   `core/codebooks/res_esa.py`; S.122 and S.125 need the institution type, read from the legal
+   form, the ECB lists and the NACE class, else the codes tie for MO (or the model). A settled
+   axis costs no model call. Golden: 15 subjects of the brief, 15 as expected with the model off
+   (the ING branch as the tie it must be). Live check 2 Oct 2026 (local, model off, ECB lists
+   loaded): ČEZ, KB, Raiffeisenbank, Artesa, ČSOB Leasing and MF (through `CZ0001004469` and
+   FIRDS) give the brief's codes. **Open:** MO to confirm Česká exportní banka, Národní rozvojová
+   banka and EGAP (RES: 13110 central government; the ECB lists: credit institutions, an
+   insurer); the 20 foreign-bank branches have no LEI, so they tie bank / other deposit-taker
+   (the MFI list's RIAD code is CZ + IČO - matching on it is a follow-up); ARES name search
+   (res-or-lookup's precision-first matcher, `docs/MATCHING.md` there) is a follow-up; the
+   Ministry's path needs FIRDS answering from Vercel (item 4).
 3d. **The central database (24 Sept 2026, D4 answered).** `core/db.py`: with `DATABASE_URL` the ledger, the cache,
    the audit events and the error reports live in one Postgres. **Created and connected the same day** (Neon
    `nace-esa-db`, eu-central-1, `DATABASE_URL` on the project), verified live from a laptop. **Deployed the same
@@ -162,7 +178,8 @@ optional.
 - E10: a one-page Czech user guide when MO starts; the runbook is `app/README.md` → "Deploying on Vercel".
 - **Parked:** E4b (ECB lists offline).
 
-**Open questions that still matter:** Q7 (control axis — changes 15 golden ESA codes and the candidate order),
+**Open questions that still matter:** Q7 (control axis — changes 15 golden ESA codes and the candidate order;
+answered by RES for residents since 2 Oct 2026),
 Q15 (a listed parent's NACE), D4 (database, for the audit), Q10 (volume; a free OpenFIGI key if volume grows).
 
 ---
@@ -171,6 +188,7 @@ Q15 (a listed parent's NACE), D4 (database, for the audit), Q10 (volume; a free 
 
 | Date | Decision | By |
 |---|---|---|
+| 2026-10-02 | **Czech (resident) issuers get their codes from RES through the ARES REST API, inside this tool** (MO's request through Reporting): it is not merged with `jaeksrampota/res-or-lookup`. This **reverses "nothing here reads ARES"** (22 Sept, PR #5) for resident issuers only; foreign issuers are unchanged. OR adds no codes (NACE and ESA live only in RES), so the VR endpoint is not called. Defaults: an axis RES settles skips the model (the web description is still fetched); no ARES name search yet; for residents RES wins over the model and over GLEIF categories. PR #26. | Jakub |
 | 2026-09-23 | **The model is on in production** — the owner's decision, superseding "the LLM stays off until an approved endpoint exists" (22 Sept): OpenAI `gpt-5.6-luna` with the owner's key (a Sensitive Vercel variable, Production only), `LLM_ENABLED=true`, `LLM_DAILY_TOKEN_BUDGET=0`. Rollback is `LLM_ENABLED=false` and a redeploy; another endpoint is env vars plus a redeploy (§0 item 3a). | tdzian39 |
 | 2026-09-24 | **Popis činnosti from Wikipedia is back on** — the 23 Sept decision below is reversed: with no typed description the tool describes an issuer from its Wikidata item (by LEI) and Wikipedia lead, so an ISIN alone yields a description for the issuers Wikidata knows. Branch `feat/e5-wikipedia-description` merged. | Timotej |
 | 2026-09-23 | **No automatic popis činnosti from Wikipedia.** MO types the description when they want NACE/ESA codes; an empty one is not filled in by the tool. The Wikidata/Wikipedia-by-LEI lookup (E5.1) was built and tested in PR #13, then closed unmerged; branch `feat/e5-wikipedia-description` keeps it if this is revisited. | Timotej |
@@ -377,7 +395,9 @@ app/
   from this list.
 - **The S.12203 problem**: RES/ARES report ESA in the `S.xxxxx` form (`12203` for Raiffeisenbank); CTS splits
   S.1220x into banks (1221x) / credit unions (1222x) / other deposit-takers (1224x), so a RES sector is **not** a
-  lexical lookup into BA0036. Irrelevant for foreign issuers, relevant if anyone ever maps register sectors.
+  lexical lookup into BA0036. Irrelevant for foreign issuers. **Mapped for residents since 2 Oct 2026**
+  (`core/codebooks/res_esa.py`): the type comes from the legal form (205 = cooperative), the ECB MFI list (credit
+  institution = bank) or, for S.125, the ECB FVC list and the NACE class; else the codes tie.
 - **NACE revision question (open, Q5)**: NACE Rev. 2 has 88 divisions, CZ-NACE 2025 (= Rev. 2.1) has 87 —
   division 45 disappears. `CTS_OKEC_NACE2` has 87 divisions (88 CTS IDs). *Whoever has the file: does it contain
   division 45?* Yes → Rev. 2 (then which division is missing?); no → CTS is already on CZ-NACE 2025.
@@ -403,6 +423,7 @@ app/
 | ESMA FIRDS | `GET https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin:…&wt=json&rows=1` | instrument full name, **CFI code**, issuer LEI, currency, venue | unpublished — be gentle | verified 17 Sept from Jakub's laptop; not yet used here (E5) |
 | Wikidata / Wikipedia | `https://www.wikidata.org/w/api.php?action=query&list=search&srsearch=haswbstatement:P1278=<LEI>`; `Special:EntityData/Qxx.json`; `https://{cs,en}.wikipedia.org/api/rest_v1/page/summary/<title>` | item by LEI (P1278); P452 industry → **P4496 NACE Rev. 2 code**; P1454 legal form; sitelinks → summaries cs/en | 200/min with a descriptive `User-Agent`, 10/min without | 53 364 items with a LEI, 2 432 with an industry carrying a NACE code; supranationals thin (EIB not found); not yet used (E5) |
 | ECB lists (MFI, IF, FVC, IC, PF) | downloads on ecb.europa.eu | IF/FVC/IC/PF carry a **LEI** column (78 000 / 5 700 / 2 200 / 5 400 rows); MFI list (≈ 6 000) has no LEI | files, monthly/daily | check reuse terms before bundling (E4b) |
+| ARES - RES (2 Oct 2026) | `GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/{ico}` | `obchodniJmeno`, `pravniForma`, `czNacePrevazujici` (CZ-NACE 2025, 2-5 digits), `czNacePrevazujici2008`, `statistickeUdaje.institucionalniSektor2010` (ČSÚ, last digit = control), `datumAktualizace`; 404 `NENALEZENO` | the Ministry may block > 500/min; no key; 40-110 ms, ~1 KB | lags ČSÚ ~3 weeks, drops dissolved subjects; GLEIF `filter[entity.registeredAs]=<IČO>` + CZ finds the LEI (`registeredAs` = IČO for 598 of 600 CZ LEIs) |
 
 Sample ISINs for tests and demos: `DE0005140008` Deutsche Bank AG (GENERAL, no parent, `NO_KNOWN_PERSON`) ·
 `FR0129895324` BMW Finance N.V. (NL, parent Bayerische Motoren Werke AG in DE — the captive case) ·
@@ -439,6 +460,7 @@ Sample ISINs for tests and demos: `DE0005140008` Deutsche Bank AG (GENERAL, no p
     │  a failure is reported (503 + /health), never raised
     │  per request: identity (GLEIF, OpenFIGI, later FIRDS/Wikidata/Wikipedia) → evidence → shortlist → page/JSON/xlsx
     ├──► api.gleif.org · api.openfigi.com · registers.esma.europa.eu · wikidata.org · wikipedia.org   (outbound, no whitelist needed)
+    ├──► ares.gov.cz (RES: a Czech issuer's NACE and sector, 2 Oct 2026)
     ├──► Vercel Blob (private): the four codebooks                                            (D3)
     ├──► Postgres (Neon via Vercel Marketplace): audit_events, confirmed_mappings, later llm_cache/usage  (D4, E2/E7/E9)
     (no identity provider: the app's own shared-password gate says who is asking — self-declared name, D5, E2)
@@ -927,7 +949,10 @@ E3–E5 raise deterministic accuracy and coverage. E6–E7 make it the daily too
 - **Q7. BA0036 semantics for foreign issuers.** Does CTS use the control split (…1/…2/…3) for non-residents at
   all, and how — is "pod zahraniční kontrolou" judged from the issuer's own country? Two concrete examples settle
   it: how are **Deutsche Bank AG** and a **US Treasury** issuer coded in CTS today? Also the S.12203 question:
-  which 1221x/1222x/1224x item does a plain S.122 bank get? **Answer:**
+  which 1221x/1222x/1224x item does a plain S.122 bank get? **Answer:** 2026-10-02 — **for resident issuers RES
+  answers it**: the last digit of RES's sector is the control type (1 veřejné, 2 národní soukromé, 3 pod zahraniční
+  kontrolou), and a plain S.122 bank is `1221c00` when the ECB MFI list has it as a credit institution
+  (`core/codebooks/res_esa.py`, §0 item 3h). Foreign issuers: still open.
 - **Q8. Golden set** (§E8): ~30 recently created foreign issuers with CTS values, marked correct/unsure. **Answer:**
   2026-09-22 — MO is not asked (Jakub). Claude builds ~30 real issuers from the E8 seed list — banks, corporates,
   funds, governments, supranationals, financing vehicles — from ISINs and public sources. `verified_by` stays
@@ -1025,7 +1050,9 @@ python -m venv ../.venv && ../.venv/Scripts/python.exe -m pip install -e ".[dev]
   URL as contact (Wikimedia refuses httpx requests without one).
 - **Settings removed by PR #5**: `DWS_DSN`, `DWS_USER`, `DWS_PASSWORD`, `DWS_SCHEMA`, `DWS_TIMEOUT_SECONDS` and the
   six `ARES_*`; an old `app/.env` that still sets them loads fine (unknown variables are ignored).
-- **`Source` literal**: `WEB`, `GLEIF`, `OPENFIGI` (`DWS` and `ARES_LIVE` left with Tool 2 in PR #5); row `source` =
+- **Settings added for resident issuers (2 Oct 2026)**: `ARES_ENABLED` (true), `ARES_BASE_URL`, `ARES_TIMEOUT_SECONDS`
+  (5), `ARES_MIN_INTERVAL_SECONDS` (0.25), `ARES_MAX_ATTEMPTS` (2) - safe on Vercel without a variable.
+- **`Source` literal**: `WEB`, `GLEIF`, `OPENFIGI`, `RES` (since 2 Oct 2026; `DWS` and `ARES_LIVE` left with Tool 2 in PR #5); row `source` =
   registers that answered + `WEB`.
 - **Glossary**: *MO* Middle Office treasury back office · *CTS* the securities master system where the issuer
   record and both codes live · *BA0036* ČNB codelist of ESA 2010 sectors as 7-digit codes · *ESA control axis*

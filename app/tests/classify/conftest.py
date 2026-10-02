@@ -74,6 +74,59 @@ ESA_ROWS: tuple[tuple[str, str, str], ...] = (
     ("1221300", "Banky pod zahraniční kontrolou", "Rezidentské banky pod zahraniční kontrolou."),
 )
 
+#: The whole resident block of BA0036 as the CTS list has it (53 leaves; the ČNB names are
+#: public, SDAT v044), for the resident issuers (2 Oct 2026). The CTS IDs these get are
+#: synthetic, like every other ID here.
+_S125 = (
+    ("1", "Účelové finanční instituce pro sekuritizaci aktiv"),
+    ("2", "Obchodníci s cennými papíry a deriváty"),
+    ("3", "Finanční instituce poskytující úvěry"),
+    ("4", "Specializované finanční instituce"),
+)
+_CONTROL = (("1", "veřejné"), ("2", "soukromé národní"), ("3", "pod zahraniční kontrolou"))
+RESIDENT_ESA_ROWS: tuple[tuple[str, str, str], ...] = (
+    ("1100100", "Nefinanční podniky veřejné", "Veřejné nefinanční podniky (S.11001)."),
+    ("1100200", "Nefinanční podniky soukromé národní", "Národní soukromé (S.11002)."),
+    (
+        "1100300",
+        "Nefinanční podniky soukromé pod zahraniční kontrolou",
+        "Nefinanční podniky pod zahraniční kontrolou (S.11003).",
+    ),
+    ("1210000", "Centrální banka", "Česká národní banka (S.121)."),
+    ("1221100", "Banky veřejné", "Banky podle zákona o bankách, veřejné."),
+    ("1221200", "Banky soukromé národní", "Banky podle zákona o bankách, národní."),
+    ("1221300", "Banky pod zahraniční kontrolou", "Banky podle zákona o bankách, zahraniční."),
+    ("1222100", "Jiné instituce přijímající vklady veřejné", "Jiné než banky, veřejné."),
+    ("1222200", "Spořitelní a úvěrní družstva soukromé národní", "Podle zákona č. 87/1995 Sb."),
+    ("1222300", "Spořitelní a úvěrní družstva pod zahraniční kontrolou", "Zákon č. 87/1995 Sb."),
+    ("1224200", "Jiné instituce přijímající vklady soukromé národní", "Jiné než banky a družstva."),
+    ("1224300", "Jiné instituce přijímající vklady pod zahraniční kontrolou", "Jiné, zahraniční."),
+    *((f"1230{c}00", f"Fondy peněžního trhu {name}", "") for c, name in _CONTROL),
+    *(
+        (f"1240{c}00", f"Investiční fondy jiné než fondy peněžního trhu, {name}", "")
+        for c, name in _CONTROL
+    ),
+    *((f"1250{c}{t}0", f"{family} - {name}", "") for c, name in _CONTROL for t, family in _S125),
+    *((f"1260{c}00", f"Pomocné finanční instituce {name}", "") for c, name in _CONTROL),
+    *(
+        (f"1270{c}00", f"Kaptivní finanční instituce a půjčovatelé peněz {name}", "")
+        for c, name in _CONTROL
+    ),
+    *((f"1280{c}00", f"Pojišťovací společnosti (IC) {name}", "") for c, name in _CONTROL),
+    *((f"1290{c}00", f"Penzijní fondy (PF) {name}", "") for c, name in _CONTROL),
+    ("1311000", "Ústřední vládní instituce", "Správní resorty státu (S.1311)."),
+    ("1313000", "Místní vládní instituce", "Obce a kraje (S.1313)."),
+    ("1314000", "Fondy sociálního zabezpečení", "Zdravotní pojišťovny (S.1314)."),
+    ("1410000", "Zaměstnavatelé", ""),
+    ("1420000", "Osoby samostatně výdělečně činné", ""),
+    ("1430000", "Zaměstnanci", ""),
+    ("1441000", "Příjemci důchodů z vlastnictví", ""),
+    ("1442000", "Příjemci penzí", ""),
+    ("1443000", "Příjemci ostatních transferů (obsahuje výhradně SVJ)", ""),
+    ("1500200", "Neziskové instituce sloužící domácnostem soukromé národní", ""),
+    ("1500300", "Neziskové instituce sloužící domácnostem pod zahraniční kontrolou", ""),
+)
+
 #: (division, short text, full texts) - several NACE_STAT rows per division, as in the real file.
 NACE_ROWS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     (
@@ -181,6 +234,20 @@ def build_codebooks(
             files=files,
         ),
     )
+
+
+#: Divisions the resident cases need on top of NACE_ROWS; 45 stays out (CZ-NACE 2025 has
+#: none, nor does the CTS list).
+RESIDENT_NACE_ROWS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    ("35", "Výroba a rozvod elektřiny, plynu, tepla", ("Výroba a rozvod elektřiny",)),
+    ("84", "Veřejná správa a obrana; povinné sociální zabezpečení", ("Veřejná správa",)),
+)
+
+
+def build_resident_codebooks(drop: str | None = None) -> CodebookSet:
+    """The synthetic books with the whole resident block (less ``drop``) and divisions 35, 84."""
+    resident = [row for row in RESIDENT_ESA_ROWS if row[0] != drop]
+    return build_codebooks((*ESA_ROWS[:-2], *resident), (*NACE_ROWS, *RESIDENT_NACE_ROWS))
 
 
 @pytest.fixture

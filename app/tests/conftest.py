@@ -24,8 +24,10 @@ def _sign_in_off_unless_asked(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]
         "POSTGRES_URL",
     ):
         monkeypatch.setenv(name, "")
-    # A GLEIF miss in a fixture must not reach the real ESMA FIRDS.
+    # A GLEIF miss in a fixture must not reach the real ESMA FIRDS, nor a Czech issuer in a
+    # fixture the real ARES; tests that want either pass it to ``Settings`` or inject it.
     monkeypatch.setenv("FIRDS_ENABLED", "false")
+    monkeypatch.setenv("ARES_ENABLED", "false")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

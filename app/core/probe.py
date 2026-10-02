@@ -6,9 +6,10 @@ traffic is open. The question is no longer "what does the corporate proxy allow"
 deployment work, and which instance answered": the page is the first thing to open when a
 register "stops working" or a new deployment misbehaves.
 
-* Two fixed host lists: the sources the tool uses today (GLEIF, OpenFIGI, and Wikidata plus
-  Wikipedia in ``WIKIPEDIA_LANGUAGES`` while ``WIKIMEDIA_ENABLED`` - the default) and, with
-  ``?set=all``, the ones roadmap E5 may add (ESMA FIRDS; Wikimedia too when switched off).
+* Two fixed host lists: the sources the tool uses today (GLEIF, OpenFIGI, ARES for Czech
+  issuers while ``ARES_ENABLED``, and Wikidata plus Wikipedia in ``WIKIPEDIA_LANGUAGES`` while
+  ``WIKIMEDIA_ENABLED`` - the defaults) and, with ``?set=all``, the rest (ESMA FIRDS; ARES
+  and Wikimedia too when switched off).
   One harmless request per host, a 5-second timeout, no retry, one after another. The only
   inputs are switches between fixed alternatives, so nothing a user types reaches the network.
 * Nothing runs at import time and nothing is cached, and ``/health`` never calls into this
@@ -47,6 +48,9 @@ LEI: Final[str] = "7LTWFZYICNSX8D621K86"
 #: Its registered share, known to GLEIF, OpenFIGI and FIRDS.
 ISIN: Final[str] = "DE0005140008"
 WIKIPEDIA_TITLE: Final[str] = "Deutsche_Bank"
+
+#: Česká národní banka - a fixed public subject whose RES record is harmless to ask for.
+ICO: Final[str] = "48136450"
 
 FIRDS_URL: Final[str] = "https://registers.esma.europa.eu/solr/esma_registers_firds/select"
 WIKIDATA_URL: Final[str] = "https://www.wikidata.org"
@@ -187,6 +191,13 @@ def _expect_firds(body: object) -> str | None:
     return f"numFound: {found}" if isinstance(found, int) else None
 
 
+def _expect_ares(body: object) -> str | None:
+    records = body.get("zaznamy") if isinstance(body, dict) else None
+    first = records[0] if isinstance(records, list) and records else None
+    name = first.get("obchodniJmeno") if isinstance(first, dict) else None
+    return f"obchodniJmeno: {name}" if name else None
+
+
 def _expect_wikidata_search(body: object) -> str | None:
     query = body.get("query") if isinstance(body, dict) else None
     hits = query.get("search") if isinstance(query, dict) else None
@@ -244,7 +255,7 @@ def _wikidata_entity_step(
 
 
 def checks(settings: Settings, *, extended: bool = False) -> tuple[Check, ...]:
-    """The sources in use (GLEIF, OpenFIGI, Wikimedia when on), plus the rest when ``extended``."""
+    """The sources in use (GLEIF, OpenFIGI, ARES and Wikimedia when on), plus the rest when ``extended``."""
     agent = {"User-Agent": settings.web_user_agent}
     figi_headers = {**agent, "Content-Type": "application/json", "Accept": "application/json"}
     if settings.openfigi_api_key:
@@ -270,6 +281,21 @@ def checks(settings: Settings, *, extended: bool = False) -> tuple[Check, ...]:
             json_body=[{"idType": "ID_ISIN", "idValue": ISIN}],
         ),
     ]
+    ares = Check(
+        key="ares",
+        host=urlsplit(settings.ares_base_url).hostname or "ares.gov.cz",
+        label="ARES – RES (ČSÚ), čeští emitenti",
+        method="GET",
+        url=(
+            f"{settings.ares_base_url.rstrip('/')}"
+            f"/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/{ICO}"
+        ),
+        expect=_expect_ares,
+        in_use=settings.ares_enabled,
+        headers={**agent, "Accept": "application/json"},
+    )
+    if settings.ares_enabled:
+        items.append(ares)
     wikimedia_in_use = settings.wikimedia_enabled and settings.web_enabled
     languages = [
         lang.strip().lower() for lang in settings.wikipedia_languages.split(",") if lang.strip()
@@ -318,6 +344,8 @@ def checks(settings: Settings, *, extended: bool = False) -> tuple[Check, ...]:
                 headers=agent,
             )
         )
+        if not settings.ares_enabled:
+            items.append(ares)
         if not wikimedia_in_use:
             items += wikimedia
     return tuple(items)
@@ -470,6 +498,8 @@ def configuration(settings: Settings) -> list[dict[str, object]]:
         secret("OPENFIGI_API_KEY", settings.openfigi_api_key),
         plain("GLEIF_TIMEOUT_SECONDS", settings.gleif_timeout_seconds),
         plain("OPENFIGI_TIMEOUT_SECONDS", settings.openfigi_timeout_seconds),
+        plain("ARES_ENABLED", settings.ares_enabled),
+        plain("ARES_TIMEOUT_SECONDS", settings.ares_timeout_seconds),
         secret("WEB_SEARCH_URL", settings.web_search_url),
         plain("LLM_ENABLED", settings.llm_enabled),
         secret("LLM_API_KEY", settings.llm_api_key),

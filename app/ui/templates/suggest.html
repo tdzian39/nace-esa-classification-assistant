@@ -375,9 +375,9 @@
 <main class="wrap">
 
   <section class="masthead">
-    <span class="kicker">Zahraniční emitenti · číselníky CTS</span>
+    <span class="kicker">Zahraniční i čeští emitenti · číselníky CTS</span>
     <h1><span>Kódy NACE a ESA</span> <strong class="marker">s ID do CTS</strong></h1>
-    <p class="hero-sub">Zadejte ISIN, název emitenta nebo popis činnosti. Nástroj emitenta dohledá
+    <p class="hero-sub">Zadejte ISIN, název nebo IČO emitenta, nebo popis činnosti. Nástroj emitenta dohledá
       v registrech, zúží oba číselníky na kandidáty s jejich CTS ID a řekne, o co se opírá.</p>
   </section>
 
@@ -394,7 +394,7 @@
                placeholder="XS0000000000" autocomplete="off" spellcheck="false">
       </div>
       <div class="field">
-        <label for="name">Název emitenta</label>
+        <label for="name">Název emitenta <span class="note">nebo IČO</span></label>
         <input type="text" id="name" name="name" value="{{ form.get('name', '') }}"
                placeholder="např. Nordkap Funding B.V." autocomplete="off">
       </div>
@@ -430,7 +430,7 @@
               jistota {{ {'high':'vysoká','medium':'střední','low':'nízká'}[proposal.confidence] }}
             </span>
             {% else %}
-            <span class="conf mid">podle pravidel · {% if proposal.tied %}vyberte kód{% else %}ověřte{% endif %}</span>
+            <span class="conf mid">{% if proposal.from_res %}z RES (ARES){% else %}podle pravidel{% endif %} · {% if proposal.tied %}vyberte kód{% else %}ověřte{% endif %}</span>
             {% endif %}
           </div>
           <div class="label">{{ proposal.family or proposal.label }}</div>
@@ -523,10 +523,10 @@
         {% if suggestion.request.isin %}ISIN {{ suggestion.request.isin }} · {% endif %}
         {% if suggestion.identity.lei %}LEI {{ suggestion.identity.lei }} · {% endif %}
         {% if suggestion.identity.country %}sídlo {{ suggestion.identity.country }} · {% endif %}
-        nerezident
+        {% if suggestion.resident %}rezident ČR{% if suggestion.identity.ico %} · IČO {{ suggestion.identity.ico }}{% endif %}{% else %}nerezident{% endif %}
       </div>
       {% if suggestion.identity.found %}
-      <ul class="identity" aria-label="Údaje z registrů GLEIF a OpenFIGI">
+      <ul class="identity" aria-label="Údaje z registrů">
         {% for fact in suggestion.identity.facts() %}<li>{{ fact }}</li>{% endfor %}
       </ul>
       {% endif %}
@@ -539,7 +539,7 @@
 
     <div class="panels">
       {{ panel('NACE', 'číselník CTS_OKEC_NACE2 · první 2 číslice', suggestion.nace, suggestion.nace_candidates, suggestion.nace_proposal, 'nace') }}
-      {{ panel('ESA 2010', 'číselník BA0036 · jen elementární kódy · nerezident', suggestion.esa, suggestion.esa_candidates, suggestion.esa_proposal, 'esa') }}
+      {{ panel('ESA 2010', 'číselník BA0036 · jen elementární kódy · ' ~ ('rezident' if suggestion.resident else 'nerezident'), suggestion.esa, suggestion.esa_candidates, suggestion.esa_proposal, 'esa') }}
     </div>
 
     {% if suggestion.evidence_sources %}
@@ -562,7 +562,7 @@
 
     <form class="downloads" id="download" method="get" action="/suggest.xlsx">
       <input type="hidden" name="isin" value="{{ suggestion.request.isin or '' }}">
-      <input type="hidden" name="name" value="{{ suggestion.request.name or '' }}">
+      <input type="hidden" name="name" value="{{ suggestion.request.name or suggestion.request.ico or '' }}">
       <input type="hidden" name="description" value="{{ suggestion.request.description or '' }}">
       <button class="btn btn-primary" type="submit">Stáhnout výsledek (.xlsx)</button>
       <span class="note">Export obsahuje kódy označené „vybrat do exportu“.</span>
@@ -579,7 +579,7 @@
       <summary>Nesouhlasíte s výsledkem, nebo si jím nejste jisti? Nahlásit k prověření</summary>
       <form method="post" action="/report" hx-post="/report" hx-target="body" hx-swap="outerHTML" hx-indicator="#spinner">
         <input type="hidden" name="isin" value="{{ suggestion.request.isin or '' }}">
-        <input type="hidden" name="name" value="{{ suggestion.request.name or '' }}">
+        <input type="hidden" name="name" value="{{ suggestion.request.name or suggestion.request.ico or '' }}">
         <input type="hidden" name="description" value="{{ suggestion.request.description or '' }}">
         <p class="report-hint">Uloží se zadaný dotaz spolu s tímto výsledkem, vaše jméno a čas. Poznámka je nepovinná.</p>
         <label for="report-note">Poznámka <span class="note">— co je podle vás špatně, nebo správný kód, pokud jej znáte</span></label>

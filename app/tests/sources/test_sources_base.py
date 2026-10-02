@@ -44,7 +44,7 @@ class TestProvenance:
 
 def test_the_source_stamp_names_only_what_tool_1_consults() -> None:
     """A row stamped with a source this tool never asks would be an unattributable row."""
-    assert set(get_args(Source)) == {"WEB", "GLEIF", "OPENFIGI"}
+    assert set(get_args(Source)) == {"WEB", "GLEIF", "OPENFIGI", "RES"}
 
 
 @pytest.mark.parametrize(

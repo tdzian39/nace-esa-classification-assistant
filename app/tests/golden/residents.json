@@ -1,0 +1,182 @@
+{
+ "_comment": [
+  "Czech (resident) issuers whose NACE and ESA come from RES (core.classify.residents),",
+  "graded on the proposal with the model off. The table of Jakub's brief (2 Oct 2026):",
+  "legal entities only, never natural persons. RES fields as ARES returned them on",
+  "2 Oct 2026; expected_esa is the BA0036 resident code of core.codebooks.res_esa.",
+  "verified_by stays empty until someone checks a case - like the foreign cases.",
+  "tie: the codes the rules leave to MO (or the model) when no register records the",
+  "institution type; expected_esa must be one of them."
+ ],
+ "cases": [
+  {
+   "id": "res-cez",
+   "subject": "ČEZ, a. s.",
+   "isin": "CZ0005112300",
+   "ico": "45274649",
+   "legal_form": "121",
+   "res_sector": "11001",
+   "res_nace": "35110",
+   "expected_nace": "35",
+   "expected_esa": "1100100",
+   "note": "By ISIN: GLEIF's registeredAs gives the IČO. Public non-financial corporation (state majority)."
+  },
+  {
+   "id": "res-eph",
+   "subject": "Energetický a průmyslový holding, a.s.",
+   "ico": "28356250",
+   "legal_form": "121",
+   "res_sector": "11002",
+   "res_nace": "70100",
+   "expected_nace": "70",
+   "expected_esa": "1100200",
+   "note": "A holding's head office: RES says 70 (activities of head offices) - roadmap Q15 answered by the register for residents."
+  },
+  {
+   "id": "res-cnb",
+   "subject": "ČESKÁ NÁRODNÍ BANKA",
+   "ico": "48136450",
+   "legal_form": "313",
+   "res_sector": "12100",
+   "res_nace": "64110",
+   "expected_nace": "64",
+   "expected_esa": "1210000",
+   "note": "The central bank: a sector without a control axis."
+  },
+  {
+   "id": "res-komercni-banka",
+   "subject": "Komerční banka, a.s.",
+   "isin": "CZ0008019106",
+   "ico": "45317054",
+   "legal_form": "121",
+   "res_sector": "12203",
+   "res_nace": "64190",
+   "expected_nace": "64",
+   "expected_esa": "1221300",
+   "note": "S.122 under foreign control; the ECB MFI list (credit institution, by LEI) makes it a bank."
+  },
+  {
+   "id": "res-raiffeisenbank",
+   "subject": "Raiffeisenbank a.s.",
+   "ico": "49240901",
+   "legal_form": "121",
+   "res_sector": "12203",
+   "res_nace": "64190",
+   "expected_nace": "64",
+   "expected_esa": "1221300",
+   "note": "By IČO: GLEIF by registeredAs gives the LEI the ECB MFI list knows."
+  },
+  {
+   "id": "res-fio-banka",
+   "subject": "Fio banka, a.s.",
+   "ico": "61858374",
+   "legal_form": "121",
+   "res_sector": "12202",
+   "res_nace": "64190",
+   "expected_nace": "64",
+   "expected_esa": "1221200",
+   "note": "A national private bank: RES's control digit 2."
+  },
+  {
+   "id": "res-ing-bank-branch",
+   "subject": "ING Bank N.V.",
+   "ico": "49279866",
+   "legal_form": "421",
+   "res_sector": "12203",
+   "res_nace": "64190",
+   "expected_nace": "64",
+   "expected_esa": "1221300",
+   "tie": ["1221300", "1224300"],
+   "note": "The Prague branch (odštěpný závod) has no LEI, so the ECB MFI list cannot be asked by LEI: bank and other deposit-taker tie. The MFI list carries it as credit institution CZ49279866 (RIAD = CZ + IČO), like all 20 foreign-bank branches in CZ - a follow-up could match on that."
+  },
+  {
+   "id": "res-artesa",
+   "subject": "Artesa, spořitelní družstvo",
+   "ico": "25778722",
+   "legal_form": "205",
+   "res_sector": "12202",
+   "res_nace": "64190",
+   "expected_nace": "64",
+   "expected_esa": "1222200",
+   "note": "Legal form 205 (družstvo) in S.122: a savings and credit cooperative, though it is a credit institution on the MFI list too."
+  },
+  {
+   "id": "res-csob-leasing",
+   "subject": "ČSOB Leasing, a.s.",
+   "ico": "63998980",
+   "legal_form": "121",
+   "res_sector": "12503",
+   "res_nace": "64910",
+   "expected_nace": "64",
+   "expected_esa": "1250330",
+   "note": "S.125 subtype by the NACE class: 64.91 financial leasing = lender (t = 3)."
+  },
+  {
+   "id": "res-home-credit",
+   "subject": "Home Credit a.s.",
+   "ico": "26978636",
+   "legal_form": "121",
+   "res_sector": "12502",
+   "res_nace": "64929",
+   "expected_nace": "64",
+   "expected_esa": "1250230",
+   "note": "S.125, 64.92 other credit granting = lender; control national private (2)."
+  },
+  {
+   "id": "res-bcpp",
+   "subject": "Burza cenných papírů Praha, a.s.",
+   "ico": "47115629",
+   "legal_form": "121",
+   "res_sector": "12603",
+   "res_nace": "66110",
+   "expected_nace": "66",
+   "expected_esa": "1260300",
+   "note": "Market infrastructure: S.126 under foreign control."
+  },
+  {
+   "id": "res-kooperativa",
+   "subject": "Kooperativa pojišťovna, a.s., Vienna Insurance Group",
+   "ico": "47116617",
+   "legal_form": "121",
+   "res_sector": "12803",
+   "res_nace": "651",
+   "expected_nace": "65",
+   "expected_esa": "1280300",
+   "note": "RES spells the prevailing code with three digits (651): the division is still 65."
+  },
+  {
+   "id": "res-ministerstvo-financi",
+   "subject": "Ministerstvo financí",
+   "isin": "CZ0001004469",
+   "ico": "00006947",
+   "legal_form": "325",
+   "res_sector": "13110",
+   "res_nace": "84110",
+   "expected_nace": "84",
+   "expected_esa": "1311000",
+   "note": "A Czech government bond: GLEIF maps no ISIN, ESMA FIRDS names the LEI of Česká republika - Ministerstvo financí (registeredAs 00006947, RA000168)."
+  },
+  {
+   "id": "res-praha",
+   "subject": "HLAVNÍ MĚSTO PRAHA",
+   "ico": "00064581",
+   "legal_form": "804",
+   "res_sector": "13130",
+   "res_nace": "84110",
+   "expected_nace": "84",
+   "expected_esa": "1313000",
+   "note": "Local government (S.1313)."
+  },
+  {
+   "id": "res-ceb",
+   "subject": "Česká exportní banka, a.s.",
+   "ico": "63078333",
+   "legal_form": "121",
+   "res_sector": "13110",
+   "res_nace": "64190",
+   "expected_nace": "64",
+   "expected_esa": "1311000",
+   "note": "RES files it in central government (13110), the ECB MFI list as a credit institution: RES wins and the page notes the disagreement - for MO to confirm, like Národní rozvojová banka (13110, MFI) and EGAP (13110, ECB insurers)."
+  }
+ ]
+}

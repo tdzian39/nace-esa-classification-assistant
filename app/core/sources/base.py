@@ -1,9 +1,10 @@
 """What every data source shares: the ``Source`` stamp, :class:`Provenance` and the errors.
 
-Tool 1 describes a foreign issuer from public sources only - the GLEIF LEI record and the
-OpenFIGI instrument for an ISIN (:mod:`core.sources.gleif`, :mod:`core.sources.openfigi`),
-and web evidence or a description the user typed (:mod:`core.sources.web`). Each of those
-records carries a :class:`Provenance` saying where it came from and when it was obtained.
+Tool 1 describes an issuer from public sources only - the GLEIF LEI record and the OpenFIGI
+instrument for an ISIN (:mod:`core.sources.gleif`, :mod:`core.sources.openfigi`), RES through
+ARES for a Czech issuer (:mod:`core.sources.ares`, since 2 Oct 2026), and web evidence or a
+description the user typed (:mod:`core.sources.web`). Each of those records carries a
+:class:`Provenance` saying where it came from and when it was obtained.
 
 The error classes encode the fail-soft contract of the register adapters: returning
 ``None`` means the register does not hold the thing asked for; raising
@@ -18,8 +19,9 @@ from datetime import datetime
 from typing import Literal
 
 #: Where a piece of data came from: ``GLEIF`` and ``OPENFIGI`` are the public registers
-#: behind an ISIN (added 2026-09-22), ``WEB`` is web evidence or a user-typed description.
-Source = Literal["WEB", "GLEIF", "OPENFIGI"]
+#: behind an ISIN (added 2026-09-22), ``RES`` the ČSÚ register read through ARES for a Czech
+#: issuer (2026-10-02), ``WEB`` is web evidence or a user-typed description.
+Source = Literal["WEB", "GLEIF", "OPENFIGI", "RES"]
 
 
 class SourceError(Exception):
@@ -51,7 +53,7 @@ class Provenance:
     """Where a record came from and how fresh it is.
 
     Attributes:
-        source: ``GLEIF``, ``OPENFIGI`` or ``WEB``.
+        source: ``GLEIF``, ``OPENFIGI``, ``RES`` or ``WEB``.
         retrieved_at: When this process obtained the data (timezone-aware UTC).
         snapshot_at: When the underlying data was last updated at the source - e.g. the
             GLEIF ``registration.lastUpdateDate``. ``None`` when the source does not say.

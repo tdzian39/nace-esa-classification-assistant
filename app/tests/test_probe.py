@@ -13,7 +13,7 @@ import httpx
 import pytest
 
 from config.settings import Settings
-from core.probe import ISIN, LEI, STATUS_CS, checks, configuration, report, run_check
+from core.probe import ICO, ISIN, LEI, STATUS_CS, checks, configuration, report, run_check
 
 GLEIF_OK = {"data": {"attributes": {"entity": {"legalName": {"name": "DEUTSCHE BANK AG"}}}}}
 FIGI_OK = [{"data": [{"figi": "BBG000BBNVX1", "name": "DEUTSCHE BANK AG-REGISTERED"}]}]
@@ -21,6 +21,8 @@ FIRDS_OK = {"response": {"numFound": 1, "docs": [{"isin": ISIN}]}}
 WIKIDATA_SEARCH_OK = {"query": {"search": [{"title": "Q66048"}]}}
 WIKIDATA_ENTITY_OK = {"entities": {"Q66048": {"labels": {"en": {"value": "Deutsche Bank"}}}}}
 WIKIPEDIA_OK = {"extract": "Deutsche Bank AG is a German multinational investment bank."}
+#: The RES record of Česká národní banka (ARES, 2 Oct 2026), trimmed.
+ARES_OK = {"icoId": ICO, "zaznamy": [{"ico": ICO, "obchodniJmeno": "ČESKÁ NÁRODNÍ BANKA"}]}
 
 
 def settings(**overrides: object) -> Settings:
@@ -36,6 +38,8 @@ def healthy(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=FIGI_OK)
     if host == "registers.esma.europa.eu":
         return httpx.Response(200, json=FIRDS_OK)
+    if host == "ares.gov.cz":
+        return httpx.Response(200, json=ARES_OK)
     if host == "www.wikidata.org" and request.url.params.get("action") == "query":
         return httpx.Response(200, json=WIKIDATA_SEARCH_OK)
     if host == "www.wikidata.org" and request.url.params.get("action") == "wbgetentities":
@@ -66,7 +70,15 @@ class TestTheFixedChecks:
 
     def test_the_extended_set_adds_the_e5_candidates(self) -> None:
         keys = [check.key for check in checks(settings(), extended=True)]
-        assert keys == ["gleif", "openfigi", "wikidata", "wikipedia_cs", "wikipedia_en", "firds"]
+        assert keys == [
+            "gleif",
+            "openfigi",
+            "wikidata",
+            "wikipedia_cs",
+            "wikipedia_en",
+            "firds",
+            "ares",
+        ]
 
     @pytest.mark.parametrize("switch", ["wikimedia_enabled", "web_enabled"])
     def test_wikimedia_switched_off_is_only_a_candidate(self, switch: str) -> None:
@@ -75,11 +87,27 @@ class TestTheFixedChecks:
         extended = checks(off, extended=True)
         assert [check.key for check in extended][2:] == [
             "firds",
+            "ares",
             "wikidata",
             "wikipedia_cs",
             "wikipedia_en",
         ]
         assert not any(check.in_use for check in extended[2:])
+
+    def test_ares_is_checked_while_czech_issuers_use_it(self) -> None:
+        """ARES answers for Czech issuers (2 Oct 2026); the tests switch it off by default."""
+        keys = [check.key for check in checks(settings(ares_enabled=True))]
+        assert keys == ["gleif", "openfigi", "ares", "wikidata", "wikipedia_cs", "wikipedia_en"]
+        ares = checks(settings(ares_enabled=True))[2]
+        assert ares.in_use and ares.host == "ares.gov.cz"
+        assert ares.url == (
+            "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/" + ICO
+        )
+
+    def test_ares_switched_off_is_only_a_candidate(self) -> None:
+        extended = checks(settings(ares_enabled=False), extended=True)
+        (ares,) = [check for check in extended if check.key == "ares"]
+        assert not ares.in_use
 
     def test_the_requests_are_fixed_and_harmless(self) -> None:
         gleif, figi, *_ = checks(settings())
@@ -116,6 +144,12 @@ class TestStatuses:
         assert result.status == "ok"
         assert result.detail == "legalName: DEUTSCHE BANK AG"
         assert result.http_status == 200
+
+    def test_the_ares_answer_names_the_subject(self) -> None:
+        ares = checks(settings(ares_enabled=True))[2]
+        result = run_check(client(healthy), ares)
+        assert result.status == "ok"
+        assert result.detail == "obchodniJmeno: ČESKÁ NÁRODNÍ BANKA"
 
     def test_a_2xx_with_the_wrong_body_is_not_ok(self) -> None:
         """A captive portal or a block page answers 200 too."""

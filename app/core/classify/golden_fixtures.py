@@ -56,6 +56,8 @@ KEPT_KEYS: Final[frozenset[str]] = frozenset(
         "registration",
         "lastUpdateDate",
         "reason",
+        "registeredAs",
+        "registeredAt",
         # OpenFIGI
         "error",
         "warning",
@@ -65,6 +67,19 @@ KEPT_KEYS: Final[frozenset[str]] = frozenset(
         "securityType2",
         "marketSector",
         "exchCode",
+        # RES through ARES and ESMA FIRDS (the resident cases, 2 Oct 2026)
+        "zaznamy",
+        "ico",
+        "obchodniJmeno",
+        "pravniForma",
+        "statistickeUdaje",
+        "institucionalniSektor2010",
+        "czNacePrevazujici",
+        "czNacePrevazujici2008",
+        "datumAktualizace",
+        "primarniZaznam",
+        "response",
+        "docs",
     }
 )
 

@@ -29,7 +29,7 @@ same :class:`CandidateFilter` interface and needs no change here.
 from __future__ import annotations
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Final, Protocol
 
 from core.classify.hints import (
@@ -60,6 +60,11 @@ HINT_SCORE: Final[float] = 10.0
 #: Above a keyword hit plus any lexical score, so "European Investment Bank" - a bank by
 #: name, an international organisation by register - leads with 99, not 64.
 REGISTER_SCORE: Final[float] = 5.0
+
+#: Score of a code RES settles for a resident issuer (:mod:`core.classify.residents`): above
+#: every keyword, register rule and text score together, and fixed - not added to - so the
+#: codes of a RES tie stay exactly equal and the rules never pick one of them by accident.
+RES_SCORE: Final[float] = 100.0
 
 #: ESA keys in the rest-of-world block start with this. Foreign issuers are non-residents,
 #: so Tool 1 restricts to it; the resident block stays reachable for completeness.
@@ -150,8 +155,34 @@ class NaceCandidateFilter:
             scored_texts = (*labels, english) if english else labels
             self._entries.append((division.code, division.short_text or labels[0], scored_texts))
             self._definitions[division.code] = labels
+        self._labels = {code: label for code, label, _ in self._entries}
 
-    def shortlist(self, description: str, *, limit: int = DEFAULT_LIMIT) -> CandidateSet:
+    def shortlist(
+        self,
+        description: str,
+        *,
+        limit: int = DEFAULT_LIMIT,
+        settled: Mapping[str, tuple[str, ...]] | None = None,
+    ) -> CandidateSet:
+        """The ranked divisions; ``settled`` (``{division: reasons}``, RES) go first."""
+        if settled:
+            return _settled_first(
+                self.shortlist(description, limit=limit),
+                [
+                    _build(
+                        self._codebooks,
+                        NACE,
+                        code,
+                        self._labels[code],
+                        self._definitions[code],
+                        RES_SCORE,
+                        reasons,
+                    )
+                    for code, reasons in settled.items()
+                    if code in self._labels
+                ],
+                limit,
+            )
         hints = hinted_nace(description)
         ranked = _scored(self._entries, description, hints, register_nace(description))
         texts = self._definitions
@@ -204,7 +235,24 @@ class EsaCandidateFilter:
         """The derived family grid, exposed for tests and diagnostics."""
         return self._families
 
-    def shortlist(self, description: str, *, limit: int = DEFAULT_LIMIT) -> CandidateSet:
+    def shortlist(
+        self,
+        description: str,
+        *,
+        limit: int = DEFAULT_LIMIT,
+        settled: Mapping[str, tuple[str, ...]] | None = None,
+    ) -> CandidateSet:
+        """The ranked families' codes; ``settled`` (``{code: reasons}``, RES) go first."""
+        if settled:
+            return _settled_first(
+                self.shortlist(description, limit=limit),
+                [
+                    self._candidate(code, RES_SCORE, reasons)
+                    for code, reasons in settled.items()
+                    if code in self._sectors
+                ],
+                limit,
+            )
         hints = hinted_esa_families(description)
         entries = [
             (
@@ -273,6 +321,24 @@ class EsaCandidateFilter:
             filter_name=self.name + ("" if self._resident else " (rest-of-world)"),
         )
 
+    def only(self, codes: Mapping[str, tuple[str, ...]]) -> CandidateSet:
+        """Exactly ``codes`` - a RES tie - in codebook order, all with the same score.
+
+        RES settled the sector and its control digit but not the institution type, so the
+        choice is among these alone (the model's, or MO's); nothing else is offered.
+        """
+        candidates = (
+            self._candidate(code, RES_SCORE, reasons)
+            for code, reasons in sorted(codes.items())
+            if code in self._sectors
+        )
+        return CandidateSet(
+            kind=ESA,
+            candidates=tuple(item for item in candidates if item is not None),
+            considered=len(self._sectors),
+            filter_name="res-register",
+        )
+
     def _candidate(self, code: str, score: float, reasons: tuple[str, ...]) -> Candidate | None:
         sector = self._sectors[code]
         return _build(
@@ -284,6 +350,41 @@ class EsaCandidateFilter:
             score,
             reasons,
         )
+
+
+def _settled_first(
+    ranked: CandidateSet, settled: Sequence[Candidate | None], limit: int
+) -> CandidateSet:
+    """``settled`` first, then the ranking without them, ``limit`` in all.
+
+    A settled code keeps the ranking's own reasons after RES's, so the page still says which
+    keyword or register agreed; its score stays :data:`RES_SCORE`.
+    """
+    first: list[Candidate] = []
+    for item in settled:
+        if item is None:
+            continue
+        agreed = ranked.by_code(item.code)
+        if agreed is not None:
+            extra = tuple(reason for reason in agreed.reasons if reason not in item.reasons)
+            item = Candidate(
+                kind=item.kind,
+                code=item.code,
+                cts_id=item.cts_id,
+                label=item.label,
+                definitions=item.definitions,
+                score=item.score,
+                reasons=(*item.reasons, *extra),
+            )
+        first.append(item)
+    taken = {item.code for item in first}
+    rest = [item for item in ranked.candidates if item.code not in taken]
+    return CandidateSet(
+        kind=ranked.kind,
+        candidates=tuple([*first, *rest][: max(limit, len(first))]),
+        considered=ranked.considered,
+        filter_name=ranked.filter_name + (" + RES" if first else ""),
+    )
 
 
 def _build(

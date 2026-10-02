@@ -6,6 +6,7 @@ These modes call no model and need no API key:
     python -m core.classify --golden                              # recall over the golden set
     python -m core.classify "..." --estimate                      # prompt size before paying
     python -m core.classify --golden-capture                      # re-record the register answers
+                                       (the resident cases too; DATABASE_URL for the ECB lists)
     python -m core.classify --usage-xlsx [PATH]                   # the usage ledger as Excel
     python -m core.classify --hash-password                       # the hash for APP_PASSWORD_HASH
 
@@ -278,6 +279,44 @@ def _golden_texts(cases: Sequence[GoldenCase], settings) -> dict[str, str]:
     return texts
 
 
+def _capture_residents(settings) -> str:
+    """Record the resident cases' GLEIF, FIRDS and RES answers, and their ECB memberships."""
+    from core.classify.golden_residents import capture_residents, load_residents, replay_settings
+    from core.db import get_database
+    from core.sources.ecb import EcbRegister
+
+    database = get_database(settings)
+    live = replay_settings().model_copy(
+        update={"gleif_min_interval_seconds": 1.0, "ares_min_interval_seconds": 0.25}
+    )
+    count = capture_residents(
+        load_residents(),
+        live,
+        captured_on=date.today(),
+        ecb=EcbRegister(database) if database is not None else None,
+    )
+    lists = "with" if database is not None else "WITHOUT (no DATABASE_URL)"
+    return f"{count} register answer(s) {lists} the ECB lists"
+
+
+def _print_residents(codebooks: CodebookSet) -> int:
+    """The resident cases' proposals with the model off, against the brief; returns the misses."""
+    from core.classify.golden_residents import REGISTERS_PATH, score_residents
+
+    if not REGISTERS_PATH.is_file():
+        print("\n--- residents (RES): no recording, run --golden-capture ---")
+        return 0
+    results = score_residents(codebooks)
+    misses = [result for result in results if not (result.nace_ok and result.esa_ok)]
+    print(
+        f"\n--- residents (RES), proposals with the model off: {len(results) - len(misses)} of "
+        f"{len(results)} as the brief (provisional) ---"
+    )
+    for result in results:
+        print(f"  {result.describe()}")
+    return len(misses)
+
+
 def _run_golden(codebooks: CodebookSet, limit: int, resident: bool, settings) -> int:
     cases = load_golden()
     stats = counts(cases)
@@ -307,6 +346,7 @@ def _run_golden(codebooks: CodebookSet, limit: int, resident: bool, settings) ->
             print(f"\n--- {kind}, {label} (shortlist of {limit}) ---")
             print(report.summary())
             misses += len(report.misses())
+    misses += _print_residents(codebooks)
     return EXIT_MISSES if misses else EXIT_OK
 
 
@@ -459,10 +499,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.golden_capture:
         try:
             recorded = capture(load_golden(), settings, captured_on=date.today())
+            residents = _capture_residents(settings)
         except GoldenError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return EXIT_LOAD_FAILED
         print(f"recorded {recorded} register answer(s) in tests/golden/identity.json")
+        print(f"recorded {residents} in tests/golden/residents_registers.json")
         return EXIT_OK
 
     if args.usage_xlsx is not None:

@@ -386,16 +386,18 @@ def _run(
     http_request: Request | None = None,
 ) -> IssuerSuggestion:
     """Run one lookup, audit it, and charge its model calls to whoever asked."""
-    identifier = request.isin or request.name or (request.description or "")[:60]
+    identifier = request.isin or request.name or request.ico or (request.description or "")[:60]
     user = request_user(http_request, settings)
     with spending_as(user):
         suggestion = service.suggest(request)
+    # A code RES settled for a resident issuer counts as found, like the model's answer.
     log_lookup(
         identifier,
-        outcome="found" if suggestion.answered else "not_found",
+        outcome="found" if suggestion.settled else "not_found",
         user=user,
+        ico=suggestion.request.ico,
         sources=suggestion.sources,
-        detail=None if suggestion.answered else "abstained",
+        detail=None if suggestion.settled else "abstained",
     )
     return suggestion
 
@@ -426,6 +428,7 @@ def health(settings: SettingsDep) -> JSONResponse:
             "reports": settings.effective_reports_source,
             "gleif_enabled": settings.gleif_enabled,
             "openfigi_enabled": settings.openfigi_enabled,
+            "ares_enabled": settings.ares_enabled,
             "python": platform.python_version(),
             "region": os.environ.get("VERCEL_REGION"),
             "vercel_env": os.environ.get("VERCEL_ENV"),
@@ -1064,6 +1067,7 @@ def suggest_xlsx(
                 "uživatel": request_user(request, settings),
                 "ISIN": row["IN_isin"] if row else None,
                 "LEI": row["issuer_lei"] if row else None,
+                "IČO": suggestion.identity.ico if suggestion else None,
                 "zdroj": row["source"] if row else None,
                 "verze číselníku": suggestion.codebook_version if suggestion else None,
                 "model": suggestion.nace.model if suggestion else None,
@@ -1151,9 +1155,12 @@ def _identity_json(identity: object) -> dict[str, object]:
     """What the registers said about the ISIN, for a script that wants the facts, not prose."""
     record = identity.lei_record  # type: ignore[attr-defined]
     instrument = identity.instrument  # type: ignore[attr-defined]
+    res = identity.res_record  # type: ignore[attr-defined]
     return {
         "isin": identity.isin,  # type: ignore[attr-defined]
         "lei": identity.lei,  # type: ignore[attr-defined]
+        "ico": identity.ico,  # type: ignore[attr-defined]
+        "resident": identity.resident,  # type: ignore[attr-defined]
         "legal_name": identity.legal_name,  # type: ignore[attr-defined]
         "country": identity.country,  # type: ignore[attr-defined]
         "category": record.category if record else None,
@@ -1177,6 +1184,18 @@ def _identity_json(identity: object) -> dict[str, object]:
             if instrument
             else None
         ),
+        "res": (
+            {
+                "name": res.name,
+                "legal_form": res.legal_form,
+                "sector": res.sector,
+                "nace": res.nace,
+                "nace_2008": res.nace_2008,
+                "as_of": res.as_of,
+            }
+            if res
+            else None
+        ),
         "sources": list(identity.sources),  # type: ignore[attr-defined]
         "facts": list(identity.facts()),  # type: ignore[attr-defined]
     }
@@ -1190,7 +1209,8 @@ def _warnings(settings: Settings) -> list[str]:
         # current intended state, and the narrowed codebook is a usable result on its own.
         warnings.append(
             "Deterministický režim: nástroj zúží číselník na kandidáty s jejich CTS ID a kód "
-            "navrhne jen tam, kde rozhodlo pravidlo (kategorie v GLEIF nebo klíčové slovo); "
+            "navrhne jen tam, kde rozhodlo pravidlo (kategorie v GLEIF, klíčové slovo nebo u "
+            "českého emitenta RES); "
             "ověření a výběr jsou na vás. (Model se zapne po nastavení LLM_API_KEY.)"
         )
     wikimedia = settings.web_enabled and settings.wikimedia_enabled
@@ -1218,6 +1238,7 @@ def _warnings(settings: Settings) -> list[str]:
                 ("ESMA FIRDS", settings.firds_enabled),
                 ("OpenFIGI", settings.openfigi_enabled),
                 ("seznamy ECB", settings.ecb_enabled and settings.database_url is not None),
+                ("u českých emitentů RES přes ARES", settings.ares_enabled),
             )
             if on
         ]

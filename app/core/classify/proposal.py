@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from core.classify.candidates import HINT_SCORE, REGISTER_SCORE
-from core.classify.explain import reasons_cs
+from core.classify.explain import from_res, reasons_cs
 from core.classify.hints import family_name, split_control
 from core.classify.models import (
     ESA,
@@ -96,7 +96,14 @@ class Proposal:
                 + reasons_cs(self.top.reasons)
                 + "."
             )
+        if from_res(self.top.reasons):
+            return "Podle registru, bez modelu – " + reasons_cs(self.top.reasons) + "."
         return "Podle pravidel, bez modelu – " + reasons_cs(self.top.reasons) + "."
+
+    @property
+    def from_res(self) -> bool:
+        """Whether RES settled the code (a Czech issuer, 2 Oct 2026) rather than a rule."""
+        return self.basis == "rules" and from_res(self.top.reasons)
 
     @property
     def choices(self) -> tuple[Suggestion | Candidate, ...]:

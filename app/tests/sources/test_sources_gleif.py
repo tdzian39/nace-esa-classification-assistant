@@ -17,10 +17,14 @@ from tests.sources.conftest import (
     GLEIF_ADIDAS_SEARCH,
     GLEIF_BMW_AG,
     GLEIF_BMW_FINANCE,
+    GLEIF_CEZ,
+    GLEIF_CZ_FUND,
     GLEIF_DEUTSCHE_BANK,
     GLEIF_EIB,
     GLEIF_FUND,
+    GLEIF_KB,
     GLEIF_LAND_BERLIN,
+    GLEIF_MF,
     _gleif_item,
     gleif_client,
     make_client,
@@ -455,3 +459,81 @@ class TestBrandsAndBranches:
         ]
         record, _ = self.find("Deutsche Bank Aktiengesellschaft", items)
         assert record is not None and record.lei == "7LTWFZYICNSX8D621K86"
+
+
+class TestCzechRegistration:
+    """``registeredAs`` is the IČO of a Czech entity (2026-10-02: 598 of 600 sampled CZ LEIs)."""
+
+    def test_registered_as_and_registered_at_are_read(self) -> None:
+        record = record_from(GLEIF_CEZ)
+        assert record.registered_as == "45274649"
+        assert record.registered_at == "RA000163"
+        assert record.ico == "45274649"
+
+    def test_the_ico_does_not_depend_on_the_registration_authority(self) -> None:
+        """The Ministry of Finance is filed under RA000168, not RA000163; it is still the IČO."""
+        record = record_from(GLEIF_MF)
+        assert record.registered_at == "RA000168"
+        assert record.ico == "00006947"
+
+    def test_a_fund_without_a_registered_number_has_no_ico(self) -> None:
+        record = record_from(GLEIF_CZ_FUND)
+        assert record.registered_at == "RA999999"
+        assert record.registered_as is None and record.ico is None
+
+    def test_a_foreign_registration_number_is_not_an_ico(self) -> None:
+        item = _gleif_item(
+            DB_LEI,
+            "DEUTSCHE BANK AKTIENGESELLSCHAFT",
+            country="DE",
+            jurisdiction="DE",
+            category="GENERAL",
+            registered_as="12345678",
+            registered_at="RA000242",
+        )
+        assert record_from(item).ico is None
+
+    @pytest.mark.parametrize("number", ["4527464", "452746490", "CZ45274649", "4527 4649"])
+    def test_only_eight_digits_are_an_ico(self, number: str) -> None:
+        item = _gleif_item(
+            "529900S5R9YHJHYKKG94",
+            "ČEZ, a. s.",
+            country="CZ",
+            jurisdiction="CZ",
+            category="GENERAL",
+            registered_as=number,
+        )
+        assert record_from(item).ico is None
+
+
+class TestIcoLookup:
+    def test_the_entity_registered_under_the_ico_is_found(self) -> None:
+        calls: list[str] = []
+        client = gleif_client(by_ico={"45317054": [GLEIF_KB]}, calls=calls)
+        record = GleifSource(settings(gleif_fetch_parents=False), client=client).find_by_ico(
+            "45317054"
+        )
+        assert record is not None and record.lei == "IYKCAVNFR8QGF00HV840"
+        assert "filter%5Bentity.registeredAs%5D=45317054" in calls[0]
+        assert "filter%5Bentity.legalAddress.country%5D=CZ" in calls[0]
+
+    def test_an_ico_gleif_does_not_know_is_none(self) -> None:
+        """The Prague branch of ING Bank N.V. (49279866) has no LEI of its own."""
+        client = gleif_client(by_ico={})
+        assert GleifSource(settings(), client=client).find_by_ico("49279866") is None
+
+    def test_a_record_whose_own_ico_differs_is_not_taken(self) -> None:
+        client = gleif_client(by_ico={"45317054": [GLEIF_CEZ]})
+        assert GleifSource(settings(), client=client).find_by_ico("45317054") is None
+
+    def test_two_active_records_for_one_ico_mean_none(self) -> None:
+        twin = {**GLEIF_KB, "id": "529900AAAAAAAAAAAA00"}
+        twin = {**twin, "attributes": {**twin["attributes"], "lei": "529900AAAAAAAAAAAA00"}}
+        client = gleif_client(by_ico={"45317054": [GLEIF_KB, twin]})
+        assert GleifSource(settings(), client=client).find_by_ico("45317054") is None
+
+    def test_an_outage_is_unavailable_not_missing(self) -> None:
+        client = gleif_client(status=503)
+        source = GleifSource(settings(), client=client, sleep=lambda _: None)
+        with pytest.raises(SourceUnavailableError):
+            source.find_by_ico("45317054")

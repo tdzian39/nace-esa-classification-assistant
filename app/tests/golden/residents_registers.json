@@ -1,0 +1,993 @@
+{
+ "_comment": [
+  "GLEIF, ESMA FIRDS and RES (ARES) answers for tests/golden/residents.json, trimmed",
+  "to the fields the parsers read, and the ECB list memberships of the LEIs found.",
+  "Replayed by core.classify.golden_residents; re-record with: python -m core.classify",
+  "--golden-capture (DATABASE_URL set, so the ECB lists are read)."
+ ],
+ "captured_on": "2026-10-02",
+ "user_agent": "RBCZ-NACE-ESA-assistant/0.1 (+https://github.com/tdzian39/nace-esa-classification-assistant)",
+ "answers": {
+  "GET https://api.gleif.org/api/v1/lei-records/3157007EFDLQABN47912": {
+   "status": 200,
+   "body": {
+    "data": {
+     "id": "3157007EFDLQABN47912",
+     "attributes": {
+      "lei": "3157007EFDLQABN47912",
+      "entity": {
+       "legalName": {
+        "name": "Česká republika - Ministerstvo financí"
+       },
+       "otherNames": [],
+       "legalAddress": {
+        "country": "CZ"
+       },
+       "headquartersAddress": {
+        "country": "CZ"
+       },
+       "registeredAt": {
+        "id": "RA000168",
+        "other": null
+       },
+       "registeredAs": "00006947",
+       "jurisdiction": "CZ",
+       "category": "RESIDENT_GOVERNMENT_ENTITY",
+       "legalForm": {
+        "id": "LJL0",
+        "other": null
+       },
+       "status": "ACTIVE",
+       "subCategory": "CENTRAL_GOVERNMENT"
+      },
+      "registration": {
+       "lastUpdateDate": "2026-04-23T13:32:16Z",
+       "status": "ISSUED"
+      }
+     }
+    }
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bentity.registeredAs%5D=00064581&filter%5Bentity.legalAddress.country%5D=CZ&page%5Bsize%5D=5": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "31570010000000033463",
+      "attributes": {
+       "lei": "31570010000000033463",
+       "entity": {
+        "legalName": {
+         "name": "HLAVNÍ MĚSTO PRAHA"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "CZ"
+        },
+        "headquartersAddress": {
+         "country": "CZ"
+        },
+        "registeredAt": {
+         "id": "RA000168",
+         "other": null
+        },
+        "registeredAs": "00064581",
+        "jurisdiction": "CZ",
+        "category": "RESIDENT_GOVERNMENT_ENTITY",
+        "legalForm": {
+         "id": "QIEL",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": "LOCAL_GOVERNMENT"
+       },
+       "registration": {
+        "lastUpdateDate": "2026-04-21T14:05:21Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bentity.registeredAs%5D=25778722&filter%5Bentity.legalAddress.country%5D=CZ&page%5Bsize%5D=5": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "315700JO74P7ADVLMZ03",
+      "attributes": {
+       "lei": "315700JO74P7ADVLMZ03",
+       "entity": {
+        "legalName": {
+         "name": "Artesa, spořitelní družstvo"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "CZ"
+        },
+        "headquartersAddress": {
+         "country": "CZ"
+        },
+        "registeredAt": {
+         "id": "RA000163",
+         "other": null
+        },
+        "registeredAs": "25778722",
+        "jurisdiction": "CZ",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "9RVC",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-04-27T14:40:34Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bentity.registeredAs%5D=26978636&filter%5Bentity.legalAddress.country%5D=CZ&page%5Bsize%5D=5": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "315700S04JY80J2ML916",
+      "attributes": {
+       "lei": "315700S04JY80J2ML916",
+       "entity": {
+        "legalName": {
+         "name": "Home Credit a.s."
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "CZ"
+        },
+        "headquartersAddress": {
+         "country": "CZ"
+        },
+        "registeredAt": {
+         "id": "RA000163",
+         "other": null
+        },
+        "registeredAs": "26978636",
+        "jurisdiction": "CZ",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "6CQN",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-02-18T06:55:00Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bentity.registeredAs%5D=28356250&filter%5Bentity.legalAddress.country%5D=CZ&page%5Bsize%5D=5": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "31570010000000090208",
+      "attributes": {
+       "lei": "31570010000000090208",
+       "entity": {
+        "legalName": {
+         "name": "Energetický a průmyslový holding, a.s."
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "CZ"
+        },
+        "headquartersAddress": {
+         "country": "CZ"
+        },
+        "registeredAt": {
+         "id": "RA000163",
+         "other": null
+        },
+        "registeredAs": "28356250",
+        "jurisdiction": "CZ",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "6CQN",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-04-22T06:53:53Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bentity.registeredAs%5D=47115629&filter%5Bentity.legalAddress.country%5D=CZ&page%5Bsize%5D=5": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "315700KVEWB12APT2364",
+      "attributes": {
+       "lei": "315700KVEWB12APT2364",
+       "entity": {
+        "legalName": {
+         "name": "Burza cenných papírů Praha, a.s."
+        },
+        "otherNames": [
+         {
+          "name": "Prague Stock Exchange"
+         }
+        ],
+        "legalAddress": {
+         "country": "CZ"
+        },
+        "headquartersAddress": {
+         "country": "CZ"
+        },
+        "registeredAt": {
+         "id": "RA000163",
+         "other": null
+        },
+        "registeredAs": "47115629",
+        "jurisdiction": "CZ",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "6CQN",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-04-28T07:27:12Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bentity.registeredAs%5D=47116617&filter%5Bentity.legalAddress.country%5D=CZ&page%5Bsize%5D=5": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "31570010000000008243",
+      "attributes": {
+       "lei": "31570010000000008243",
+       "entity": {
+        "legalName": {
+         "name": "Kooperativa pojišťovna, a.s., Vienna Insurance Group"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "CZ"
+        },
+        "headquartersAddress": {
+         "country": "CZ"
+        },
+        "registeredAt": {
+         "id": "RA000163",
+         "other": null
+        },
+        "registeredAs": "47116617",
+        "jurisdiction": "CZ",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "6CQN",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-04-21T13:47:18Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bentity.registeredAs%5D=48136450&filter%5Bentity.legalAddress.country%5D=CZ&page%5Bsize%5D=5": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "549300DS86PEHLIYB473",
+      "attributes": {
+       "lei": "549300DS86PEHLIYB473",
+       "entity": {
+        "legalName": {
+         "name": "ČESKÁ NÁRODNÍ BANKA"
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "CZ"
+        },
+        "headquartersAddress": {
+         "country": "CZ"
+        },
+        "registeredAt": {
+         "id": "RA000168",
+         "other": null
+        },
+        "registeredAs": "48136450",
+        "jurisdiction": "CZ",
+        "category": "RESIDENT_GOVERNMENT_ENTITY",
+        "legalForm": {
+         "id": "NPH3",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": "CENTRAL_GOVERNMENT"
+       },
+       "registration": {
+        "lastUpdateDate": "2026-05-20T06:58:52Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bentity.registeredAs%5D=49240901&filter%5Bentity.legalAddress.country%5D=CZ&page%5Bsize%5D=5": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "31570010000000004460",
+      "attributes": {
+       "lei": "31570010000000004460",
+       "entity": {
+        "legalName": {
+         "name": "Raiffeisenbank a.s."
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "CZ"
+        },
+        "headquartersAddress": {
+         "country": "CZ"
+        },
+        "registeredAt": {
+         "id": "RA000163",
+         "other": null
+        },
+        "registeredAs": "49240901",
+        "jurisdiction": "CZ",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "6CQN",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-04-21T13:43:16Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bentity.registeredAs%5D=49279866&filter%5Bentity.legalAddress.country%5D=CZ&page%5Bsize%5D=5": {
+   "status": 200,
+   "body": {
+    "data": []
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bentity.registeredAs%5D=61858374&filter%5Bentity.legalAddress.country%5D=CZ&page%5Bsize%5D=5": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "31570010000000050244",
+      "attributes": {
+       "lei": "31570010000000050244",
+       "entity": {
+        "legalName": {
+         "name": "Fio banka, a.s."
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "CZ"
+        },
+        "headquartersAddress": {
+         "country": "CZ"
+        },
+        "registeredAt": {
+         "id": "RA000163",
+         "other": null
+        },
+        "registeredAs": "61858374",
+        "jurisdiction": "CZ",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "6CQN",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-01-19T08:02:38Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bentity.registeredAs%5D=63078333&filter%5Bentity.legalAddress.country%5D=CZ&page%5Bsize%5D=5": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "DW6MQVZNJSSKVELT9F22",
+      "attributes": {
+       "lei": "DW6MQVZNJSSKVELT9F22",
+       "entity": {
+        "legalName": {
+         "name": "Česká exportní banka, a.s."
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "CZ"
+        },
+        "headquartersAddress": {
+         "country": "CZ"
+        },
+        "registeredAt": {
+         "id": "RA000163",
+         "other": null
+        },
+        "registeredAs": "63078333",
+        "jurisdiction": "CZ",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "6CQN",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-08-07T05:55:00Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bentity.registeredAs%5D=63998980&filter%5Bentity.legalAddress.country%5D=CZ&page%5Bsize%5D=5": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "31570010000000004945",
+      "attributes": {
+       "lei": "31570010000000004945",
+       "entity": {
+        "legalName": {
+         "name": "ČSOB Leasing, a.s."
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "CZ"
+        },
+        "headquartersAddress": {
+         "country": "CZ"
+        },
+        "registeredAt": {
+         "id": "RA000163",
+         "other": null
+        },
+        "registeredAs": "63998980",
+        "jurisdiction": "CZ",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "6CQN",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-04-21T13:43:36Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=CZ0001004469&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": []
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=CZ0005112300&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "529900S5R9YHJHYKKG94",
+      "attributes": {
+       "lei": "529900S5R9YHJHYKKG94",
+       "entity": {
+        "legalName": {
+         "name": "ČEZ, a. s."
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "CZ"
+        },
+        "headquartersAddress": {
+         "country": "CZ"
+        },
+        "registeredAt": {
+         "id": "RA000163",
+         "other": null
+        },
+        "registeredAs": "45274649",
+        "jurisdiction": "CZ",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "6CQN",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-09-24T11:23:48Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://api.gleif.org/api/v1/lei-records?filter%5Bisin%5D=CZ0008019106&page%5Bsize%5D=1": {
+   "status": 200,
+   "body": {
+    "data": [
+     {
+      "id": "IYKCAVNFR8QGF00HV840",
+      "attributes": {
+       "lei": "IYKCAVNFR8QGF00HV840",
+       "entity": {
+        "legalName": {
+         "name": "Komerční banka, a.s."
+        },
+        "otherNames": [],
+        "legalAddress": {
+         "country": "CZ"
+        },
+        "headquartersAddress": {
+         "country": "CZ"
+        },
+        "registeredAt": {
+         "id": "RA000163",
+         "other": null
+        },
+        "registeredAs": "45317054",
+        "jurisdiction": "CZ",
+        "category": "GENERAL",
+        "legalForm": {
+         "id": "6CQN",
+         "other": null
+        },
+        "status": "ACTIVE",
+        "subCategory": null
+       },
+       "registration": {
+        "lastUpdateDate": "2026-05-20T07:20:21Z",
+        "status": "ISSUED"
+       }
+      }
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/00006947": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "00006947",
+      "obchodniJmeno": "Ministerstvo financí",
+      "pravniForma": "325",
+      "datumAktualizace": "2023-06-29",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "13110"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "84110",
+      "czNacePrevazujici2008": "84110"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/00064581": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "00064581",
+      "obchodniJmeno": "HLAVNÍ MĚSTO PRAHA",
+      "pravniForma": "804",
+      "datumAktualizace": "2023-06-29",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "13130"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "84110",
+      "czNacePrevazujici2008": "84110"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/25778722": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "25778722",
+      "obchodniJmeno": "Artesa, spořitelní družstvo",
+      "pravniForma": "205",
+      "datumAktualizace": "2023-06-29",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "12202"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "64190",
+      "czNacePrevazujici2008": "64190"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/26978636": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "26978636",
+      "obchodniJmeno": "Home Credit a.s.",
+      "pravniForma": "121",
+      "datumAktualizace": "2023-06-29",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "12502"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "64929",
+      "czNacePrevazujici2008": "64929"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/28356250": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "28356250",
+      "obchodniJmeno": "Energetický a průmyslový holding, a.s.",
+      "pravniForma": "121",
+      "datumAktualizace": "2024-09-05",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "11002"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "70100",
+      "czNacePrevazujici2008": "70100"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/45274649": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "45274649",
+      "obchodniJmeno": "ČEZ, a. s.",
+      "pravniForma": "121",
+      "datumAktualizace": "2026-09-04",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "11001"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "35110",
+      "czNacePrevazujici2008": "35110"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/45317054": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "45317054",
+      "obchodniJmeno": "Komerční banka, a.s.",
+      "pravniForma": "121",
+      "datumAktualizace": "2023-06-29",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "12203"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "64190",
+      "czNacePrevazujici2008": "64190"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/47115629": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "47115629",
+      "obchodniJmeno": "Burza cenných papírů Praha, a.s.",
+      "pravniForma": "121",
+      "datumAktualizace": "2022-10-03",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "12603"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "66110",
+      "czNacePrevazujici2008": "66110"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/47116617": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "47116617",
+      "obchodniJmeno": "Kooperativa pojišťovna, a.s., Vienna Insurance Group",
+      "pravniForma": "121",
+      "datumAktualizace": "2026-07-03",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "12803"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "651",
+      "czNacePrevazujici2008": "651"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/48136450": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "48136450",
+      "obchodniJmeno": "ČESKÁ NÁRODNÍ BANKA",
+      "pravniForma": "313",
+      "datumAktualizace": "2026-07-03",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "12100"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "64110",
+      "czNacePrevazujici2008": "64110"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/49240901": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "49240901",
+      "obchodniJmeno": "Raiffeisenbank a.s.",
+      "pravniForma": "121",
+      "datumAktualizace": "2023-06-29",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "12203"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "64190",
+      "czNacePrevazujici2008": "64190"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/49279866": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "49279866",
+      "obchodniJmeno": "ING Bank N.V.",
+      "pravniForma": "421",
+      "datumAktualizace": "2023-06-29",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "12203"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "64190",
+      "czNacePrevazujici2008": "64190"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/61858374": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "61858374",
+      "obchodniJmeno": "Fio banka, a.s.",
+      "pravniForma": "121",
+      "datumAktualizace": "2024-09-17",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "12202"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "64190",
+      "czNacePrevazujici2008": "64190"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/63078333": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "63078333",
+      "obchodniJmeno": "Česká exportní banka, a.s.",
+      "pravniForma": "121",
+      "datumAktualizace": "2023-06-01",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "13110"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "64190",
+      "czNacePrevazujici2008": "64190"
+     }
+    ]
+   }
+  },
+  "GET https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/63998980": {
+   "status": 200,
+   "body": {
+    "zaznamy": [
+     {
+      "ico": "63998980",
+      "obchodniJmeno": "ČSOB Leasing, a.s.",
+      "pravniForma": "121",
+      "datumAktualizace": "2023-06-01",
+      "statistickeUdaje": {
+       "institucionalniSektor2010": "12503"
+      },
+      "primarniZaznam": true,
+      "czNacePrevazujici": "64910",
+      "czNacePrevazujici2008": "64910"
+     }
+    ]
+   }
+  },
+  "GET https://registers.esma.europa.eu/solr/esma_registers_firds/select?q=isin%3ACZ0001004469&wt=json&rows=1&fl=lei": {
+   "status": 200,
+   "body": {
+    "response": {
+     "docs": [
+      {
+       "lei": "3157007EFDLQABN47912"
+      }
+     ]
+    }
+   }
+  }
+ },
+ "ecb": {
+  "as_of": "2026-10-02",
+  "entries": {
+   "31570010000000004460": {
+    "lei": "31570010000000004460",
+    "list_name": "MFI",
+    "code": "ECB_MFI:CREDIT_INSTITUTION",
+    "name": "Raiffeisenbank a.s.",
+    "country": "CZ",
+    "subtype": null,
+    "head_lei": null,
+    "as_of": "2026-10-02"
+   },
+   "31570010000000004945": null,
+   "31570010000000008243": {
+    "lei": "31570010000000008243",
+    "list_name": "IC",
+    "code": "ECB_IC",
+    "name": "Kooperativa pojišťovna, a.s., Vienna Insurance Group",
+    "country": "CZ",
+    "subtype": "Composite insurance",
+    "head_lei": null,
+    "as_of": "2026-Q2"
+   },
+   "31570010000000033463": null,
+   "31570010000000050244": {
+    "lei": "31570010000000050244",
+    "list_name": "MFI",
+    "code": "ECB_MFI:CREDIT_INSTITUTION",
+    "name": "Fio banka, a.s.",
+    "country": "CZ",
+    "subtype": null,
+    "head_lei": null,
+    "as_of": "2026-10-02"
+   },
+   "31570010000000090208": null,
+   "3157007EFDLQABN47912": null,
+   "315700JO74P7ADVLMZ03": {
+    "lei": "315700JO74P7ADVLMZ03",
+    "list_name": "MFI",
+    "code": "ECB_MFI:CREDIT_INSTITUTION",
+    "name": "Artesa, spořitelní družstvo",
+    "country": "CZ",
+    "subtype": null,
+    "head_lei": null,
+    "as_of": "2026-10-02"
+   },
+   "315700KVEWB12APT2364": null,
+   "315700S04JY80J2ML916": null,
+   "529900S5R9YHJHYKKG94": null,
+   "549300DS86PEHLIYB473": {
+    "lei": "549300DS86PEHLIYB473",
+    "list_name": "MFI",
+    "code": "ECB_MFI:CENTRAL_BANK",
+    "name": "Česká národní banka",
+    "country": "CZ",
+    "subtype": null,
+    "head_lei": null,
+    "as_of": "2026-10-02"
+   },
+   "DW6MQVZNJSSKVELT9F22": {
+    "lei": "DW6MQVZNJSSKVELT9F22",
+    "list_name": "MFI",
+    "code": "ECB_MFI:CREDIT_INSTITUTION",
+    "name": "Česká exportní banka, a.s.",
+    "country": "CZ",
+    "subtype": null,
+    "head_lei": null,
+    "as_of": "2026-10-02"
+   },
+   "IYKCAVNFR8QGF00HV840": {
+    "lei": "IYKCAVNFR8QGF00HV840",
+    "list_name": "MFI",
+    "code": "ECB_MFI:CREDIT_INSTITUTION",
+    "name": "Komerční banka, a.s.",
+    "country": "CZ",
+    "subtype": null,
+    "head_lei": null,
+    "as_of": "2026-10-02"
+   }
+  }
+ }
+}

@@ -125,6 +125,7 @@ class _Checker:
         self.check_cts_nace_have_labels()
         self.check_descriptions()
         self.check_skipped_rows()
+        self.check_res_esa_targets()
         self.info_parent_codes()
         return ConsistencyReport(tuple(self.findings))
 
@@ -331,6 +332,28 @@ class _Checker:
                     codebook=name,
                     skipped_rows=skipped,
                 )
+
+    def check_res_esa_targets(self) -> None:
+        """Every BA0036 code of the RES sector table (:mod:`core.codebooks.res_esa`) is emittable.
+
+        A warning, not an error: a miss only means residents of that RES sector get no rule
+        (the classifier decides, with a note), and an error would stop every lookup. Checked
+        only against a codebook in BA0036's 7-digit codes, as CTS's is; one keyed on the
+        ``S.xxxxx`` form (the synthetic test books) cannot hold the table's codes at all.
+        """
+        from core.codebooks.res_esa import missing_targets
+
+        if not any(len(sector.key) == 7 for sector in self.cb.esa_leaves()):
+            return
+        missing = list(missing_targets(self.cb))
+        if missing:
+            self.add(
+                "warning",
+                "W_RES_ESA_TARGET_MISSING",
+                f"{len(missing)} BA0036 code(s) of the RES sector table cannot be emitted with "
+                f"this codebook, so RES cannot settle those sectors: {_quote(missing)}",
+                codes=missing,
+            )
 
     # -- info ----------------------------------------------------------------------------
 

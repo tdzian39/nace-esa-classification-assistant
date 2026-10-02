@@ -42,6 +42,12 @@ instrument (market name, security type, market sector); both are public and keyl
 legal name becomes the web query and the facts go into the shortlist and the prompt, so a
 bank is a bank because the register says so. See "Tool 1: issuer identification by ISIN".
 
+**Czech issuers take their codes from RES (2 Oct 2026).** An issuer whose GLEIF seat is CZ,
+or whose IČO is typed into the name field, gets NACE and ESA from RES through the ARES REST
+API: the prevailing activity's division and the BA0036 resident code of the institutional
+sector, "převzato z RES (ARES), stav k …", with no model call for an axis RES settles. See
+"Czech (resident) issuers: codes from RES".
+
 **Running on Vercel (roadmap E1, 22 Sept 2026).** Production is up behind Vercel
 Authentication, with the real codebooks in the private Blob store; the app loads them lazily,
 reports a codebook problem as HTTP 503 instead of dying, and has a `/probe` page for the
@@ -59,7 +65,7 @@ The original build steps are history now; the plan from here is the roadmap's ep
 | 2 | Audit log; the DWS adapter, ARES fallback, resolver and CLI of this step were Tool 2's | audit **done**; the rest removed in PR #5 |
 | 3 | Result xlsx out (`core/export`) | writer **done**; the batch reader and runner removed (E6 rewrites the reader when it comes) |
 | 4 | Single-lookup API + server-rendered UI (Jinja2 + htmx) | **done** (Tool 1) |
-| 5 | Deterministic classifier: RES ESA sector -> BA0036 ID, RES 2-digit NACE -> OKEC_NACE2 ID | dropped with Tool 2; roadmap E4 adds a rule table for foreign issuers |
+| 5 | Deterministic classifier: RES ESA sector -> BA0036 ID, RES 2-digit NACE -> OKEC_NACE2 ID | dropped with Tool 2; **back for resident issuers** (2 Oct 2026, `core/codebooks/res_esa.py`, `core/classify/residents.py`) |
 | 6 | LLM classifier for foreign issuers (structured selection from a candidate list) | **done**; on in production since 23 Sept 2026 (E9) |
 
 Work stops after each step: tests run, the state is summarised, and the next step waits
@@ -168,8 +174,9 @@ working directory. Connection details are never hardcoded.
 | `PROBE_ENABLED` | `true` | Serve the `/probe` diagnostics page |
 | `WEB_USER_AGENT` | `RBCZ-NACE-ESA-assistant/0.1 (+<repo URL>)` | Sent to every register; Wikimedia refuses httpx requests whose User-Agent has no contact, so keep a URL or mailbox in it |
 
-The `DWS_*` and `ARES_*` variables went with Tool 2 (PR #5); an old `app/.env` that still
-sets them loads fine, because unknown variables are ignored.
+The `DWS_*` variables went with Tool 2 (PR #5); an old `app/.env` that still sets them loads
+fine, because unknown variables are ignored. The `ARES_*` variables went too and are back since
+2 Oct 2026, for Czech issuers only (below).
 
 ### Issuer identification variables (GLEIF, OpenFIGI)
 
@@ -189,9 +196,14 @@ sets them loads fine, because unknown variables are ignored.
 | `OPENFIGI_TIMEOUT_SECONDS` | `15` | HTTP timeout per request |
 | `OPENFIGI_MIN_INTERVAL_SECONDS` | `2.5` | Spacing between requests; keyless limit `25;w=60` read live |
 | `OPENFIGI_MAX_ATTEMPTS` | `3` | Attempts per request; 429 and 5xx are retried |
+| `ARES_ENABLED` | `true` | For a Czech issuer, ask RES through ARES for its prevailing NACE and institutional sector |
+| `ARES_BASE_URL` | `https://ares.gov.cz` | Base URL of the ARES REST API |
+| `ARES_TIMEOUT_SECONDS` | `5` | HTTP timeout per request (RES answers in ~0.1 s) |
+| `ARES_MIN_INTERVAL_SECONDS` | `0.25` | Spacing between requests; the Ministry may block more than 500/min |
+| `ARES_MAX_ATTEMPTS` | `2` | Attempts per request; 429 and 5xx are retried |
 
-Both registers use `WEB_USER_AGENT`. Hosts the runtime must be allowed to reach:
-`api.gleif.org` and `api.openfigi.com` (HTTPS, port 443).
+All registers use `WEB_USER_AGENT`. Hosts the runtime must be allowed to reach:
+`api.gleif.org`, `api.openfigi.com` and, for Czech issuers, `ares.gov.cz` (HTTPS, port 443).
 
 The model variables (`LLM_*`) are live entries in `.env.example` with their defaults; only
 `LLM_API_KEY` is commented out, and that is what keeps the tool deterministic until roadmap
@@ -300,13 +312,14 @@ of them trustworthy:
 So a register outage never turns into "not registered": `IssuerIdentifier` records it as a
 note and keeps whatever the other register answered. The row's `source` names the registers
 that answered - even when the answer was "nothing" - and then `WEB`: `GLEIF+OPENFIGI+WEB`
-for an ISIN lookup, `OPENFIGI+WEB` when GLEIF could not be asked, plain `WEB` for a name.
+for an ISIN lookup, `OPENFIGI+WEB` when GLEIF could not be asked, plain `WEB` for a name, and
+`GLEIF+RES+WEB` (or `GLEIF+OPENFIGI+RES+WEB`) for a Czech issuer.
 
 ### Provenance and errors (`base.py`)
 
 `base.py` holds only what every source shares:
 
-- `Source` - the stamp on every record: `GLEIF`, `OPENFIGI` or `WEB`.
+- `Source` - the stamp on every record: `GLEIF`, `OPENFIGI`, `RES` or `WEB`.
 - `Provenance` - source, `retrieved_at`, `snapshot_at` (GLEIF fills it from the record's
   `lastUpdateDate`), `detail`; `timestamp` is the snapshot when the source states one,
   otherwise the retrieval time.
@@ -325,7 +338,8 @@ Every lookup is logged to the `core.audit` logger with identifier, timestamp, re
 user, sources consulted and outcome - as a message and as structured fields in
 `record.audit` for a JSON handler. **No retrieved content is ever logged**: the trail holds
 the question and the outcome, never the answer, so it can be kept and shipped without
-carrying client data.
+carrying client data. An IČO typed into the name field is logged as `ico=` (the identifier
+only, never what RES said); a code RES settled counts as `outcome=found`.
 
 ### Sign-in (`core/auth.py`)
 
@@ -461,6 +475,39 @@ for an ISIN lookup, plain `WEB` for a name - the audit line carries the same, th
 (`OPENFIGI_MIN_INTERVAL_SECONDS` 2.5; a free key gives 250/minute). 429 and 5xx retry with
 linear backoff, other 4xx do not. An ISIN costs up to four GLEIF requests (record, two
 parents, exception) and one OpenFIGI request; `GLEIF_FETCH_PARENTS=false` cuts it to one.
+
+## Czech (resident) issuers: codes from RES (`core/sources/ares.py`, `core/classify/residents.py`)
+
+Since 2 Oct 2026 (MO's request through Reporting, Jakub's decision; roadmap §1) a Czech issuer
+takes both codes from RES, the ČSÚ register, read keyless through the Ministry of Finance's
+ARES REST API - so MO need not care whether an issuer is resident:
+
+```
+resident?  GLEIF's legal seat CZ (never the ISIN prefix), or an IČO typed into the name field
+IČO        GLEIF registeredAs (CZ + 8 digits), else the typed one; an IČO alone is also
+           asked in GLEIF (filter[entity.registeredAs]) for the LEI the ECB lists key on
+RES        GET ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-res/{ico}
+           -> czNacePrevazujici, institucionalniSektor2010, pravniForma, obchodniJmeno,
+              datumAktualizace
+NACE       the division of RES's prevailing code (CZ-NACE 2025; the 2008 one with a note;
+           no rule for a division CTS lacks, such as 45)
+ESA        core/codebooks/res_esa.py: ČSÚ sector -> BA0036 resident code (BA0036 codes
+           only); S.122 and S.125 need the institution type - legal form 205, the ECB
+           MFI / FVC lists, the NACE class 64.91/64.92 - else the codes tie for MO
+```
+
+An axis RES settles is not sent to the model; a tie goes to it with only the tied codes. The
+page says "převzato z RES (ARES), stav k <datumAktualizace>", shows RES's name and "rezident ČR
+· IČO …", and lists in its notes what RES could not settle - and when an ECB list files the
+issuer elsewhere than RES does (Česká exportní banka, Národní rozvojová banka and EGAP are in
+13110 in RES, but on the ECB lists as credit institutions and an insurer). RES's 404 is said as
+such (ARES lags ČSÚ by about three weeks and drops dissolved subjects); an outage is a note,
+never a 404. A Czech fund has no IČO of its own: resident, but no RES. The startup consistency
+check warns `W_RES_ESA_TARGET_MISSING` if the codebook cannot emit a code of the table.
+
+Golden: `tests/golden/residents.json` (15 subjects) replays a recording of GLEIF, FIRDS, RES and
+the ECB memberships (`residents_registers.json`); `python -m core.classify --golden` prints the
+block, `--golden-capture` re-records it (with `DATABASE_URL`, so the ECB lists are read).
 
 ## Tool 1: web evidence (`core/sources/web.py`)
 

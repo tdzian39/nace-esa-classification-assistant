@@ -271,7 +271,7 @@ class TestProbeRoute:
             wired(offline_settings()).get("/probe", params={"format": "json", "set": "all"}).json()
         )
         assert body["set"] == "all"
-        assert len(body["hosts"]) == 6
+        assert len(body["hosts"]) == 7  # ARES joins as a candidate while switched off
 
     def test_it_can_be_switched_off(self) -> None:
         response = wired(offline_settings(probe_enabled=False)).get("/probe")

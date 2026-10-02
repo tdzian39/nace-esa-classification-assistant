@@ -420,6 +420,12 @@ class TestWarnings:
         )
         assert not any("seznamy ECB" in w for w in warnings)  # no database, no ECB lists
 
+    def test_the_banner_names_res_for_czech_issuers(self) -> None:
+        on = api._warnings(Settings(llm_api_key=None, web_search_url=None, ares_enabled=True))
+        assert any("u českých emitentů RES přes ARES)" in w for w in on)
+        off = api._warnings(Settings(llm_api_key=None, web_search_url=None, ares_enabled=False))
+        assert not any("RES přes ARES" in w for w in off)
+
     def test_with_a_model_the_banner_says_it_searches_the_web_too(self) -> None:
         warnings = api._warnings(Settings(llm_api_key="sk-test", web_search_url=None))
         assert any(

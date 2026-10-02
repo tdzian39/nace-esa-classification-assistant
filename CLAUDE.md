@@ -8,18 +8,23 @@ Guidance for Claude Code working in this repository.
 
 **Tool 1 only** (since 22 Sept 2026). MO treasury sets up foreign securities issuers in CTS
 and must pick a 2-digit NACE code and an elementary ESA 2010 sector code. Input: ISIN and/or
-issuer name and/or activity description. Output: issuer name, description, suggested NACE +
-CTS ID, suggested ESA + CTS ID, top 3 candidates each, with evidence.
+issuer name and/or activity description - or a Czech issuer's IČO typed into the name field.
+Output: issuer name, description, suggested NACE + CTS ID, suggested ESA + CTS ID, top 3
+candidates each, with evidence. **A Czech (resident) issuer takes both codes from RES** (since
+2 Oct 2026: MO asked through Reporting, Jakub decided), so MO need not care who is resident.
 
 Deploys to **Vercel**. Tool 2 (RES/OR lookup) moved to `jaeksrampota/res-or-lookup` in PR #5,
-taking DWS and ARES with it — nothing here reads them. **The plan, every decision and every
-open question live in `docs/ROADMAP.md`: read it after this file and keep both in step.**
+taking DWS and ARES with it. **ARES is back for one thing only** (2 Oct 2026, reversing "nothing
+here reads ARES" for residents): RES's prevailing NACE and institutional sector of a resident
+issuer, read inside this tool - not merged with res-or-lookup; OR (the VR endpoint) adds no
+codes and is not called; DWS stays out. **The plan, every decision and every open question live
+in `docs/ROADMAP.md`: read it after this file and keep both in step.**
 
 Sources, in order: **GLEIF** (`api.gleif.org`) + **OpenFIGI** (`api.openfigi.com`) for an
-issuer given by ISIN; **Wikidata/Wikipedia by that LEI or by the issuer's name**, then the
-**model's own web search** (every lookup since 30 Sept 2026), for activity descriptions of
-foreign issuers only.
-Never scrape `apl.czso.cz` or `or.justice.cz`.
+issuer given by ISIN; **RES through ARES** (`ares.gov.cz`) for a Czech issuer's codes;
+**Wikidata/Wikipedia by that LEI or by the issuer's name**, then the **model's own web search**
+(every lookup since 30 Sept 2026), for activity descriptions.
+Never scrape `apl.czso.cz` or `or.justice.cz` - ARES is the official API, not scraping.
 
 ## Codebooks (xlsx; from a private Vercel Blob store in deployment, roadmap D3)
 
@@ -34,7 +39,8 @@ Never scrape `apl.czso.cz` or `or.justice.cz`.
   5-digit ESA form `S.12213`. Registers report the ESA form (`12203`), which does **not** exist
   in CTS: CTS splits S.1220x into banks (1221x) / credit unions (1222x) / other deposit-takers
   (1224x), and S.125 likewise. A register's sector is therefore **not** a lexical lookup into
-  BA0036 — still open (roadmap Q7).
+  BA0036: for a resident issuer the reviewable table `core/codebooks/res_esa.py` converts
+  RES's code (2 Oct 2026); for a foreign one it stays open (roadmap Q7).
 - **CTS is on CZ-NACE 2025 (Rev. 2.1)**: 87 divisions, no 45, CTS ID 496 missing where 45 sat.
   Rev. 2 codes need mapping.
 - All four load with 0 errors/warnings as `cb-3b12e64837840ca0`; 87 divisions match 1:1.
@@ -45,14 +51,17 @@ Never scrape `apl.czso.cz` or `or.justice.cz`.
 ## Layout (everything under `/app`)
 
 ```
-core/identifiers  isin.py
+core/identifiers  isin.py, ico.py (an IČO typed into the name field)
 core/sources      base.py, gleif.py, openfigi.py, identity.py (ISIN -> issuer), web.py, wikimedia.py,
                   names.py (name matching), ecb.py (ECB lists of financial institutions),
                   firds.py (ESMA FIRDS: ISIN -> LEI when GLEIF has no mapping),
-                  llm_web.py (the model's web search for the description)
-core/codebooks    loaders, versioning, consistency; blob.py (private Vercel Blob)
+                  llm_web.py (the model's web search for the description),
+                  ares.py (RES through ARES: a Czech issuer's NACE and sector)
+core/codebooks    loaders, versioning, consistency; blob.py (private Vercel Blob);
+                  res_esa.py (RES sector -> BA0036 resident code, the reviewable table)
 core/classify     candidates.py (pre-filter), hints.py, llm.py, proposal.py, golden.py,
-                  budget.py (limits, usage ledger), usage_report.py (the ledger as Excel)
+                  budget.py (limits, usage ledger), usage_report.py (the ledger as Excel),
+                  residents.py (what RES settles for a resident), golden_residents.py
 core/export       columns.py (the row), xlsx.py
 core/probe.py     the /probe register checks     core/auth.py  sign-in (users, cookie)
 core/reports.py   error reports (the button): request + result row + note, to the db, a dir or Blob
@@ -60,7 +69,8 @@ core/db.py        the central Postgres (D4): ledger, cache, audit events, report
 core/admin.py     the developer page's numbers: the priced ledger and the complaints, filtered
 api/  GET / · POST /suggest · POST /report · POST /api/suggest · GET /suggest.xlsx · /health · /probe
       GET|POST /login · POST /logout · /admin (+ /login, /logout, usage.xlsx, reports.xlsx)
-ui/   suggest.html, login.html, admin.html, admin_login.html + prototype/suggest.html   tests/golden  cases.json, identity.json
+ui/   suggest.html, login.html, admin.html, admin_login.html + prototype/suggest.html
+tests/golden  cases.json, identity.json; residents.json, residents_registers.json (RES cases)
 config/settings.py · .env.example · vercel.json · .python-version · pyproject.toml
 ```
 
@@ -69,7 +79,7 @@ framework. No pandas; numpy is a dev extra only (tests feed numpy scalars to the
 
 ## Hard rules
 
-- Every row carries source (GLEIF/OPENFIGI/WEB), retrieval timestamp, codebook version.
+- Every row carries source (GLEIF/OPENFIGI/RES/WEB), retrieval timestamp, codebook version.
 - Keep full NACE codes in data; truncate to 2 digits only at the CTS-ID mapping step.
 - Never write to CTS. Log every lookup (identifier, timestamp, user) — never its content.
 - Prompts carry only public facts: issuer name, web description, register facts, codebook
@@ -132,6 +142,10 @@ codebook shows whenever the model is off or declines — typically ESA when the 
 say who owns the issuer (the control axis, Q7): Deutsche Bank by ISIN alone gets the rules' tied
 bank family, and a one-line popis stating the ownership lets the model pick.
 
+Czech (resident) issuers take their codes from RES since PR #26 (2 Oct 2026; not merged or
+deployed when written): on the 15 resident golden cases the proposal with the model off is the
+brief's code in 15 of 15 (the ING branch as the tie it must be).
+
 Figures are **provisional** (no case is `verified_by`-confirmed) and must not be quoted as
 accuracy. Next steps are `docs/ROADMAP.md` §0: a signed-in production lookup confirming the
 database rows and FIRDS answering from Vercel. No Vercel Pro; nothing can be checked in CTS (Jakub,
@@ -192,7 +206,8 @@ database rows and FIRDS answering from Vercel. No Vercel Pro; nothing can be che
     Shell International Finance, iShares, Bavarian Sky. `tests/conftest.py` sets
     `FIRDS_ENABLED=false`; the golden replay passes `firds=lambda isin: None`.
   * `source` names the registers that answered, even when the answer was "nothing", then `WEB`.
-    Egress needed: `api.gleif.org`, `api.openfigi.com` (443).
+    Egress needed: `api.gleif.org`, `api.openfigi.com`, and `ares.gov.cz` for Czech
+    issuers (443).
 - **Web evidence** (`web.py`): the scraping ban is **enforced** by `BLOCKED_HOSTS`/`is_blocked()`,
   checked when filtering hits and again inside the fetcher. A typed description is authoritative
   and stays first, but the web is still consulted (30 Sept 2026, Jakub: always look at the web):
@@ -262,6 +277,30 @@ database rows and FIRDS answering from Vercel. No Vercel Pro; nothing can be che
   the control variant (Q7). A LEI on no list is stated as absent (with the lists' date), never
   decided; an empty table states nothing; a database failure is a note. Needs `DATABASE_URL`
   (`ECB_ENABLED`). The `source` column is unchanged; the citation is in the evidence list.
+- **Czech (resident) issuers** (`ares.py`, `residents.py`, `res_esa.py`; 2 Oct 2026): resident =
+  GLEIF's legal seat CZ, or (no LEI record) an IČO typed - the register's seat, never the ISIN
+  prefix. The IČO is GLEIF's `registeredAs` (CZ + 8 digits, whatever the `registeredAt`), else
+  the typed one; an IČO alone is asked in GLEIF too (`filter[entity.registeredAs]`), for the LEI
+  the ECB lists key on. RES (`GET ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty-
+  res/{ico}`, keyless, ~0.1 s) gives `czNacePrevazujici` (else the 2008 code, with a note),
+  `institucionalniSektor2010`, `pravniForma`, `obchodniJmeno` (the name shown) and
+  `datumAktualizace` ("stav k"). `ARES_ENABLED`, 5 s x 2 attempts (no Vercel variable needed).
+  * NACE: the division of RES's code is a register candidate at a fixed `RES_SCORE` (100); the
+    full code stays in the reason. No rule for a division CTS lacks (45) or without a code.
+  * ESA: `res_esa.py` maps the ČSÚ sector to the BA0036 resident code - BA0036 codes only, its
+    53 targets are the 53 resident leaves, a miss is `W_RES_ESA_TARGET_MISSING`. S.122: legal
+    form 205 = cooperative, an ECB MFI credit institution = bank, else (lists read for the
+    LEI) another deposit-taker; S.125: the ECB FVC list = securitisation, NACE 64.91/64.92 =
+    lender. Otherwise the possible codes **tie** at RES's control digit and the shortlist is
+    only them (`EsaCandidateFilter.only`). Never decided from the name.
+  * An axis RES settles is **not sent to the model**; a tie goes to it with only the tied
+    codes. A resident's ESA shortlist comes from the resident block. RES wins over the model
+    and GLEIF categories; notes say what RES could not settle, and when an ECB list files the
+    issuer elsewhere (ČEB and NRB credit institutions, EGAP an insurer; RES: 13110).
+  * 404 = "RES nemá záznam" (ARES lags ČSÚ ~3 weeks and drops dissolved subjects); an outage
+    is a note, never a 404. A Czech fund has no IČO (`RA999999`): resident, no RES.
+  * No ARES name search yet: a Czech name GLEIF cannot match gets "zadejte IČO".
+    `tests/conftest.py` sets `ARES_ENABLED=false`; the golden residents replay a recording.
 - **Candidate pre-filter** (`candidates.py`): narrows to ~12 per codebook, each already carrying
   its CTS ID, so a returned code cannot be one CTS does not know. It optimises **recall**: a code
   the filter omits is one the model can never return. Mechanisms: the reviewable keyword table
@@ -469,4 +508,5 @@ database rows and FIRDS answering from Vercel. No Vercel Pro; nothing can be che
   also makes the daily budget unenforceable, and it fails closed.
 - **Not yet built**: `classify/rules.py` (E4's full rule table over register facts; until then
   those facts reach the pre-filter as words in the fact sheet). `tests/fixtures` holds only a
-  README. The step 5 RES → CTS mapping left with Tool 2.
+  README. The step 5 RES → CTS mapping, which left with Tool 2, is back for resident issuers
+  (`res_esa.py`, `residents.py`, 2 Oct 2026).

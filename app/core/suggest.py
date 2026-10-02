@@ -3,7 +3,8 @@
 The pipeline the brief describes, in one place so the API, the UI and a CLI all get the same
 behaviour:
 
-    input -> identity (GLEIF, OpenFIGI) -> evidence (typed, Wikipedia, the model's web search)
+    input -> identity (GLEIF, OpenFIGI; RES for a Czech issuer)
+          -> evidence (typed, Wikipedia, the model's web search)
           -> shortlist per codebook -> classifier -> suggestions
 
 The identity step is what makes an ISIN a useful input on its own. GLEIF turns it into the
@@ -13,6 +14,12 @@ query and the name on the page; the facts go to the pre-filter and the model nex
 web description, so a bank is a bank because the register says so, not because the model
 recognised the name. The web is looked at on every lookup (30 Sept 2026): Wikipedia by LEI
 or name, then the model's own web search (:mod:`core.sources.llm_web`) when a model is on.
+
+A Czech (resident) issuer - GLEIF's seat CZ, or an IČO typed into the name field - takes its
+codes from RES (2 Oct 2026, :mod:`core.classify.residents`): RES's prevailing activity settles
+NACE, its institutional sector the BA0036 resident code, and an axis RES settles is not sent to
+the model at all. A RES tie (the institution type RES does not record) goes to the model with
+only the tied codes; the ESA shortlist of a resident comes from the resident block.
 
 What the pipeline deliberately does **not** do is fail. Every step degrades: a malformed ISIN
 becomes a note, a register that cannot be asked becomes a note, an issuer the web cannot
@@ -24,16 +31,20 @@ issuer themselves - which they can only do if they can see that the tool did not
 from __future__ import annotations
 
 import logging
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Final
 
 from core.classify.candidates import DEFAULT_LIMIT, EsaCandidateFilter, NaceCandidateFilter
 from core.classify.llm import LlmClassifier
-from core.classify.models import ESA, NACE, CandidateSet, Classification
+from core.classify.models import ESA, NACE, CandidateSet, Classification, Kind
 from core.classify.proposal import Proposal, propose
+from core.classify.residents import NO_RULES, resident_rules
 from core.codebooks.models import CodebookSet
+from core.identifiers.ico import ico_checksum_ok
 from core.identifiers.isin import InvalidIsinError, normalize_isin
 from core.sources.identity import NO_IDENTITY, IssuerIdentifier, IssuerIdentity
 from core.sources.llm_web import LlmWebSearch
@@ -42,19 +53,30 @@ from core.sources.web import EvidenceSource, IssuerEvidence, WebEvidenceGatherer
 
 LOGGER = logging.getLogger(__name__)
 
+#: A name field holding only digits (spaces allowed), 1 to 8 of them, is an IČO (2 Oct 2026).
+_ICO_INPUT: Final[re.Pattern[str]] = re.compile(r"[0-9 ]+")
+_ICO_DIGITS: Final[re.Pattern[str]] = re.compile(r"[0-9]{1,8}")
+
 
 @dataclass(frozen=True, slots=True)
 class SuggestionRequest:
-    """What the user asked for. At least one field must be filled."""
+    """What the user asked for. At least one field must be filled.
+
+    ``ico`` is a Czech issuer's IČO. The page has no field of its own for it: digits typed
+    into the name field are one (:meth:`cleaned`); the JSON API may also send it as ``ico``.
+    """
 
     isin: str | None = None
     name: str | None = None
     description: str | None = None
+    ico: str | None = None
 
     @property
     def is_empty(self) -> bool:
         return not any((self.isin or "").strip() for _ in (1,)) and not (
-            (self.name or "").strip() or (self.description or "").strip()
+            (self.name or "").strip()
+            or (self.description or "").strip()
+            or (self.ico or "").strip()
         )
 
     def cleaned(self) -> tuple[SuggestionRequest, tuple[str, ...]]:
@@ -68,16 +90,24 @@ class SuggestionRequest:
         isin = (self.isin or "").strip() or None
         name = " ".join((self.name or "").split()) or None
         description = (self.description or "").strip() or None
+        typed_ico = " ".join((self.ico or "").split()) or None
+        if typed_ico is None and name is not None and _is_ico_input(name):
+            # Digits in the name field are an IČO: a Czech issuer, answered from RES.
+            typed_ico, name = name, None
+        ico = _clean_ico(typed_ico, notes) if typed_ico is not None else None
 
         if isin is not None:
             try:
                 isin = normalize_isin(isin)
             except InvalidIsinError as exc:
                 notes.append(f"ISIN {isin!r} nevypadá jako platný ISIN ({exc.reason})")
-                if not (name or description):
-                    notes.append("bez názvu nebo popisu nelze pokračovat")
+                if not (name or description or ico):
+                    notes.append("bez názvu, IČO nebo popisu nelze pokračovat")
                 isin = None
-        return SuggestionRequest(isin=isin, name=name, description=description), tuple(notes)
+        return (
+            SuggestionRequest(isin=isin, name=name, description=description, ico=ico),
+            tuple(notes),
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +125,8 @@ class IssuerSuggestion:
     notes: tuple[str, ...] = field(default=())
     identity: IssuerIdentity = NO_IDENTITY
     warnings: tuple[str, ...] = field(default=())
+    rule_notes: tuple[str, ...] = field(default=())
+    settled_by_res: tuple[Kind, ...] = field(default=())
 
     @property
     def issuer_name(self) -> str | None:
@@ -114,6 +146,11 @@ class IssuerSuggestion:
     @property
     def description(self) -> str | None:
         return self.evidence.description
+
+    @property
+    def resident(self) -> bool:
+        """A Czech issuer (GLEIF's seat CZ, or an IČO typed): its codes are RES's."""
+        return self.identity.resident
 
     @property
     def classifier_text(self) -> str:
@@ -143,6 +180,11 @@ class IssuerSuggestion:
         return bool(self.nace.suggestions or self.esa.suggestions)
 
     @property
+    def settled(self) -> bool:
+        """True when a code came from somewhere: the model, or RES for a resident issuer."""
+        return self.answered or bool(self.settled_by_res)
+
+    @property
     def nace_proposal(self) -> Proposal | None:
         """The proposed NACE code ("navrhovaný kód"): the model's pick, else a rule's."""
         return propose(self.nace, self.nace_candidates)
@@ -159,6 +201,7 @@ class IssuerSuggestion:
             *self.warnings,
             *self.notes,
             *self.identity.notes,
+            *self.rule_notes,
             *self.evidence.notes,
         ]
         for classification in (self.nace, self.esa):
@@ -196,6 +239,7 @@ class SuggestionService:
         self._clock = clock
         self._nace = NaceCandidateFilter(codebooks)
         self._esa = EsaCandidateFilter(codebooks)
+        self._esa_resident = EsaCandidateFilter(codebooks, resident=True)
 
     @property
     def codebooks(self) -> CodebookSet:
@@ -212,7 +256,7 @@ class SuggestionService:
         cleaned, notes = request.cleaned()
 
         identity = (
-            self._identifier.identify(cleaned.isin, name=cleaned.name)
+            self._identifier.identify(cleaned.isin, name=cleaned.name, ico=cleaned.ico)
             if self._identifier is not None
             else NO_IDENTITY
         )
@@ -230,7 +274,11 @@ class SuggestionService:
             # whatever was typed or found on Wikipedia, and its finding follows theirs.
             evidence = self._web_search.enrich(
                 evidence,
-                name=identity.lei_record.legal_name if identity.lei_record else cleaned.name,
+                name=(
+                    identity.lei_record.legal_name
+                    if identity.lei_record
+                    else cleaned.name or identity.legal_name
+                ),
                 isin=cleaned.isin,
                 lei=identity.lei,
                 country=identity.country,
@@ -241,14 +289,30 @@ class SuggestionService:
         issuer_name = issuer_name_of(cleaned, identity, evidence)
         text = "\n\n".join(part for part in (evidence.description, identity.fact_sheet()) if part)
 
-        nace_candidates = self._nace.shortlist(text, limit=self._limit)
-        esa_candidates = self._esa.shortlist(text, limit=self._limit)
-        nace, esa = self._classifier.classify_both(
-            nace_candidates,
-            esa_candidates,
-            issuer_name=issuer_name,
-            description=text,
-            deadline=deadline,
+        # A resident's codes come from RES; an axis it settles is not asked of the model.
+        rules = resident_rules(identity, self._codebooks) if identity.resident else NO_RULES
+        nace_candidates = self._nace.shortlist(text, limit=self._limit, settled=rules.nace)
+        if not identity.resident:
+            esa_candidates = self._esa.shortlist(text, limit=self._limit)
+        elif rules.esa_tied:
+            esa_candidates = self._esa_resident.only(rules.esa)
+        else:
+            esa_candidates = self._esa_resident.shortlist(
+                text, limit=self._limit, settled=rules.esa
+            )
+        nace = (
+            _not_asked(NACE, nace_candidates)
+            if rules.nace_settled
+            else self._classifier.classify(
+                nace_candidates, issuer_name=issuer_name, description=text, deadline=deadline
+            )
+        )
+        esa = (
+            _not_asked(ESA, esa_candidates)
+            if rules.esa_settled
+            else self._classifier.classify(
+                esa_candidates, issuer_name=issuer_name, description=text, deadline=deadline
+            )
         )
 
         return IssuerSuggestion(
@@ -263,6 +327,12 @@ class SuggestionService:
             notes=notes,
             identity=identity,
             warnings=_input_warnings(cleaned, identity),
+            rule_notes=rules.notes,
+            settled_by_res=tuple(
+                kind
+                for kind, settled in ((NACE, rules.nace_settled), (ESA, rules.esa_settled))
+                if settled
+            ),
         )
 
 
@@ -297,13 +367,16 @@ def issuer_name_of(
 ) -> str | None:
     """The issuer's name as found, not as typed (Jakub, 30 Sept 2026: "find the issuer's name").
 
-    GLEIF's legal name first; then the official name the model's web search found; then what
-    the user typed; then OpenFIGI's market name and a web page's title. Until 30 Sept 2026 the
-    typed name came first, so "adidas" was exported where GLEIF says "adidas AG".
+    For a resident issuer RES's ``obchodniJmeno`` (2 Oct 2026); then GLEIF's legal name; then
+    the official name the model's web search found; then what the user typed; then OpenFIGI's
+    market name and a web page's title. Until 30 Sept 2026 the typed name came first, so
+    "adidas" was exported where GLEIF says "adidas AG".
     """
     record = identity.lei_record
+    res = identity.res_record
     return (
-        (record.legal_name if record is not None else None)
+        (res.name if res is not None else None)
+        or (record.legal_name if record is not None else None)
         or evidence.found_name
         or request.name
         or identity.legal_name
@@ -312,25 +385,18 @@ def issuer_name_of(
 
 
 def _input_warnings(request: SuggestionRequest, identity: IssuerIdentity) -> tuple[str, ...]:
-    """A typed name that does not fit the ISIN's issuer: one of the two inputs is wrong."""
+    """Residency that could not be settled, and a typed name that does not fit the ISIN."""
     from core.sources.names import names_agree
 
     record = identity.lei_record
-    resident = [
-        f"Emitent je podle {where} rezident ČR – nástroj je určen pro zahraniční emitenty a nabízí "
-        "jen nerezidentské kódy ESA. Kód pro rezidenta ověřte zvlášť."
-        for where, country in (
-            ("GLEIF", identity.country),
-            ("ISIN", (request.isin or "")[:2] if not identity.country else None),
-        )
-        if country == "CZ"
-    ][:1]
+    resident = _residency_warnings(request, identity)
     if not (request.isin and request.name and identity.legal_name):
         return tuple(resident)
     known = (
         identity.legal_name,
         *(record.other_names if record else ()),
         identity.instrument.name if identity.instrument else None,
+        identity.res_record.name if identity.res_record else None,
     )
     if names_agree(request.name, *known):
         return tuple(resident)
@@ -339,6 +405,60 @@ def _input_warnings(request: SuggestionRequest, identity: IssuerIdentity) -> tup
         f"Zadaný název „{request.name}“ neodpovídá emitentovi ISIN {request.isin} "
         f"(podle registru „{identity.legal_name}“). Zkontrolujte ISIN i název – výsledek "
         "vychází z ISIN.",
+    )
+
+
+def _residency_warnings(request: SuggestionRequest, identity: IssuerIdentity) -> list[str]:
+    """A resident whose codes RES could not give, or a CZ ISIN no register could place.
+
+    None when RES answered: then the codes are RES's and the page says so on each code.
+    """
+    if identity.resident:
+        if identity.res_record is not None:
+            return []
+        why = "zadané IČO" if identity.lei_record is None else "sídlo podle GLEIF"
+        return [
+            f"Emitent je rezident ČR ({why}), ale kódy z RES převzít nešlo – důvod je v "
+            "poznámkách. Návrh vychází z rezidentských kódů ESA; ověřte ho."
+        ]
+    if identity.lei_record is None and (request.isin or "").startswith("CZ"):
+        return [
+            "ISIN má kód země CZ, ale registry emitenta nedohledaly, takže nelze ověřit, zda je "
+            "rezident ČR – návrh počítá s nerezidentem. Českého emitenta zadejte jeho IČO."
+        ]
+    return []
+
+
+def _is_ico_input(name: str) -> bool:
+    """Digits and spaces only, 1 to 8 digits: an IČO typed into the name field."""
+    return bool(_ICO_INPUT.fullmatch(name)) and bool(_ICO_DIGITS.fullmatch(name.replace(" ", "")))
+
+
+def _clean_ico(typed: str, notes: list[str]) -> str | None:
+    """The 8-digit IČO, zero-padded; a failed mod-11 check is a note, not a refusal.
+
+    Some historic IČOs fail the check, so the register is asked anyway.
+    """
+    digits = typed.replace(" ", "")
+    if not _ICO_DIGITS.fullmatch(digits):
+        notes.append(f"„{typed}“ nevypadá jako IČO (1 až 8 číslic)")
+        return None
+    ico = digits.zfill(8)
+    if not ico_checksum_ok(ico):
+        notes.append(
+            f"IČO {ico} nemá platnou kontrolní číslici (modulo 11) – v registrech ho hledám "
+            "přesto, ověřte ho"
+        )
+    return ico
+
+
+def _not_asked(kind: Kind, candidates: CandidateSet) -> Classification:
+    """An axis RES settled: no model call was made, so no suggestion and no reason to state."""
+    return Classification(
+        kind=kind,
+        abstained=True,
+        candidates_considered=len(candidates),
+        classified_at=datetime.now(UTC),
     )
 
 

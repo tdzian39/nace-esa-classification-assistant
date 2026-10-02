@@ -19,6 +19,10 @@ limit 60 requests/minute):
   legal name (verified 2026-09-29: "adidas" -> 31 records, adidas AG first, then
   subsidiaries; "Adidas AG" -> adidas AG and adidas International Trading AG).
 * ``GET /lei-records/{lei}`` - one record; 404 for an unknown LEI.
+* ``GET /lei-records?filter[entity.registeredAs]=45317054&filter[entity.legalAddress.country]=CZ``
+  - the Czech entity registered under an IČO (verified 2026-10-02: Komerční banka,
+  Raiffeisenbank, Fio banka, Artesa, ČSOB Leasing and the Ministry of Finance give one record
+  each; the Prague branch of ING Bank N.V., IČO 49279866, none - a branch has no LEI).
 * ``GET /lei-records/{lei}/direct-parent`` and ``.../ultimate-parent`` - the parent's own
   LEI record (BMW Finance N.V. -> Bayerische Motoren Werke AG, DE), or **404** when none is
   reported. Then ``.../direct-parent-reporting-exception`` explains why (Deutsche Bank AG:
@@ -26,7 +30,14 @@ limit 60 requests/minute):
 
 Field paths read: ``attributes.lei``, ``attributes.entity.{legalName.name, otherNames[].name,
 legalAddress.country, headquartersAddress.country, jurisdiction, category, subCategory,
-legalForm.id, legalForm.other, status}`` and ``attributes.registration.status``.
+legalForm.id, legalForm.other, status, registeredAs, registeredAt.id}`` and
+``attributes.registration.status``.
+
+``registeredAs`` is the entity's number in its business register; for a Czech entity it is the
+IČO (2026-10-02: 598 of 600 sampled CZ LEIs had 8 digits there, filed under RA000163 mostly
+but also RA000164-168, RA000694 and RA000856-858; the other two were podílové fondy under
+RA999999 with ``registeredAs`` empty). :attr:`LeiRecord.ico` therefore keys on the seat and
+the 8 digits, never on the registration authority.
 
 Fail-soft contract, as described in :mod:`core.sources.base`: ``None`` means the register
 does not hold the ISIN or LEI; :class:`~core.sources.base.SourceUnavailableError` means it
@@ -36,6 +47,7 @@ could not be asked. Never collapse the two.
 from __future__ import annotations
 
 import logging
+import re
 import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, replace
@@ -60,6 +72,9 @@ NAME_SEARCH_SIZE: Final[str] = "50"
 
 #: Human-readable record page, the citable form of a LEI (the API URL is JSON).
 RECORD_PAGE: Final[str] = "https://search.gleif.org/#/record/{lei}"
+
+#: A Czech ``registeredAs`` that is an IČO: exactly eight digits.
+_ICO_RE: Final[re.Pattern[str]] = re.compile(r"[0-9]{8}")
 
 #: What GLEIF's entity categories mean, in the words the pre-filter's keyword table already
 #: understands ("investment fund", "government", "supranational", ...). The English tail is
@@ -124,6 +139,9 @@ class LeiRecord:
         direct_parent, ultimate_parent: Level 2 parents, when reported.
         parent_exception: The reason GLEIF gives when no parent is reported.
         provenance: ``GLEIF`` with the retrieval time.
+        registered_as: The entity's number in its business register (``registeredAs``);
+            the IČO for a Czech entity, see :attr:`ico`.
+        registered_at: The GLEIF id of that register (``registeredAt.id``, ``RA000163``).
     """
 
     lei: str
@@ -142,11 +160,25 @@ class LeiRecord:
     direct_parent: ParentEntity | None = None
     ultimate_parent: ParentEntity | None = None
     parent_exception: str | None = None
+    registered_as: str | None = None
+    registered_at: str | None = None
 
     @property
     def country(self) -> str | None:
         """The country to show: legal seat, else headquarters, else jurisdiction."""
         return self.legal_address_country or self.headquarters_country or self.jurisdiction
+
+    @property
+    def ico(self) -> str | None:
+        """The IČO of a Czech entity: ``registeredAs`` when the legal seat is CZ and it is 8 digits.
+
+        Keyed on the seat and the digits, never on the registration authority (see the module
+        docstring); ``None`` for a foreign entity or a Czech one registered without an IČO.
+        """
+        if self.legal_address_country != "CZ" or not self.registered_as:
+            return None
+        number = self.registered_as.strip()
+        return number if _ICO_RE.fullmatch(number) else None
 
     @property
     def url(self) -> str:
@@ -467,6 +499,34 @@ class GleifSource:
             return None
         return self._complete(_parse_record(item, self._now()))
 
+    def find_by_ico(self, ico: str) -> LeiRecord | None:
+        """The one ACTIVE Czech entity GLEIF files under the IČO ``ico``, else ``None``.
+
+        Asked so that an issuer typed by its IČO gets a LEI - the key of the ECB lists, which
+        tell a bank from another deposit-taker - and its GLEIF facts. A record counts only
+        when its own :attr:`LeiRecord.ico` is ``ico``; two ACTIVE ones are a tie and neither
+        is taken. A branch (ING Bank N.V., organizační složka, 49279866) has no LEI of its own.
+        """
+        payload = self._request(
+            "/lei-records",
+            {
+                "filter[entity.registeredAs]": ico,
+                "filter[entity.legalAddress.country]": "CZ",
+                "page[size]": "5",
+            },
+        )
+        now = self._now()
+        active = [
+            record
+            for record in (_parse_record(item, now) for item in _data_list(payload))
+            if record.ico == ico and (record.entity_status or "").upper() == "ACTIVE"
+        ]
+        if len(active) != 1:
+            if active:
+                LOGGER.info("GLEIF: IČO %s is filed under %d LEIs; none taken", ico, len(active))
+            return None
+        return self._complete(active[0])
+
     # -- internals ---------------------------------------------------------------------
 
     def _now(self) -> datetime:
@@ -585,6 +645,8 @@ def _parse_record(item: Mapping[str, Any], retrieved_at: datetime) -> LeiRecord:
             snapshot_at=_parse_datetime(registration.get("lastUpdateDate")),
             detail="gleif:lei-records",
         ),
+        registered_as=_text(entity.get("registeredAs")),
+        registered_at=_text(_mapping(entity.get("registeredAt")).get("id")),
     )
 
 

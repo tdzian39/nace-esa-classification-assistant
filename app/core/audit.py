@@ -83,8 +83,8 @@ class LookupEvent:
     Attributes:
         identifier: What the user asked for, as typed (ISIN, name or the start of a
             description).
-        ico: A normalized Czech company identifier (IČO) when the identifier is one. No
-            Tool 1 lookup sets it; the field is optional and costs nothing.
+        ico: The normalized IČO when the user typed one (a Czech issuer, answered from RES
+            since 2 Oct 2026) - the identifier only, never what RES said.
         user: Requesting user, from :func:`current_user`.
         at: Timezone-aware UTC timestamp of the lookup.
         outcome: See :data:`Outcome`.
